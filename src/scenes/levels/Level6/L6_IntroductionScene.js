@@ -312,7 +312,7 @@ export class L6_IntroductionScene extends Phaser.Scene {
       btn.on('pointerdown', () => {
         this.cameras.main.fadeOut(600, 0, 0, 0);
         this.time.delayedCall(650, () =>
-          this.scene.start('L6_Nursery', { names: this._names, stars: this._stars }));
+          this.scene.start('EndScene'));
       });
     });
   }

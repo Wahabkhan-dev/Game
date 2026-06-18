@@ -82,6 +82,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this._buildObstacles();
     this._buildPlayer();
     this._buildHUD();
+    this._buildProgressBar();
     this._buildControls();
     this._buildRain();
 
@@ -191,6 +192,76 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     pause.on('pointerdown', () => this._togglePause());
   }
 
+  // ── Bottom zone-progress bar (equipment run) ─────────────────────────────
+  // Track from start → 🏠 with a flag at each checkpoint, a fill, and a paw
+  // runner showing how far along the street the player has travelled.
+  _buildProgressBar() {
+    const LEFT = 88, RIGHT = W - 88, BAR_W = RIGHT - LEFT;
+    const TY = H - 12;
+    this._pbLeft  = LEFT;
+    this._pbWidth = BAR_W;
+
+    // Checkpoint completion positions along the world (last item of each CP)
+    this._pbMarkerDefs = [
+      { x: 3200, doneKey: '_cp1Done' },
+      { x: 7200, doneKey: '_cp2Done' },
+      { x: 9200, doneKey: '_cp3Done' },
+    ];
+
+    // Track shell (dark rounded panel) + groove
+    const shell = this.add.graphics().setScrollFactor(0).setDepth(46);
+    shell.fillStyle(0x000000, 0.34); shell.fillRoundedRect(LEFT - 10, TY - 7, BAR_W + 20, 12, 6);
+    shell.fillStyle(0x141c28, 0.92); shell.fillRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
+    shell.lineStyle(1.5, 0x4a6080, 0.8); shell.strokeRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
+
+    // Blue fill (grows with progress)
+    this._pbFill = this.add.rectangle(LEFT, TY - 1, 2, 5, 0x5ab0f5, 1)
+      .setScrollFactor(0).setDepth(47).setOrigin(0, 0.5);
+
+    // Checkpoint flag markers
+    this._pbMarkers = this._pbMarkerDefs.map(def => {
+      const bx = LEFT + (def.x / WORLD_W) * BAR_W;
+      const g = this.add.graphics().setScrollFactor(0).setDepth(48);
+      this._drawPbFlag(g, bx, TY, false);
+      return { g, bx, def, _lit: false };
+    });
+
+    // Finish flag at the end
+    const fx = LEFT + BAR_W;
+    const fin = this.add.graphics().setScrollFactor(0).setDepth(48);
+    fin.fillStyle(0x8a7050, 1); fin.fillRect(fx - 1, TY - 22, 2, 18);
+    fin.fillStyle(0xFFFFFF, 1); fin.fillRect(fx + 1, TY - 22, 9, 6);
+    fin.fillStyle(0x222222, 1);
+    fin.fillRect(fx + 1, TY - 22, 3, 3); fin.fillRect(fx + 7, TY - 22, 3, 3);
+    fin.fillRect(fx + 4, TY - 19, 3, 3);
+
+    // Paw runner that travels along the bar
+    this._pbRunner = this.add.text(LEFT, TY - 8, '🐾', { fontSize: '13px' })
+      .setScrollFactor(0).setDepth(49).setOrigin(0.5, 1);
+  }
+
+  // Checkpoint flag on the progress track (blue=pending, cyan=cleared).
+  _drawPbFlag(g, bx, ty, reached) {
+    g.clear();
+    g.fillStyle(0x8a7050, 1); g.fillRect(bx - 1, ty - 20, 2, 16);
+    g.fillStyle(reached ? 0x66E0A0 : 0x4a6080, 1);
+    g.fillTriangle(bx + 1, ty - 20, bx + 13, ty - 16, bx + 1, ty - 11);
+    if (reached) { g.fillStyle(0xCFFFE0, 0.9); g.fillCircle(bx + 5, ty - 16, 1.6); }
+  }
+
+  _updateProgressBar() {
+    if (!this._pbFill) return;
+    const pct = Phaser.Math.Clamp(this.player.x / WORLD_W, 0, 1);
+    this._pbFill.width = Math.max(2, pct * this._pbWidth);
+    this._pbRunner.x   = this._pbLeft + pct * this._pbWidth;
+    this._pbMarkers.forEach(m => {
+      if (!m._lit && this[m.def.doneKey]) {
+        m._lit = true;
+        this._drawPbFlag(m.g, m.bx, H - 12, true);
+      }
+    });
+  }
+
   _buildControls() {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('A,D,W,SPACE');
@@ -227,6 +298,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this._checkObstacles(onGround);
     this._checkBalls();
     this._checkHome();
+    this._updateProgressBar();
     this._updateRain();
   }
 

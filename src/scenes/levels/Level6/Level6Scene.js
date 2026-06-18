@@ -10,9 +10,9 @@ const WORLD_W   = 13000;
 const GROUND_Y  = 408;
 const RUN_SPEED = 230;
 const JUMP_V    = -440;
-// Ground obstacles sit flush with the surface top edge. Surface is now ~8px
-// above GROUND_Y, so obstacles render at GROUND_Y to align perfectly.
-const OBS_BASE_DROP = 0;
+// Obstacles sit flush on the stone path section of the surface image.
+// OBS_BASE_DROP shifts obstacle bases below GROUND_Y to match visual character feet.
+const OBS_BASE_DROP = 18;
 
 const TOKENS = [
   { name: 'Tahoe',    x: 900,   mini: null },
@@ -113,6 +113,7 @@ export class Level6Scene extends Phaser.Scene {
     this._buildObstacles();
     this._buildPlayer();
     this._buildHUD();
+    this._buildProgressBar();
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys    = this.input.keyboard.addKeys('A,D,W,S,SPACE');
@@ -178,8 +179,9 @@ export class Level6Scene extends Phaser.Scene {
     this._ground = floor;
 
     // ── Surface image as screen-locked tileSprite ─────────────────────────
-    // Surface sits lower on screen (more of it visible). Grass edge at GROUND_Y.
-    const surfaceY  = GROUND_Y - 8;              // surface top (grass edge) sits here
+    // Surface positioned so stone path aligns with character's standing level
+    // and obstacles sit on the same level as the character's feet.
+    const surfaceY  = GROUND_Y - 65;             // surface top (grass) sits higher up
     const surfaceH  = H - surfaceY;              // fills remainder of screen
 
     if (this.textures.exists('l6_surface')) {
@@ -351,7 +353,7 @@ export class Level6Scene extends Phaser.Scene {
       this.anims.create({ key: 'l6_jump', frames: [{ key: jk  }], frameRate: 1, repeat: -1 });
     }
     this.player.play('l6_idle');
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08, 0, -60);
   }
 
   _buildHUD() {
@@ -465,6 +467,70 @@ export class Level6Scene extends Phaser.Scene {
     if (active) { g.fillStyle(0xCFFFCF, 0.6); g.fillCircle(20.5 + i * 22, 42.5, 1.5); }
   }
 
+  // ── Bottom zone-progress bar (running part only) ─────────────────────────
+  // Mirrors the Level 1/2 progress UI: a track from start → 🏁 with checkpoint
+  // flag markers, a green fill, and a paw runner showing how far along you are.
+  _buildProgressBar() {
+    const LEFT = 88, RIGHT = W - 88, BAR_W = RIGHT - LEFT;
+    const TY = H - 12;
+    this._pbLeft  = LEFT;
+    this._pbWidth = BAR_W;
+
+    // Track shell (dark rounded panel) + inner groove
+    const shell = this.add.graphics().setScrollFactor(0).setDepth(46);
+    shell.fillStyle(0x000000, 0.32); shell.fillRoundedRect(LEFT - 10, TY - 7, BAR_W + 20, 12, 6);
+    shell.fillStyle(0x2a1709, 0.92); shell.fillRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
+    shell.lineStyle(1.5, 0xFFD700, 0.7); shell.strokeRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
+
+    // Green fill (grows with progress)
+    this._pbFill = this.add.rectangle(LEFT, TY - 1, 2, 5, 0x6BE06B, 1)
+      .setScrollFactor(0).setDepth(47).setOrigin(0, 0.5);
+
+    // Checkpoint flag markers along the bar
+    this._pbMarkers = this._checkpoints.map(cp => {
+      const bx = LEFT + (cp.x / WORLD_W) * BAR_W;
+      const g = this.add.graphics().setScrollFactor(0).setDepth(48);
+      this._drawPbFlag(g, bx, TY, false);
+      return { g, bx, cp };
+    });
+
+    // Finish flag at the end
+    const fx = LEFT + BAR_W;
+    const fin = this.add.graphics().setScrollFactor(0).setDepth(48);
+    fin.fillStyle(0x8B5E3C, 1); fin.fillRect(fx - 1, TY - 22, 2, 18);
+    fin.fillStyle(0xFFFFFF, 1); fin.fillRect(fx + 1, TY - 22, 9, 6);
+    fin.fillStyle(0x222222, 1);
+    fin.fillRect(fx + 1, TY - 22, 3, 3); fin.fillRect(fx + 7, TY - 22, 3, 3);
+    fin.fillRect(fx + 4, TY - 19, 3, 3);
+
+    // Paw runner that travels along the bar
+    this._pbRunner = this.add.text(LEFT, TY - 8, '🐾', { fontSize: '13px' })
+      .setScrollFactor(0).setDepth(49).setOrigin(0.5, 1);
+  }
+
+  // Small checkpoint flag on the progress track (green=pending, gold=reached).
+  _drawPbFlag(g, bx, ty, reached) {
+    g.clear();
+    g.fillStyle(0x8B5E3C, 1); g.fillRect(bx - 1, ty - 20, 2, 16);
+    g.fillStyle(reached ? 0xFFC926 : 0x4CAF50, 1);
+    g.fillTriangle(bx + 1, ty - 20, bx + 13, ty - 16, bx + 1, ty - 11);
+    if (reached) { g.fillStyle(0xFFF3C0, 0.9); g.fillCircle(bx + 5, ty - 16, 1.6); }
+  }
+
+  _updateProgressBar() {
+    if (!this._pbFill) return;
+    const pct = Phaser.Math.Clamp(this.player.x / WORLD_W, 0, 1);
+    this._pbFill.width   = Math.max(2, pct * this._pbWidth);
+    this._pbRunner.x     = this._pbLeft + pct * this._pbWidth;
+    // Light up markers the player has passed
+    this._pbMarkers.forEach(m => {
+      if (m.cp.reached && !m._lit) {
+        m._lit = true;
+        this._drawPbFlag(m.g, m.bx, H - 12, true);
+      }
+    });
+  }
+
   // ── MAIN LOOP ────────────────────────────────────────────────────────────
   update() {
     if (this._done || this._paused || this._miniActive) return;
@@ -531,6 +597,7 @@ export class Level6Scene extends Phaser.Scene {
     this._checkObstacles(onGround);
     this._checkRollers();
     this._checkCheckpoints();
+    this._updateProgressBar();
     this._checkEnd();
   }
 
