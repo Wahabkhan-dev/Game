@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(start \"http://localhost:3002\")",
+      "PowerShell(Start-Process \"http://localhost:3002\")",
+      "Bash(curl -s http://localhost:3002)",
+      "Bash(Start-Sleep -Seconds 5)",
+      "Bash(Write-Output \"Dev server check\")",
+      "PowerShell(Start-Process \"http://localhost:3001\" -ErrorAction SilentlyContinue)",
+      "Bash(curl -s http://localhost:3001)",
+      "Bash(node --check src/scenes/levels/Level6/Level6Scene.js)",
+      "Bash(node --check src/scenes/levels/Level6/L6_NamingCeremonyScene.js)",
+      "Bash(node --check src/scenes/levels/Level6/L6_IntroductionScene.js)",
+      "Bash(npx vite *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(awk '{print $5, $9}')",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue | Select-Object Id, @{N='CPU\\(s\\)';E={[math]::Round\\($_.CPU,1\\)}}, @{N='Mem\\(MB\\)';E={[math]::Round\\($_.WorkingSet/1MB,0\\)}}, StartTime | Sort-Object 'CPU\\(s\\)' -Descending | Format-Table -AutoSize)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId, @{N='Start';E={$_.CreationDate}}, @{N='Cmd';E={ if\\($_.CommandLine\\){$_.CommandLine.Substring\\(0,[Math]::Min\\(110,$_.CommandLine.Length\\)\\)}else{'?'} }} | Format-Table -AutoSize -Wrap)",
+      "PowerShell(\"Ports owned by 22116:\"; Get-NetTCPConnection -State Listen -OwningProcess 22116 -ErrorAction SilentlyContinue | Select-Object LocalPort | Format-Table -AutoSize; \"All node listeners:\"; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { \\(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue\\).ProcessName -eq 'node' } | Select-Object LocalPort, OwningProcess | Format-Table -AutoSize)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/)"
+    ]
+  }
+}
