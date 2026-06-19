@@ -133,6 +133,11 @@ export class Level6Scene extends Phaser.Scene {
       const sb = document.getElementById('btn-slide');
       if (sb) sb.style.display = 'none';
       if (window._touchState) window._touchState.slide = false;
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+      this._fallingIntoPit = false;
+      this._hearts = null;
+      this._hpPips = null;
     });
 
     this.time.delayedCall(700, () => this._toast('🐾 Collect 7 puppy names to start the ceremony!'));
@@ -991,9 +996,9 @@ export class Level6Scene extends Phaser.Scene {
 
     // Direct life loss — skip HP
     this._lives--;
-    this._hearts.forEach((h, i) => this._drawHeart(h, 22 + i * 22, 26, 7, i < this._lives));
+    if (this._hearts) this._hearts.forEach((h, i) => this._drawHeart(h, 22 + i * 22, 26, 7, i < this._lives));
     this._hp = 3;
-    this._hpPips.forEach((p, i) => this._drawPip(p, i, true));
+    if (this._hpPips) this._hpPips.forEach((p, i) => this._drawPip(p, i, true));
     this._toast('💧 Fell in a pit!');
     this.cameras.main.shake(200, 0.012);
 
@@ -1024,16 +1029,16 @@ export class Level6Scene extends Phaser.Scene {
     if (this._damageCD) return;
     this._damageCD = true;
     this._hp--;
-    this._hpPips.forEach((p, i) => this._drawPip(p, i, i < this._hp));
+    if (this._hpPips) this._hpPips.forEach((p, i) => this._drawPip(p, i, i < this._hp));
     this.cameras.main.shake(160, 0.01);
     this.tweens.add({ targets: this.player, alpha: 0.3, duration: 90, yoyo: true, repeat: 4,
-      onComplete: () => this.player.setAlpha(1) });
+      onComplete: () => this.player && this.player.setAlpha(1) });
 
     if (this._hp <= 0) {
       this._hp = 3;
       this._lives--;
-      this._hearts.forEach((h, i) => this._drawHeart(h, 22 + i * 22, 26, 7, i < this._lives));
-      this._hpPips.forEach((p, i) => this._drawPip(p, i, true));
+      if (this._hearts) this._hearts.forEach((h, i) => this._drawHeart(h, 22 + i * 22, 26, 7, i < this._lives));
+      if (this._hpPips) this._hpPips.forEach((p, i) => this._drawPip(p, i, true));
       if (this._lives <= 0) {
         this._toast('💔 Game Over! Restarting…');
         this.time.delayedCall(1100, () => {

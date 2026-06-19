@@ -267,7 +267,12 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('A,D,W,SPACE');
     const footer = document.getElementById('game-footer');
     if (footer) footer.style.display = 'flex';
-    this.events.once('shutdown', () => { const f = document.getElementById('game-footer'); if (f) f.style.display = 'none'; });
+    this.events.once('shutdown', () => {
+      const f = document.getElementById('game-footer');
+      if (f) f.style.display = 'none';
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+    });
   }
 
   update(time, delta) {

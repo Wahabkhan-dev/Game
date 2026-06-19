@@ -83,6 +83,13 @@ export class Level5Scene extends Phaser.Scene {
     this._roomDecors = [];   // persistent decor added after each task
     this._pupCount = 0;
     this._bktSlots = [];
+    this._progressInterval = null;
+
+    this.events.once('shutdown', () => {
+      if (this._progressInterval) { clearInterval(this._progressInterval); this._progressInterval = null; }
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+    });
     // maps both task IDs (heart/water/...) and prop names to texture keys
     this._propTextures = {
       heart:'stethoscope', water:'water_bowl', towels:'towels', blanket:'blanket', lamp:'lamp', nursery:'nursery',
@@ -688,10 +695,9 @@ export class Level5Scene extends Phaser.Scene {
     chestHit.on('pointerout', () => { isRubbing = false; });
 
     // Stabilization progress loop
-    let progressInterval;
     const startStabilization = () => {
-      if (progressInterval) return;
-      progressInterval = setInterval(() => {
+      if (this._progressInterval) return;
+      this._progressInterval = setInterval(() => {
         if (isRubbing && stabilized < 100) {
           stabilized += 3.3; // 3% per ~100ms = 100% in ~3 seconds
           if (stabilized > 100) stabilized = 100;
@@ -701,7 +707,8 @@ export class Level5Scene extends Phaser.Scene {
 
           // When fully stabilized
           if (stabilized >= 100) {
-            clearInterval(progressInterval);
+            clearInterval(this._progressInterval);
+            this._progressInterval = null;
             stabText.setText('Stabilized!').setColor('#44DD88');
             percText.setColor('#44DD88').setText('100%');
             heartIcon.setText('💚');
