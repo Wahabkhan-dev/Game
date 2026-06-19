@@ -49,6 +49,13 @@ import { Level6Scene }          from './scenes/levels/Level6/Level6Scene.js';
 import { L6_NamingCeremonyScene } from './scenes/levels/Level6/L6_NamingCeremonyScene.js';
 import { L6_IntroductionScene } from './scenes/levels/Level6/L6_IntroductionScene.js';
 import { L6_NurseryScene }      from './scenes/levels/Level6/L6_NurseryScene.js';
+// Level 7 — Emergency Journey (5 story-driven stages)
+import { L7_CutsceneScene } from './scenes/levels/Level7/L7_CutsceneScene.js';
+import { L7_Stage1Scene }   from './scenes/levels/Level7/L7_Stage1Scene.js';
+import { L7_Stage2Scene }   from './scenes/levels/Level7/L7_Stage2Scene.js';
+import { L7_Stage3Scene }   from './scenes/levels/Level7/L7_Stage3Scene.js';
+import { L7_Stage4Scene }   from './scenes/levels/Level7/L7_Stage4Scene.js';
+import { L7_Stage5Scene }   from './scenes/levels/Level7/L7_Stage5Scene.js';
 import { W, H }                  from './config/GameConfig.js';
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
@@ -175,6 +182,13 @@ const config = {
     L6_NamingCeremonyScene,
     L6_IntroductionScene,
     L6_NurseryScene,
+    // Level 7 — Emergency Journey
+    L7_CutsceneScene,
+    L7_Stage1Scene,
+    L7_Stage2Scene,
+    L7_Stage3Scene,
+    L7_Stage4Scene,
+    L7_Stage5Scene,
   ]
 };
 

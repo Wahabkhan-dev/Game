@@ -16,172 +16,44 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.setBackgroundColor('#3a2010');
     }
 
-    // Button layout — left side of screen, evenly spaced, no overlap
-    // Play:     cy=268, h=48  → bottom edge at 292
-    // Continue: cy=330, h=38  → top edge at 311  (gap 19px)
-    // Settings: cy=378, h=38  → top edge at 359  (gap 21px)
+    // ── Clean 2-column layout (left/centre of screen, clear of the artwork) ──
+    //   [L1] [L2]
+    //   [L3] [L4]
+    //   [L5] [L6]
+    //   [L7] [Dev/QA]
+    //   [Continue] [Settings]
+    const colA = 115, colB = 315, BW = 180;
+    const r = [200, 256, 312, 368];
 
-    this._playBtn(158, 194, '🐾 Level 1', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('IntroVideo'));
-    });
+    this._playBtn(colA, r[0], '🐾 Level 1', () => this._go('IntroVideo'), BW);
+    this._playBtn(colB, r[0], '👧 Level 2', () => this._go('Cinematic2'), BW);
+    this._playBtn(colA, r[1], '🚗 Level 3', () => this._go('Level3', { l3_health: 100, l3_coins: 0 }), BW);
+    this._playBtn(colB, r[1], '🏠 Level 4', () => this._go('Level4'), BW);
+    this._playBtn(colA, r[2], '🐶 Level 5', () => this._go('L5_EquipmentRun'), BW);
+    this._playBtn(colB, r[2], '🐾 Level 6', () => this._go('Level6'), BW);
+    this._playBtn(colA, r[3], '🚑 Level 7', () => this._go('L7_Cutscene', { lives: 3, points: 0 }, {
+      slides: [
+        { bg: 'l7_s1_sky', emoji: '🌧️', charTex: 'gleeda_idle', text: 'A thunderstorm rolls over the countryside. Inside, Gamma the dog whimpers — her three newborn puppies are sick and fading fast.' },
+        { bg: 'l7_s1_sky', emoji: '🐶', charTex: 'gleeda_idle', text: 'Glenda makes a vow: "I\'ll get you to the animal hospital tonight — whatever it takes." But first she needs the jeep key…' },
+      ],
+      next: 'L7_Stage1'
+    }), BW);
 
-    this._playBtn(158, 243, '👧 Level 2', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Cinematic2'));
-    });
+    this._secondaryBtn(colB, r[3], '🔧', 'Dev / QA', () => this._showDevMenu(), BW);
+    this._secondaryBtn(colA, 424, '📖', 'Continue', () => this._showContinueMsg(), BW);
+    this._secondaryBtn(colB, 424, '⚙', 'Settings',  () => this._showSettings(),    BW);
+  }
 
-    this._playBtn(158, 292, '🚗 Level 3', () => {
-      this.registry.set('l3_health', 100);
-      this.registry.set('l3_coins',  0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level3'));
-    });
-
-    this._playBtn(158, 341, '🏠 Level 4', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level4'));
-    });
-
-    this._playBtn(158, 390, '🐶 Level 5', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L5_EquipmentRun'));
-    });
-
-    this._playBtn(258, 390, '🐾 Level 6', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level6'));
-    });
-
-    this._secondaryBtn(92,  432, '📖', 'Continue', () => this._showContinueMsg(), 126);
-    this._secondaryBtn(224, 432, '⚙', 'Settings',  () => this._showSettings(),    126);
-
-    // ── Dev test panel (L3 zones + L4 jumps) — centre ────────────────────
-    const tp3G = this.add.graphics().setDepth(9);
-    tp3G.fillStyle(0x020810, 0.72);
-    tp3G.fillRoundedRect(302, 195, 192, 226, 12);
-    tp3G.lineStyle(1.5, 0x4488cc, 0.55);
-    tp3G.strokeRoundedRect(302, 195, 192, 226, 12);
-
-    this.add.text(398, 214, '🔧  L3 / L4 Test', {
-      fontSize: '12px', fontFamily: 'Georgia, serif',
-      color: '#88ccff', stroke: '#010408', strokeThickness: 2
-    }).setOrigin(0.5).setDepth(12);
-
-    this._secondaryBtn(398, 250, '1️⃣', 'Zone 1', () => {
-      this.registry.set('l3_health', 100);
-      this.registry.set('l3_coins',  0);
-      this.registry.set('l3_startZone', 1);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L3_Drive'));
-    });
-
-    this._secondaryBtn(398, 292, '2️⃣', 'Zone 2', () => {
-      this.registry.set('l3_health', 80);
-      this.registry.set('l3_coins',  0);
-      this.registry.set('l3_startZone', 2);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L3_Drive'));
-    });
-
-    // ── Level 2 phase (zone) test panel — right side ─────────────────────
-    const tpG = this.add.graphics().setDepth(9);
-    tpG.fillStyle(0x080402, 0.72);
-    tpG.fillRoundedRect(534, 195, 192, 228, 12);
-    tpG.lineStyle(1.5, 0xc8a040, 0.55);
-    tpG.strokeRoundedRect(534, 195, 192, 228, 12);
-
-    this.add.text(630, 214, '🔧  L2 Zone Jump', {
-      fontSize: '12px', fontFamily: 'Georgia, serif',
-      color: '#f5c87a', stroke: '#0a0502', strokeThickness: 2
-    }).setOrigin(0.5).setDepth(12);
-
-    this._secondaryBtn(630, 250, '1️⃣', 'Phase 1', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.registry.set('l2_testPhase', 1);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level2'));
-    });
-
-    this._secondaryBtn(630, 292, '2️⃣', 'Phase 2', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.registry.set('l2_testPhase', 2);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level2'));
-    });
-
-    this._secondaryBtn(630, 334, '3️⃣', 'Phase 3', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.registry.set('l2_testPhase', 3);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level2'));
-    });
-
-    this._secondaryBtn(630, 376, '🐾', 'L2 Trust QA', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L2_Calmer'));
-    });
-
-    // ── Level 4 test jumps (run vs. build scene) ─────────────────────────
-    this._secondaryBtn(398, 332, '🏠', 'L4 Run', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level4'));
-    });
-
-    this._secondaryBtn(398, 374, '🔨', 'L4 Build', () => {
-      this.registry.set('points', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L4_Decorate'));
-    });
-
-    // ── Level 5 test jump (Garage Treatment) ─────────────────────────────
-    this._secondaryBtn(398, 416, '🐶', 'L5 Garage', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.registry.set('l5_stars', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level5'));
-    });
-
-    // ── Level 6 test jumps (Puppy Naming Adventure) ──────────────────────
-    const L6_TEST_NAMES = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
-    this._secondaryBtn(398, 458, '🐾', 'L6 Run', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('points', 0);
-      this.registry.set('l6_stars', 0);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Level6'));
-    });
-    this._secondaryBtn(620, 416, '🏆', 'L6 Naming', () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L6_NamingCeremony', { names: L6_TEST_NAMES, stars: 1400 }));
-    }, 116);
-    this._secondaryBtn(620, 458, '🐶', 'L6 Family', () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('L6_Introduction', { names: L6_TEST_NAMES, stars: 1400 }));
-    }, 116);
+  // ── Shared launch helper: set registry, fade out, start scene ───────────────
+  _go(sceneKey, reg = { lives: 3, points: 0 }, data) {
+    Object.entries(reg).forEach(([k, v]) => this.registry.set(k, v));
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.time.delayedCall(520, () => this.scene.start(sceneKey, data));
   }
 
   // ── Coral-red Play button ─────────────────────────────────────────────────
-  _playBtn(cx, cy, label, cb) {
-    const BW = 210, BH = 48, R = 24;
+  _playBtn(cx, cy, label, cb, bw = 210) {
+    const BW = bw, BH = 48, R = 24;
     const bx = cx - BW / 2, by = cy - BH / 2;
 
     const g = this.add.graphics().setDepth(10);
@@ -391,6 +263,87 @@ export class MenuScene extends Phaser.Scene {
 
     const done = () => toDestroy.forEach(o => o.destroy());
     closeHit.on('pointerup', done);
+    backdrop.on('pointerup', done);
+  }
+
+  // ── Dev / QA popup — every test jump in one tidy place ──────────────────────
+  _showDevMenu() {
+    const W = 800, H = 450;
+    const names = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
+    const toDestroy = [];
+
+    const backdrop = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
+      .setDepth(30).setInteractive();
+    toDestroy.push(backdrop);
+
+    const bg = this.add.graphics().setDepth(31);
+    bg.fillStyle(0x0a0f1a, 0.98); bg.fillRoundedRect(100, 28, 600, 410, 14);
+    bg.lineStyle(2, 0xf0a830, 0.9); bg.strokeRoundedRect(100, 28, 600, 410, 14);
+    toDestroy.push(bg);
+
+    toDestroy.push(this.add.text(400, 52, '🔧  Dev / QA — Jump to any scene', {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#f0c860', stroke: '#000', strokeThickness: 2
+    }).setOrigin(0.5).setDepth(32));
+
+    const L7_INTRO = {
+      slides: [
+        { bg: 'l7_s1_sky', emoji: '🌧️', charTex: 'gleeda_idle', text: 'A thunderstorm rolls over the countryside. Inside, Gamma the dog whimpers — her three newborn puppies are sick and fading fast.' },
+        { bg: 'l7_s1_sky', emoji: '🐶', charTex: 'gleeda_idle', text: 'Glenda makes a vow: "I\'ll get you to the animal hospital tonight — whatever it takes." But first she needs the jeep key…' },
+      ],
+      next: 'L7_Stage1'
+    };
+
+    const items = [
+      ['▶  L7 — Full Story',     () => this._go('L7_Cutscene', { lives: 3, points: 0 }, L7_INTRO)],
+      ['🏠  L7 Stage 1 — Key',    () => this._go('L7_Stage1')],
+      ['🔧  L7 Stage 2 — Tyre',   () => this._go('L7_Stage2')],
+      ['⛽  L7 Stage 3 — Fuel',   () => this._go('L7_Stage3')],
+      ['🚗  L7 Stage 4 — Drive',  () => this._go('L7_Stage4')],
+      ['🐶  L7 Stage 5 — Puppies',() => this._go('L7_Stage5')],
+      ['1️⃣  L2 Phase 1',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 1 })],
+      ['2️⃣  L2 Phase 2',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 2 })],
+      ['3️⃣  L2 Phase 3',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 3 })],
+      ['🐾  L2 Trust QA',         () => this._go('L2_Calmer')],
+      ['1️⃣  L3 Zone 1',          () => this._go('L3_Drive', { l3_health: 100, l3_coins: 0, l3_startZone: 1 })],
+      ['2️⃣  L3 Zone 2',          () => this._go('L3_Drive', { l3_health: 80,  l3_coins: 0, l3_startZone: 2 })],
+      ['🏠  L4 Run',              () => this._go('Level4')],
+      ['🔨  L4 Build',            () => this._go('L4_Decorate', { points: 0 })],
+      ['🐶  L5 Garage',           () => this._go('Level5', { lives: 3, points: 0, l5_stars: 0 })],
+      ['🐾  L6 Run',              () => this._go('Level6', { lives: 3, points: 0, l6_stars: 0 })],
+      ['🏆  L6 Naming',           () => this._go('L6_NamingCeremony', {}, { names, stars: 1400 })],
+      ['🐶  L6 Family',           () => this._go('L6_Introduction', {}, { names, stars: 1400 })],
+    ];
+
+    const bw = 270, bh = 30;
+    items.forEach(([label, fn], i) => {
+      const col = i < 9 ? 0 : 1;
+      const row = i % 9;
+      const cx = col ? 545 : 255;
+      const cy = 92 + row * 36;
+
+      const g = this.add.graphics().setDepth(32);
+      g.fillStyle(0x1c2436, 0.96); g.fillRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8);
+      g.lineStyle(1.5, 0x5a6a82, 1); g.strokeRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8);
+      toDestroy.push(g);
+
+      const t = this.add.text(cx, cy, label, {
+        fontSize: '12px', fontFamily: 'Georgia, serif', color: '#cfe0f5'
+      }).setOrigin(0.5).setDepth(33);
+      toDestroy.push(t);
+
+      const hit = this.add.rectangle(cx, cy, bw, bh, 0, 0).setDepth(34).setInteractive({ useHandCursor: true });
+      toDestroy.push(hit);
+      hit.on('pointerover', () => { g.clear(); g.fillStyle(0x2e3a4e, 0.98); g.fillRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8); g.lineStyle(1.5, 0xf0a830, 1); g.strokeRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8); t.setColor('#ffffff'); });
+      hit.on('pointerout',  () => { g.clear(); g.fillStyle(0x1c2436, 0.96); g.fillRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8); g.lineStyle(1.5, 0x5a6a82, 1); g.strokeRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8); t.setColor('#cfe0f5'); });
+      hit.on('pointerup',   () => fn());
+    });
+
+    const close = this.add.text(400, 416, '[ Close ]', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f0a830'
+    }).setOrigin(0.5).setDepth(33).setInteractive({ useHandCursor: true });
+    toDestroy.push(close);
+    const done = () => toDestroy.forEach(o => o.destroy());
+    close.on('pointerup', done);
     backdrop.on('pointerup', done);
   }
 }
