@@ -69,7 +69,9 @@ export class Level6Scene extends Phaser.Scene {
     if (!this.textures.exists('l6_surface'))
       this.load.image('l6_surface', 'assets/images/level%206/surface.png');
     // Obstacle artwork
-    const obsKeys = ['pot', 'crate', 'puddle', 'ball', 'branch', 'banner', 'sign', 'flower_hedge'];
+    const obsKeys = ['pot', 'crate', 'ball', 'branch', 'banner', 'sign', 'flower_hedge'];
+    if (!this.textures.exists('l6_pit'))
+      this.load.image('l6_pit', 'assets/images/level%206/pit.png');
     obsKeys.forEach(k => {
       if (!this.textures.exists(`l6_${k}`))
         this.load.image(`l6_${k}`, `assets/images/level%206/${k}.png`);
@@ -86,7 +88,9 @@ export class Level6Scene extends Phaser.Scene {
     this._miniActive = false;
     this._returning  = false;
     this._score      = 0;
-    this._rollers    = [];
+    this._rollers       = [];
+    this._pits          = [];         // pit graphics for flash effect
+    this._fallingIntoPit = false;
     this._lastGroundT = -1e9;   // advanced-jump timers
     this._jumpBufferT = -1e9;
     this._jumpPrev    = false;
@@ -172,11 +176,32 @@ export class Level6Scene extends Phaser.Scene {
   }
 
   _buildGround() {
-    // ── Invisible physics floor (player collides with this) ───────────────
-    const floor = this.add.rectangle(WORLD_W / 2, GROUND_Y + 20, WORLD_W, 40, 0x000000, 0)
-      .setDepth(-9);
-    this.physics.add.existing(floor, true);
-    this._ground = floor;
+    // ── Invisible physics floor — segmented with gaps at every pit (flat) obstacle ──
+    const pits = OBSTACLES.filter(o => o.flat).map(o => ({
+      x: o.x, hw: o.w / 2 + 36   // wide enough for the 60px player body to fall cleanly
+    }));
+    this._pitZones = pits;   // used in _checkPits()
+
+    const sorted = [...pits].sort((a, b) => a.x - b.x);
+    this._floorSegs = [];
+    let cursor = 0;
+    sorted.forEach(pit => {
+      const segEnd = pit.x - pit.hw;
+      if (segEnd > cursor) {
+        const w = segEnd - cursor, cx = cursor + w / 2;
+        const r = this.add.rectangle(cx, GROUND_Y + 20, w, 40, 0x000000, 0).setDepth(-9);
+        this.physics.add.existing(r, true);
+        this._floorSegs.push(r);
+      }
+      cursor = pit.x + pit.hw;
+    });
+    const lastW = WORLD_W - cursor;
+    if (lastW > 0) {
+      const r = this.add.rectangle(cursor + lastW / 2, GROUND_Y + 20, lastW, 40, 0x000000, 0).setDepth(-9);
+      this.physics.add.existing(r, true);
+      this._floorSegs.push(r);
+    }
+    this._ground = this._floorSegs;
 
     // ── Surface image as screen-locked tileSprite ─────────────────────────
     // Surface positioned so stone path aligns with character's standing level
@@ -237,10 +262,10 @@ export class Level6Scene extends Phaser.Scene {
   _buildObstacles() {
     this._obsObjs = OBSTACLES.map((o, idx) => {
       if (o.rolling) return this._buildRollingObstacle(o);
-      if (o.flat)    return this._buildPuddle(o);
+      if (o.flat)    return this._buildPuddle(o);   // returns null — pit, not an obstacle
       if (o.theme)   return this._buildHurdle(o);
       return this._buildJumpObstacle(o, idx);
-    });
+    }).filter(Boolean);   // remove nulls from pit entries
   }
 
   // ── Jump-over: terracotta pot (floral) or wooden crate, alternating ──
@@ -256,13 +281,19 @@ export class Level6Scene extends Phaser.Scene {
     return { ...o, img, clearY: GROUND_Y - o.h - 12 };
   }
 
-  // ── Ground hazard: reflective puddle with looping ripple ──
+  // ── Pit hazard: uses pit.png image placed at the gap in the ground ──
   _buildPuddle(o) {
-    const obsY = GROUND_Y + OBS_BASE_DROP;
-    const img = this.add.image(o.x, obsY, 'l6_puddle').setOrigin(0.5, 0.5).setDepth(6);
-    img.setDisplaySize(o.w + 20, o.w * 0.4);
-    // Static (animations disabled to reduce lag)
-    return { ...o, img, clearY: GROUND_Y - o.h - 10 };
+    const dispW = o.w + 60;    // display width — slightly wider than the physics gap
+    const dispH = 80;          // display height — shows enough depth of the pit image
+
+    // Place image so its top edge aligns with the stone-path surface level
+    const img = this.add.image(o.x, GROUND_Y + dispH / 2 - 8, 'l6_pit')
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(dispW, dispH)
+      .setDepth(9);
+
+    this._pits.push({ img, x: o.x, dispW });
+    return null;
   }
 
   // ── Moving hazard: striped rolling ball with separate flat shadow ──
@@ -343,7 +374,7 @@ export class Level6Scene extends Phaser.Scene {
     this.player = this.physics.add.sprite(80, GROUND_Y - 42, tk).setDepth(10).setScale(0.18);
     this.player.body.setSize(60, 50, true);
     this.player.setCollideWorldBounds(true);
-    this.physics.add.collider(this.player, this._ground);
+    this._floorSegs.forEach(seg => this.physics.add.collider(this.player, seg));
 
     if (!this.anims.exists('l6_walk')) {
       const rk = this.textures.exists('gleeda_run1') ? 'gleeda_run1' : tk;
@@ -596,6 +627,7 @@ export class Level6Scene extends Phaser.Scene {
     this._checkTokens();
     this._checkObstacles(onGround);
     this._checkRollers();
+    this._checkPits();
     this._checkCheckpoints();
     this._updateProgressBar();
     this._checkEnd();
@@ -935,6 +967,58 @@ export class Level6Scene extends Phaser.Scene {
       { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#4E342E' }).setOrigin(0.5).setScrollFactor(0).setDepth(82));
   }
 
+  // ── Pit fall detection ────────────────────────────────────────────────────
+  _checkPits() {
+    if (this._done || this._paused || this._miniActive || this._fallingIntoPit) return;
+    const p = this.player;
+    // Trigger when the physics body bottom has dropped into the pit gap (no floor)
+    const onGround = p.body.blocked.down || p.body.touching.down;
+    if (!onGround && p.body.bottom > GROUND_Y + 6) {
+      const inPit = this._pitZones && this._pitZones.some(z => Math.abs(p.body.x - z.x) < z.hw);
+      if (inPit) {
+        this._fallingIntoPit = true;
+        this._fallIntoPit();
+      }
+    }
+  }
+
+  _fallIntoPit() {
+    if (this._damageCD) { this._respawnAtCheckpoint(); return; }
+    this._damageCD = true;
+
+    // Flash the screen dark to signal the pit fall (safe — no world-space rectangle)
+    this.cameras.main.flash(320, 0, 0, 0, true);
+
+    // Direct life loss — skip HP
+    this._lives--;
+    this._hearts.forEach((h, i) => this._drawHeart(h, 22 + i * 22, 26, 7, i < this._lives));
+    this._hp = 3;
+    this._hpPips.forEach((p, i) => this._drawPip(p, i, true));
+    this._toast('💧 Fell in a pit!');
+    this.cameras.main.shake(200, 0.012);
+
+    if (this._lives <= 0) {
+      this._toast('💔 Game Over! Restarting…');
+      this.time.delayedCall(1100, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.time.delayedCall(550, () => this.scene.restart());
+      });
+      return;
+    }
+    this._respawnAtCheckpoint();
+  }
+
+  _respawnAtCheckpoint() {
+    this._score = this._lastCP.score;
+    this._scoreTxt.setText(`SCORE ${this._score}`);
+    const p = this.player;
+    p.setPosition(this._lastCP.x, GROUND_Y - 42);
+    p.setVelocity(0, 0);
+    this.cameras.main.centerOnX(this._lastCP.x);
+    this._toast('💫 Back to checkpoint!');
+    this.time.delayedCall(1400, () => { this._damageCD = false; });
+  }
+
   // ── DAMAGE / HEALTH ───────────────────────────────────────────────────────
   _takeHit() {
     if (this._damageCD) return;
@@ -959,15 +1043,7 @@ export class Level6Scene extends Phaser.Scene {
         return;
       }
       // Respawn at last checkpoint — preserve collected tokens, restore score
-      this._score = this._lastCP.score;
-      this._scoreTxt.setText(`SCORE ${this._score}`);
-      const p = this.player;
-      p.setPosition(this._lastCP.x, GROUND_Y - 42);
-      p.setVelocity(0, 0);
-      this.cameras.main.centerOnX(this._lastCP.x);
-      this._toast('💫 Back to checkpoint!');
-      // Extended invulnerability after respawn (1 400 ms)
-      this.time.delayedCall(1400, () => { this._damageCD = false; });
+      this._respawnAtCheckpoint();
       return;
     }
     this.time.delayedCall(850, () => { this._damageCD = false; });

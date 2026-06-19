@@ -20,7 +20,9 @@
       "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId, @{N='Start';E={$_.CreationDate}}, @{N='Cmd';E={ if\\($_.CommandLine\\){$_.CommandLine.Substring\\(0,[Math]::Min\\(110,$_.CommandLine.Length\\)\\)}else{'?'} }} | Format-Table -AutoSize -Wrap)",
       "PowerShell(\"Ports owned by 22116:\"; Get-NetTCPConnection -State Listen -OwningProcess 22116 -ErrorAction SilentlyContinue | Select-Object LocalPort | Format-Table -AutoSize; \"All node listeners:\"; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { \\(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue\\).ProcessName -eq 'node' } | Select-Object LocalPort, OwningProcess | Format-Table -AutoSize)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000/)",
-      "Bash(curl -s http://localhost:3000/)"
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\src\\\\scenes\\\\levels\\\\\" -Directory)",
+      "Read(//c/Users/Abdul Wahab/Desktop/shadowgame/ShadowGamma/src/scenes/levels/**)"
     ]
   }
 }
