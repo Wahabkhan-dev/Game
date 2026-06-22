@@ -38,16 +38,12 @@ export class L7_CutsceneScene extends Phaser.Scene {
     this.cameras.main.fadeIn(700, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#05080f');
 
-    // Hide the gameplay footer and drop focus off any HTML button so the
-    // keyboard reaches Phaser (tapping footer buttons can steal SPACE focus).
+    // Hide the gameplay footer. (We deliberately do NOT call canvas.focus()/
+    // window.focus()/blur() here: in some embedded webviews those focus changes
+    // fire a visibility/blur event that puts Phaser's RAF loop to sleep right
+    // after this scene appears — which froze the cutscene. The raw window
+    // keydown/pointer listeners below catch input regardless of focus.)
     const footer = document.getElementById('game-footer'); if (footer) footer.style.display = 'none';
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-
-    // Give the game keyboard focus (some embedded browsers steal it).
-    try {
-      const cv = this.game.canvas; if (cv) { cv.setAttribute('tabindex', '0'); cv.focus(); }
-      window.focus();
-    } catch (_) {}
 
     // Letterbox bars for cinematic feel
     this.add.rectangle(W / 2, 18, W, 36, 0x000000, 1).setDepth(40);
@@ -65,7 +61,8 @@ export class L7_CutsceneScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(47);
     this._nbTxt = nbTxt;
     const nbHit = this.add.rectangle(W / 2, by + bh / 2, bw, bh, 0, 0).setDepth(48).setInteractive({ useHandCursor: true });
-    nbHit.on('pointerup', () => this._advance());
+    nbHit.on('pointerdown', () => this._advance());
+    nbHit.on('pointerup',   () => this._advance());
     this.tweens.add({ targets: [this._nextG, nbTxt], alpha: { from: 0.65, to: 1 }, duration: 700, yoyo: true, repeat: -1 });
 
     // Live slide counter — gives unmistakable feedback that a tap registered even
@@ -77,6 +74,30 @@ export class L7_CutsceneScene extends Phaser.Scene {
     this._uiHint = this.add.text(W / 2, H - 15, 'tap anywhere · or press any key', {
       fontSize: '10px', fontFamily: 'Georgia, serif', color: '#9ab0c8'
     }).setOrigin(0.5).setDepth(47);
+
+    // ── TEMP DIAGNOSTIC — shows where the next scene gets stuck. Remove later. ──
+    const STAT = ['PENDING','INIT','START','LOADING','CREATING','RUNNING','PAUSED','SLEEPING','SHUTDOWN','DESTROYED'];
+    this._lastErr = '';
+    this._errH = (e) => { try { this._lastErr = String(e && (e.message || e.reason) || e).slice(0, 90); } catch (_) {} };
+    window.addEventListener('error', this._errH);
+    window.addEventListener('unhandledrejection', this._errH);
+    this._dbg = this.add.text(6, 50, 'DBG…', {
+      fontSize: '13px', fontFamily: 'monospace', color: '#ffe000',
+      backgroundColor: '#000000d0', padding: { x: 6, y: 4 }
+    }).setDepth(9999);
+    this._dbgIv = setInterval(() => {
+      try {
+        const tgt = this._next || 'Menu';
+        const st = this.game.scene.getScene(tgt);
+        const code = st ? st.sys.settings.status : -1;
+        const prog = (st && st.load) ? Math.round(st.load.progress * 100) : '-';
+        this._dbg.setText(
+          `BUILD-E  done:${this._done ? 1 : 0} started:${this._started ? 1 : 0}\n` +
+          `${tgt}: ${code === -1 ? 'NULL' : (STAT[code] || code)}  load:${prog}%\n` +
+          `err: ${this._lastErr || '-'}`
+        );
+      } catch (_) {}
+    }, 150);
 
     // Advance on: the button, a click/tap anywhere, a Phaser key, OR raw window
     // keydown/pointer/touch events. The raw DOM listeners are a fallback for
@@ -93,8 +114,10 @@ export class L7_CutsceneScene extends Phaser.Scene {
       window.removeEventListener('keydown',    this._winKey);
       window.removeEventListener('pointerdown', this._winPtr);
       window.removeEventListener('touchstart',  this._winPtr);
+      window.removeEventListener('error', this._errH);
+      window.removeEventListener('unhandledrejection', this._errH);
+      if (this._dbgIv) clearInterval(this._dbgIv);
       if (this._autoTimer) this._autoTimer.remove();
-      if (this._finishFallback) clearTimeout(this._finishFallback);
     });
 
     if (this._final) this._showFinal();
@@ -204,20 +227,42 @@ export class L7_CutsceneScene extends Phaser.Scene {
   _finish() {
     if (this._done) return;
     this._done = true;
-    // Start the next scene exactly once, whichever timer wins.
+    const target = this._next || 'Menu';
+    const data   = this._nextData || {};
+    this.cameras.main.fadeOut(280, 0, 0, 0);
+
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+    // Issue the swap EXACTLY ONCE. this.scene.start() (the ScenePlugin) shuts down
+    // THIS cutscene and starts the target. Re-issuing it would restart the target's
+    // asset loading every tick and it would never finish booting — that was the bug.
     const go = () => {
       if (this._started) return;
       this._started = true;
-      if (this._finishFallback) { clearTimeout(this._finishFallback); this._finishFallback = null; }
-      this._wakeLoop();   // a slept loop never boots a queued scene — wake it first
-      if (this._next) this.scene.start(this._next, this._nextData);
-      else this.scene.start('Menu');
+      this._wakeLoop();
+      try { this.scene.start(target, data); } catch (e) {
+        console.warn('L7 cutscene transition failed', e);
+      }
+      // Pump the loop while waiting for the target to activate.
+      let tries = 0;
+      this._finishIv = setInterval(() => {
+        if (this.game.scene.isActive(target)) { this._clearFinish(); return; }
+        const l = this.game.loop;
+        if (l) {
+          this._wakeLoop();
+          try { l.step && l.step(now()); } catch (e) { console.warn('L7 finish loop step failed', e); }
+        }
+        if (++tries > 300) this._clearFinish();
+      }, 50);
     };
-    this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.time.delayedCall(640, go);
-    // Wall-clock fallback: if the scene clock is throttled/paused the delayedCall
-    // above never fires, so guarantee the transition still happens.
-    this._finishFallback = setTimeout(go, 720);
+    this.cameras.main.once('camerafadeoutcomplete', go);
+    this._finishTO = setTimeout(go, 300);
+    this.events.once('shutdown', () => this._clearFinish());
+  }
+
+  _clearFinish() {
+    if (this._finishIv) { clearInterval(this._finishIv); this._finishIv = null; }
+    if (this._finishTO) { clearTimeout(this._finishTO); this._finishTO = null; }
   }
 
   // If the browser throttled/slept the RAF game loop (backgrounded tab, embedded
