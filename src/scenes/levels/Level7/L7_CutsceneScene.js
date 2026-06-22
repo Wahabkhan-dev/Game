@@ -18,6 +18,21 @@ export class L7_CutsceneScene extends Phaser.Scene {
     this._idx      = 0;
   }
 
+  preload() {
+    // The real (image) stage backgrounds a slide may reference are normally loaded
+    // by their own stage scene — but a cutscene can play BEFORE that stage runs, so
+    // load them here too. Missing files fall back gracefully to a colored panel.
+    const real = {
+      l7_s1_bg: 'assets/images/Level7/Stage1/l7_s1_bg.png',
+      l7_s2_bg: 'assets/images/Level7/Stage2/l7_s2_bg.png',
+    };
+    for (const s of (this._slides || [])) {
+      const path = real[s.bg];
+      if (path && !this.textures.exists(s.bg)) this.load.image(s.bg, path);
+    }
+    this.load.on('loaderror', () => { /* fall back to colored panel in _showSlide */ });
+  }
+
   create() {
     generateL7Assets(this);
     this.cameras.main.fadeIn(700, 0, 0, 0);
@@ -48,23 +63,38 @@ export class L7_CutsceneScene extends Phaser.Scene {
     const nbTxt = this.add.text(W / 2, by + bh / 2, 'CONTINUE  ▶', {
       fontSize: '16px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#5a0a0a', strokeThickness: 3
     }).setOrigin(0.5).setDepth(47);
+    this._nbTxt = nbTxt;
     const nbHit = this.add.rectangle(W / 2, by + bh / 2, bw, bh, 0, 0).setDepth(48).setInteractive({ useHandCursor: true });
     nbHit.on('pointerup', () => this._advance());
     this.tweens.add({ targets: [this._nextG, nbTxt], alpha: { from: 0.65, to: 1 }, duration: 700, yoyo: true, repeat: -1 });
+
+    // Live slide counter — gives unmistakable feedback that a tap registered even
+    // when consecutive slides share the same background image.
+    this._slideCount = this.add.text(W / 2 + bw / 2 + 18, by + bh / 2, '', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5c840', stroke: '#000', strokeThickness: 3
+    }).setOrigin(0, 0.5).setDepth(47);
 
     this._uiHint = this.add.text(W / 2, H - 15, 'tap anywhere · or press any key', {
       fontSize: '10px', fontFamily: 'Georgia, serif', color: '#9ab0c8'
     }).setOrigin(0.5).setDepth(47);
 
-    // Advance on: the button, a click/tap anywhere, a Phaser key, OR a raw
-    // window keydown (fallback for browsers where Phaser loses keyboard focus).
+    // Advance on: the button, a click/tap anywhere, a Phaser key, OR raw window
+    // keydown/pointer/touch events. The raw DOM listeners are a fallback for
+    // browsers/webviews where Phaser's game loop (and therefore its input +
+    // scene clock) gets throttled — without them the scene can freeze.
     this.input.keyboard.on('keydown', () => this._advance());
     this.input.on('pointerdown', () => this._advance());
     this._winKey = () => this._advance();
-    window.addEventListener('keydown', this._winKey);
+    this._winPtr = () => this._advance();
+    window.addEventListener('keydown',    this._winKey);
+    window.addEventListener('pointerdown', this._winPtr);
+    window.addEventListener('touchstart',  this._winPtr, { passive: true });
     this.events.once('shutdown', () => {
-      window.removeEventListener('keydown', this._winKey);
+      window.removeEventListener('keydown',    this._winKey);
+      window.removeEventListener('pointerdown', this._winPtr);
+      window.removeEventListener('touchstart',  this._winPtr);
       if (this._autoTimer) this._autoTimer.remove();
+      if (this._finishFallback) clearTimeout(this._finishFallback);
     });
 
     if (this._final) this._showFinal();
@@ -75,6 +105,11 @@ export class L7_CutsceneScene extends Phaser.Scene {
     this._layer.removeAll(true);
     const s = this._slides[this._idx];
     if (!s) { this._finish(); return; }
+
+    // update the slide counter + remember the label to show once typing finishes
+    const last = this._idx >= this._slides.length - 1;
+    this._doneLabel = last ? 'START  ▶' : 'CONTINUE  ▶';
+    if (this._slideCount) this._slideCount.setText(`${this._idx + 1} / ${this._slides.length}`);
 
     // Background
     if (s.bg && this.textures.exists(s.bg)) {
@@ -117,34 +152,49 @@ export class L7_CutsceneScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this._layer.add(txt);
 
-    // Typewriter
+    // Typewriter — fast, so a tap almost always advances rather than just
+    // finishing the text. While typing the button reads SKIP, then flips to
+    // CONTINUE/START so the very first tap visibly changes the button.
     if (this._autoTimer) { this._autoTimer.remove(); this._autoTimer = null; }
     this._typing = true;
+    if (this._nbTxt) this._nbTxt.setText('SKIP  ▶');
     const full = s.text || '';
     let i = 0;
     this._typeEv = this.time.addEvent({
-      delay: 18, loop: true, callback: () => {
-        i++; txt.setText(full.slice(0, i));
-        if (i >= full.length) {
-          this._typeEv.remove(); this._typing = false;
-          // Safety net: auto-advance after a read pause so it can NEVER soft-lock.
-          this._autoTimer = this.time.delayedCall(6500, () => this._advance());
-        }
+      delay: 12, loop: true, callback: () => {
+        i = Math.min(full.length, i + 2); txt.setText(full.slice(0, i));
+        if (i >= full.length) this._finishTyping();
       }
     });
     this._curText = txt; this._curFull = full;
   }
 
+  // Reveal the whole line and arm the auto-advance safety net.
+  _finishTyping() {
+    if (!this._typing) return;
+    this._typeEv?.remove();
+    this._typing = false;
+    this._curText?.setText(this._curFull);
+    if (this._nbTxt) this._nbTxt.setText(this._doneLabel || 'CONTINUE  ▶');
+    if (this._autoTimer) this._autoTimer.remove();
+    // Safety net: auto-advance after a read pause so it can NEVER soft-lock.
+    this._autoTimer = this.time.delayedCall(5000, () => this._advance());
+  }
+
   _advance() {
-    // debounce key-repeat / rapid taps so we don't skip slides
-    const now = this.time.now;
+    // debounce key-repeat / rapid taps so we don't skip slides.
+    // Use the wall clock (Date.now), NOT this.time.now: the scene clock freezes
+    // when the game loop is throttled, which would otherwise leave the debounce
+    // permanently engaged and make every tap/key a no-op.
+    const now = Date.now();
     if (this._lastAdv && now - this._lastAdv < 200) return;
     this._lastAdv = now;
-    if (this._autoTimer) { this._autoTimer.remove(); this._autoTimer = null; }
+    this._wakeLoop();   // recover rendering if the browser throttled the game loop
+    // instant visual acknowledgement that the tap/key registered
+    if (this._nbTxt) { this.tweens.killTweensOf(this._nbTxt); this._nbTxt.setScale(1); this.tweens.add({ targets: this._nbTxt, scale: { from: 1.18, to: 1 }, duration: 160, ease: 'Quad.easeOut' }); }
     if (this._final) { this._finish(); return; }
-    if (this._typing) { // finish typing instantly
-      this._typeEv?.remove(); this._typing = false; this._curText?.setText(this._curFull); return;
-    }
+    if (this._typing) { this._finishTyping(); return; } // first tap completes the line
+    if (this._autoTimer) { this._autoTimer.remove(); this._autoTimer = null; }
     this._idx++;
     if (this._idx >= this._slides.length) { this._finish(); return; }
     this.cameras.main.flash(180, 0, 0, 0);
@@ -154,11 +204,34 @@ export class L7_CutsceneScene extends Phaser.Scene {
   _finish() {
     if (this._done) return;
     this._done = true;
-    this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.time.delayedCall(640, () => {
+    // Start the next scene exactly once, whichever timer wins.
+    const go = () => {
+      if (this._started) return;
+      this._started = true;
+      if (this._finishFallback) { clearTimeout(this._finishFallback); this._finishFallback = null; }
+      this._wakeLoop();   // a slept loop never boots a queued scene — wake it first
       if (this._next) this.scene.start(this._next, this._nextData);
       else this.scene.start('Menu');
-    });
+    };
+    this.cameras.main.fadeOut(600, 0, 0, 0);
+    this.time.delayedCall(640, go);
+    // Wall-clock fallback: if the scene clock is throttled/paused the delayedCall
+    // above never fires, so guarantee the transition still happens.
+    this._finishFallback = setTimeout(go, 720);
+  }
+
+  // If the browser throttled/slept the RAF game loop (backgrounded tab, embedded
+  // webview, a covering window), a queued scene.start never boots and the screen
+  // appears frozen. Force the loop back awake. Safe no-op if already running.
+  _wakeLoop() {
+    try {
+      const l = this.game.loop;
+      if (!l) return;
+      if (l.running === false) {
+        if (l.wake)   l.wake();
+        if (l.resume) l.resume();
+      }
+    } catch (_) {}
   }
 
   // ── Final celebration ──────────────────────────────────────────────────────

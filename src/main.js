@@ -194,6 +194,24 @@ const config = {
 
 window._game = new Phaser.Game(config);
 
+// ── Frozen-loop safety net ───────────────────────────────────────────────────
+// Some embedded browsers / webviews (and backgrounded or covered tabs) put
+// Phaser's requestAnimationFrame loop to SLEEP and don't reliably wake it. While
+// asleep, a queued scene.start never boots, so screens (e.g. cutscene → next
+// stage) appear frozen and buttons "do nothing". Wake the loop on any user input
+// or when the page regains focus/visibility. No-op while already running.
+function _wakeGameLoop() {
+  try {
+    const l = window._game && window._game.loop;
+    if (l && l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
+  } catch (_) {}
+}
+window.addEventListener('pointerdown', _wakeGameLoop, true);
+window.addEventListener('keydown',     _wakeGameLoop, true);
+window.addEventListener('touchstart',  _wakeGameLoop, { capture: true, passive: true });
+window.addEventListener('focus',       _wakeGameLoop);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) _wakeGameLoop(); });
+
 // Enable super-sampling for crisp high-resolution rendering
 setTimeout(() => {
   const canvas = document.querySelector('canvas');

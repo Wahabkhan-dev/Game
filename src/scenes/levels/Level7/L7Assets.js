@@ -232,6 +232,30 @@ export function generateL7Assets(scene) {
   g.fillStyle(0x2e2e2e, 1); g.fillRect(28, 14, 74, 5);
   gen('l7_jeep_rear', 130, 120);
 
+  // Spinning car wheel (overlay for driving stage) 40×40 — asymmetric so spin reads
+  g.clear();
+  g.fillStyle(0x0e0e10, 1); g.fillCircle(20, 20, 18);            // tyre
+  g.fillStyle(0x1a1a1e, 1); g.fillCircle(20, 20, 15);
+  g.fillStyle(0xc4c8d0, 1); g.fillCircle(20, 20, 10);            // rim
+  g.lineStyle(2.5, 0x6a6e78, 1);
+  for (let a = 0; a < 5; a++) { const an = a / 5 * Math.PI * 2; g.lineBetween(20, 20, 20 + Math.cos(an) * 9, 20 + Math.sin(an) * 9); }
+  g.fillStyle(0x5a5e66, 1); g.fillCircle(20, 20, 4);             // hub
+  g.fillStyle(0xeef0f4, 1); g.fillCircle(20, 9, 2.2);           // bright lug = rotation cue
+  gen('l7_carwheel', 40, 40);
+
+  // Dark muddy off-road spinning wheel — matched to the jeep's own tyres 48×48
+  g.clear();
+  g.fillStyle(0x0b0b0d, 1); g.fillCircle(24, 24, 23);                 // tyre
+  for (let a = 0; a < 18; a++) { const an = a / 18 * Math.PI * 2; g.fillStyle(0x040405, 1); g.fillRect(24 + Math.cos(an) * 20 - 2.2, 24 + Math.sin(an) * 20 - 3, 4.4, 6); } // chunky tread
+  g.fillStyle(0x141519, 1); g.fillCircle(24, 24, 16);                 // dark sidewall
+  g.fillStyle(0x24262b, 1); g.fillCircle(24, 24, 12);                 // dark rim
+  g.fillStyle(0x2d3036, 1); g.fillCircle(24, 24, 11);
+  for (let a = 0; a < 5; a++) { const an = -Math.PI / 2 + a / 5 * Math.PI * 2; g.fillStyle(0x0e0f12, 1); g.fillCircle(24 + Math.cos(an) * 7, 24 + Math.sin(an) * 7, 2.6); } // 5 dark spoke holes
+  g.fillStyle(0x363941, 1); g.fillCircle(24, 24, 3.4);               // hub
+  g.fillStyle(0x4e515a, 0.85); g.fillCircle(24, 11, 1.8);           // subtle scuff = rotation cue
+  g.fillStyle(0x4a3a22, 0.45); g.fillCircle(31, 29, 3);             // mud fleck (asymmetric)
+  gen('l7_jeepwheel', 48, 48);
+
   // ══════════════════════════════════════════════════════════════════════════
   // STAGE 2 — GARAGE INTERIOR + repair props
   // ══════════════════════════════════════════════════════════════════════════

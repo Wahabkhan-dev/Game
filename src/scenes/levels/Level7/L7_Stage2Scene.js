@@ -10,6 +10,18 @@ import { generateL7Assets } from './L7Assets.js';
 export class L7_Stage2Scene extends L7BaseScene {
   constructor() { super('L7_Stage2'); }
 
+  preload() {
+    const P = 'assets/images/Level7/Stage2/';
+    ['l7_s2_bg', 'l7_jeep_side', 'l7_jeep_fixed', 'l7_tire', 'l7_tire_flat', 'l7_jack', 'l7_wrench', 'l7_patchkit', 'l7_lugnut', 'l7_patch']
+      .forEach(k => { if (!this.textures.exists(k)) this.load.image(k, `${P}${k}.png`); });
+    // l7_jeep_fixed is optional — ignore a 404 until the art is added
+    this.load.on('loaderror', (f) => { if (f && f.key === 'l7_jeep_fixed') { /* fallback handled in _finishStage */ } });
+  }
+
+  // size an image by target HEIGHT, preserving its native aspect ratio (art has padding)
+  _wh(key, h) { const s = this.textures.get(key).getSourceImage(); return [h * s.width / s.height, h]; }
+  _ai(key, x, y, h, oy = 0.5, depth = 5) { const [w, hh] = this._wh(key, h); return this.add.image(x, y, key).setOrigin(0.5, oy).setDisplaySize(w, hh).setDepth(depth); }
+
   create() {
     generateL7Assets(this);
     this.cameras.main.fadeIn(700, 0, 0, 0);
@@ -17,9 +29,14 @@ export class L7_Stage2Scene extends L7BaseScene {
 
     this.add.image(W / 2, H / 2, 'l7_s2_bg').setDisplaySize(W, H).setDepth(-10);
 
-    // The jeep with a flat front tyre
-    this._jeep = this.add.image(W / 2 + 40, 360, 'l7_jeep_side').setOrigin(0.5, 1).setDisplaySize(260, 156).setDepth(5);
-    this._flatTire = this.add.image(W / 2 - 30, 356, 'l7_tire_flat').setOrigin(0.5, 1).setDisplaySize(70, 60).setDepth(6);
+    // Broken jeep (flat front tyre baked into l7_jeep_side) shown during the whole
+    // repair; it swaps to the complete l7_jeep_fixed image at "Tyre Repaired!".
+    this._jeepBaseY = 398;
+    this._jeep = this._ai('l7_jeep_side', W / 2 + 18, this._jeepBaseY, 168, 1, 5);
+    this._hubX = this._jeep.x + this._jeep.displayWidth * 0.295;   // front is on the RIGHT (fallback only)
+    this._hubY = this._jeepBaseY - this._jeep.displayHeight * 0.205;
+    this._wheelH = 60;
+    this._flatTire = null;
 
     this.buildStageHUD(2, 'Fix the Puncture',
       ['Find the tools', 'Lift the jeep', 'Remove the tyre', 'Repair the puncture', 'Inflate & refit']);
@@ -51,10 +68,16 @@ export class L7_Stage2Scene extends L7BaseScene {
   }
 
   _finishStage() {
-    // refit good tyre
-    this._flatTire.destroy();
-    this.add.image(W / 2 - 30, 356, 'l7_tire').setOrigin(0.5, 1).setDisplaySize(64, 60).setDepth(6);
-    this.tweens.add({ targets: this._jeep, y: 360, duration: 400 });
+    // wheel fixed: swap to the complete-jeep image (or fall back to a tyre overlay)
+    if (this._flatTire) this._flatTire.destroy();
+    if (this.textures.exists('l7_jeep_fixed')) {
+      const [jw, jh] = this._wh('l7_jeep_fixed', 168);
+      this._jeep.setTexture('l7_jeep_fixed').setDisplaySize(jw, jh);
+    } else {
+      const good = this._ai('l7_tire', this._hubX, this._hubY - 26, this._wheelH, 0.5, 6);
+      this.tweens.add({ targets: good, y: this._hubY, duration: 400 });
+    }
+    this.tweens.add({ targets: this._jeep, y: this._jeepBaseY, duration: 400 });
     this.cameras.main.flash(300, 120, 220, 140);
     this.completeStage('L7_Cutscene', 'Tyre Repaired!', {
       slides: [
@@ -68,23 +91,34 @@ export class L7_Stage2Scene extends L7BaseScene {
   // ── Step 1: Find tools (in-scene hidden objects) ───────────────────────────
   _stepFindTools() {
     const tools = [
-      { tex: 'l7_jack',     x: 150, y: 392, w: 56, h: 56, name: 'Jack' },
-      { tex: 'l7_wrench',   x: 360, y: 250, w: 56, h: 56, name: 'Wrench' },
-      { tex: 'l7_patchkit', x: 660, y: 392, w: 58, h: 46, name: 'Patch Kit' },
+      { tex: 'l7_jack',     x: 132, y: 416, h: 50, name: 'Jack' },      // on the floor, left
+      { tex: 'l7_wrench',   x: 648, y: 408, h: 40, name: 'Wrench' },    // floor, right of jeep
+      { tex: 'l7_patchkit', x: 512, y: 286, h: 44, name: 'Patch Kit' }, // on a shelf
     ];
-    let found = 0;
-    // tray
     this.add.text(W / 2, 92, '🧰 Find:  Jack • Wrench • Patch Kit', {
       fontSize: '13px', fontFamily: 'Georgia, serif', color: '#fde8c0', stroke: '#000', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
-    tools.forEach(tl => {
-      const img = this.add.image(tl.x, tl.y, tl.tex).setDisplaySize(tl.w, tl.h).setDepth(15).setAlpha(0.5).setInteractive({ useHandCursor: true });
-      const glow = this.add.circle(tl.x, tl.y, 22, 0xffe9a0, 0.12).setDepth(14);
+
+    // small inventory tray at the bottom — each found tool drops into its slot
+    const trayY = H - 32, slotX = [W / 2 - 56, W / 2, W / 2 + 56], SLOT = 40, ICON = 32;
+    const tray = this.add.graphics().setDepth(38);
+    tray.fillStyle(0x10141e, 0.9); tray.fillRoundedRect(W / 2 - 92, trayY - 24, 184, 48, 10);
+    tray.lineStyle(2, 0xf0a830, 0.7); tray.strokeRoundedRect(W / 2 - 92, trayY - 24, 184, 48, 10);
+    slotX.forEach(sx => { tray.lineStyle(1, 0x5a6a82, 0.6); tray.strokeRoundedRect(sx - SLOT / 2, trayY - SLOT / 2, SLOT, SLOT, 6); });
+    this.add.text(W / 2, trayY - 33, '🧰 TOOLS', { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#f0c860' }).setOrigin(0.5).setDepth(39);
+
+    let found = 0;
+    tools.forEach((tl, i) => {
+      const img = this._ai(tl.tex, tl.x, tl.y, tl.h, 0.5, 15).setAlpha(0.55).setInteractive({ useHandCursor: true });
+      const glow = this.add.circle(tl.x, tl.y, 18, 0xffe9a0, 0.14).setDepth(14);
       this.tweens.add({ targets: glow, alpha: 0.32, scale: 1.2, duration: 700, yoyo: true, repeat: -1 });
       img.on('pointerdown', () => {
         img.disableInteractive(); glow.destroy();
         this.sparkleBurst(tl.x, tl.y, 8);
-        this.tweens.add({ targets: img, x: 120 + found * 44, y: 120, scale: 0.5, alpha: 1, duration: 450 });
+        // shrink to fit the slot and drop into the bottom tray
+        const factor = ICON / Math.max(img.displayWidth, img.displayHeight);
+        img.setDepth(40);
+        this.tweens.add({ targets: img, x: slotX[i], y: trayY, scaleX: img.scaleX * factor, scaleY: img.scaleY * factor, alpha: 1, duration: 420, ease: 'Cubic.easeInOut' });
         found++;
         this.toast(`✓ ${tl.name} found (${found}/3)`, 1400);
         if (found >= 3) this._nextStep(0, '🧰 All tools ready!');
@@ -117,7 +151,7 @@ export class L7_Stage2Scene extends L7BaseScene {
       val = Math.min(100, val + 9);
       draw();
       this._jeep.y = jeepBaseY - (val / 100) * 26;
-      this._flatTire.y = 356 - (val / 100) * 26;
+      if (this._flatTire) this._flatTire.y = this._hubY - (val / 100) * 26;
       this.cameras.main.shake(60, 0.003);
       if (val >= 100) { this.time.delayedCall(400, () => { close(); this._nextStep(1, '🔧 Jeep lifted!'); }); }
     };
@@ -131,14 +165,18 @@ export class L7_Stage2Scene extends L7BaseScene {
   // ── Step 3: Remove the tyre (unscrew lug nuts) ─────────────────────────────
   _stepRemove() {
     const { td, close, px, py, pw, ph } = this.openPanel('⚙️ Remove the Tyre', 'Click all 5 lug nuts.', { w: 440, h: 330 });
-    const cx = W / 2, cy = py + 160, R = 70;
-    const tire = this.add.image(cx, cy, 'l7_tire').setDisplaySize(170, 170).setScrollFactor(0).setDepth(102); td.push(tire);
+    const cx = W / 2, cy = py + 150;
+    // the FLAT tyre is the one being taken off (shown face-on so the bolt circle reads)
+    const [tw, th] = this._wh('l7_tire_flat', 168);
+    const tire = this.add.image(cx, cy, 'l7_tire_flat').setDisplaySize(tw, th).setScrollFactor(0).setDepth(102); td.push(tire);
+    const [lw, lh] = this._wh('l7_lugnut', 30);
+    const NUT_R = 30;   // bolt-circle radius on the rim
     let removed = 0;
     const nuts = [];
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
-      const nx = cx + Math.cos(a) * 30, ny = cy + Math.sin(a) * 30;
-      const nut = this.add.image(nx, ny, 'l7_lugnut').setDisplaySize(26, 26).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+      const nx = cx + Math.cos(a) * NUT_R, ny = cy + Math.sin(a) * NUT_R;
+      const nut = this.add.image(nx, ny, 'l7_lugnut').setDisplaySize(lw, lh).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
       td.push(nut); nuts.push(nut);
       nut.on('pointerdown', () => {
         if (nut.getData('off')) return;
@@ -149,7 +187,7 @@ export class L7_Stage2Scene extends L7BaseScene {
         if (removed >= 5) {
           this.time.delayedCall(400, () => {
             this.panelButton(td, cx, py + ph - 36, '⬅  Pull Tyre Off', 0x7dff88, () => {
-              this.tweens.add({ targets: tire, x: cx - 220, angle: -90, alpha: 0, duration: 500, onComplete: () => { close(); this._flatTire.setVisible(false); this._nextStep(2, '⚙️ Tyre removed!'); } });
+              this.tweens.add({ targets: tire, x: cx - 220, angle: -90, alpha: 0, duration: 500, onComplete: () => { close(); if (this._flatTire) this._flatTire.setVisible(false); this._nextStep(2, '⚙️ Tyre removed!'); } });
             }, 200, 42);
           });
         }
@@ -161,13 +199,15 @@ export class L7_Stage2Scene extends L7BaseScene {
   _stepRepair() {
     const { td, close, px, py, pw, ph } = this.openPanel('🩹 Repair the Puncture', 'Drag the patch onto the red hole.', { w: 480, h: 330 });
     const cx = W / 2, cy = py + 150;
-    const tire = this.add.image(cx, cy, 'l7_tire_flat').setDisplaySize(180, 150).setScrollFactor(0).setDepth(102); td.push(tire);
+    const [tw, th] = this._wh('l7_tire_flat', 152);
+    const tire = this.add.image(cx, cy, 'l7_tire_flat').setDisplaySize(tw, th).setScrollFactor(0).setDepth(102); td.push(tire);
     const holeX = cx + 38, holeY = cy - 18;
     const hole = this.add.circle(holeX, holeY, 7, 0xcc2a2a, 1).setScrollFactor(0).setDepth(103).setStrokeStyle(2, 0x661010); td.push(hole);
     const ring = this.add.circle(holeX, holeY, 16, 0xcc2a2a, 0).setScrollFactor(0).setDepth(103).setStrokeStyle(2, 0xff6666, 0.8); td.push(ring);
     this.tweens.add({ targets: ring, scale: 1.4, alpha: { from: 0.8, to: 0 }, duration: 900, repeat: -1 });
 
-    const patch = this.add.image(px + 70, py + ph - 60, 'l7_patch').setDisplaySize(40, 40).setScrollFactor(0).setDepth(105).setInteractive({ draggable: true, useHandCursor: true });
+    const [paw, pah] = this._wh('l7_patch', 44);
+    const patch = this.add.image(px + 70, py + ph - 60, 'l7_patch').setDisplaySize(paw, pah).setScrollFactor(0).setDepth(105).setInteractive({ draggable: true, useHandCursor: true });
     td.push(patch); this.input.setDraggable(patch);
     td.push(this.add.text(px + 70, py + ph - 30, 'patch', { fontSize: '10px', color: '#b8c4d4' }).setOrigin(0.5).setScrollFactor(0).setDepth(105));
     let placed = false;
