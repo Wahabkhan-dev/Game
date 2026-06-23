@@ -288,8 +288,40 @@ export class L7BaseScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103));
     this.panelButton(td, W / 2, py + ph - 40, '▶  Continue the Journey', 0xf0c860, () => {
       this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(640, () => this.scene.start(nextScene, nextData));
+      this.time.delayedCall(640, () => {
+        this._wakeLoop();
+        this.scene.start(nextScene, nextData);
+
+        // Poll until the target scene is running, forcing game ticks in case the
+        // RAF loop went to sleep (hasFocus=false) right after the fade started.
+        let tries = 0;
+        this._csIv = setInterval(() => {
+          const sceneObj = this.game.scene.getScene(nextScene);
+          const status = sceneObj ? sceneObj.sys.settings.status : -1;
+          if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(this._csIv); this._csIv = null; return; }
+          if (status === 8 || status === 9) { clearInterval(this._csIv); this._csIv = null; return; }
+          this._wakeLoop();
+          try {
+            const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            this.game.step(t, 16);
+          } catch (_) {}
+          if (++tries >= 300) { clearInterval(this._csIv); this._csIv = null; }
+        }, 50);
+      });
     }, 280, 44);
+    this.events.once('shutdown', () => { if (this._csIv) { clearInterval(this._csIv); this._csIv = null; } });
+  }
+
+  // Restore the Phaser game loop if it went to sleep (webview focus loss sets
+  // loop.hasFocus=false, which makes TimeStep.step() a silent no-op and
+  // prevents scene.start() from ever being processed by processQueue).
+  _wakeLoop() {
+    try {
+      const l = this.game.loop;
+      if (!l) return;
+      if (l.hasFocus === false) l.hasFocus = true;
+      if (l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
+    } catch (_) {}
   }
 
   // ── Pause menu ──────────────────────────────────────────────────────────────

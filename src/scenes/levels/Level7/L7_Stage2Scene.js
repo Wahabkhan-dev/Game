@@ -10,12 +10,17 @@ import { generateL7Assets } from './L7Assets.js';
 export class L7_Stage2Scene extends L7BaseScene {
   constructor() { super('L7_Stage2'); }
 
+  init(data) {}
+
   preload() {
     const P = 'assets/images/Level7/Stage2/';
-    ['l7_s2_bg', 'l7_jeep_side', 'l7_jeep_fixed', 'l7_tire', 'l7_tire_flat', 'l7_jack', 'l7_wrench', 'l7_patchkit', 'l7_lugnut', 'l7_patch']
-      .forEach(k => { if (!this.textures.exists(k)) this.load.image(k, `${P}${k}.png`); });
-    // l7_jeep_fixed is optional — ignore a 404 until the art is added
-    this.load.on('loaderror', (f) => { if (f && f.key === 'l7_jeep_fixed') { /* fallback handled in _finishStage */ } });
+    const files = ['l7_s2_bg', 'l7_jeep_side', 'l7_jeep_fixed', 'l7_tire', 'l7_tire_flat', 'l7_jack', 'l7_wrench', 'l7_patchkit', 'l7_lugnut', 'l7_patch'];
+    files.forEach(k => {
+      // Remove any procedurally-generated placeholder so the real PNG is used instead
+      if (this.textures.exists(k)) this.textures.remove(k);
+      this.load.image(k, `${P}${k}.png`);
+    });
+    this.load.on('loaderror', (file) => console.error(`[L7_Stage2] load error: ${file?.key}`));
   }
 
   // size an image by target HEIGHT, preserving its native aspect ratio (art has padding)
@@ -29,11 +34,9 @@ export class L7_Stage2Scene extends L7BaseScene {
 
     this.add.image(W / 2, H / 2, 'l7_s2_bg').setDisplaySize(W, H).setDepth(-10);
 
-    // Broken jeep (flat front tyre baked into l7_jeep_side) shown during the whole
-    // repair; it swaps to the complete l7_jeep_fixed image at "Tyre Repaired!".
     this._jeepBaseY = 398;
     this._jeep = this._ai('l7_jeep_side', W / 2 + 18, this._jeepBaseY, 168, 1, 5);
-    this._hubX = this._jeep.x + this._jeep.displayWidth * 0.295;   // front is on the RIGHT (fallback only)
+    this._hubX = this._jeep.x + this._jeep.displayWidth * 0.295;
     this._hubY = this._jeepBaseY - this._jeep.displayHeight * 0.205;
     this._wheelH = 60;
     this._flatTire = null;
@@ -68,7 +71,6 @@ export class L7_Stage2Scene extends L7BaseScene {
   }
 
   _finishStage() {
-    // wheel fixed: swap to the complete-jeep image (or fall back to a tyre overlay)
     if (this._flatTire) this._flatTire.destroy();
     if (this.textures.exists('l7_jeep_fixed')) {
       const [jw, jh] = this._wh('l7_jeep_fixed', 168);
@@ -79,12 +81,14 @@ export class L7_Stage2Scene extends L7BaseScene {
     }
     this.tweens.add({ targets: this._jeep, y: this._jeepBaseY, duration: 400 });
     this.cameras.main.flash(300, 120, 220, 140);
-    this.completeStage('L7_Cutscene', 'Tyre Repaired!', {
-      slides: [
-        { bg: 'l7_s3_sky', emoji: '🚙', charTex: 'gleeda_idle', text: 'The jeep rolls out into the storm, wipers thrashing. Gamma and her pups are bundled safe on the back seat.' },
-        { bg: 'l7_s3_station', emoji: '⛽', charTex: 'gleeda_idle', text: 'Halfway to the city the engine coughs and dies. The fuel gauge reads empty. Ahead, a lonely gas station glows in the rain.' },
-      ],
-      next: 'L7_Stage3', nextData: {}
+    this.registry.set('lives', this._lives);
+    this.registry.set('l7_checkpoint', 'L7_Stage3');
+    this.time.delayedCall(600, () => {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => {
+        this._wakeLoop();
+        this.scene.start('L7_Stage3');
+      });
     });
   }
 

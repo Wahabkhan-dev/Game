@@ -233,30 +233,59 @@ export class L7_CutsceneScene extends Phaser.Scene {
 
     const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-    // Issue the swap EXACTLY ONCE. this.scene.start() (the ScenePlugin) shuts down
-    // THIS cutscene and starts the target. Re-issuing it would restart the target's
-    // asset loading every tick and it would never finish booting — that was the bug.
     const go = () => {
       if (this._started) return;
       this._started = true;
+      console.log(`[L7_Cutscene] Starting transition to ${target}`);
+      
+      // Immediately try to start the scene — don't wait for events that may never fire
       this._wakeLoop();
-      try { this.scene.start(target, data); } catch (e) {
-        console.warn('L7 cutscene transition failed', e);
+      try { 
+        this.scene.start(target, data);
+        console.log(`[L7_Cutscene] scene.start() called for ${target}`);
+      } catch (e) {
+        console.warn('[L7_Cutscene] scene.start failed:', e);
       }
-      // Pump the loop while waiting for the target to activate.
+      
+      // Aggressively step the RAF loop to force the scene through INIT→START→LOADING→CREATING→RUNNING
       let tries = 0;
+      const maxTries = 600; // 30 seconds (600 * 50ms)
       this._finishIv = setInterval(() => {
-        if (this.game.scene.isActive(target)) { this._clearFinish(); return; }
-        const l = this.game.loop;
-        if (l) {
-          this._wakeLoop();
-          try { l.step && l.step(now()); } catch (e) { console.warn('L7 finish loop step failed', e); }
+        const sceneObj = this.game.scene.getScene(target);
+        const status = sceneObj ? sceneObj.sys.settings.status : -1;
+        
+        // Check if the scene is running (status 5 = RUNNING)
+        if (status === 5 || this.game.scene.isActive(target)) {
+          console.log(`[L7_Cutscene] Scene ${target} is now RUNNING. Cleanup.`);
+          this._clearFinish();
+          return;
         }
-        if (++tries > 300) this._clearFinish();
+        
+        // If scene got destroyed/errored, give up
+        if (status === 9 || status === 8) {
+          console.warn(`[L7_Cutscene] Scene ${target} failed (status=${status}). Cleanup.`);
+          this._clearFinish();
+          return;
+        }
+        
+        // Wake the loop (restores hasFocus so the already-queued RAF callback
+        // actually calls game.step instead of returning early).
+        this._wakeLoop();
+        try {
+          const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          this.game.step(t, 16);   // bypass TimeStep entirely — process queue now
+        } catch (e) { console.warn('[L7_Cutscene] game.step failed:', e); }
+        
+        if (++tries >= maxTries) {
+          console.error(`[L7_Cutscene] Max retries exceeded for ${target}. Status=${status}`);
+          this._clearFinish();
+        }
       }, 50);
     };
-    this.cameras.main.once('camerafadeoutcomplete', go);
-    this._finishTO = setTimeout(go, 300);
+    
+    // Try immediately (don't wait for fade event which might not fire if loop is sleeping)
+    // The fade will happen visually while we're trying to boot the next scene
+    this.time.delayedCall(50, go);
     this.events.once('shutdown', () => this._clearFinish());
   }
 
@@ -265,13 +294,17 @@ export class L7_CutsceneScene extends Phaser.Scene {
     if (this._finishTO) { clearTimeout(this._finishTO); this._finishTO = null; }
   }
 
-  // If the browser throttled/slept the RAF game loop (backgrounded tab, embedded
-  // webview, a covering window), a queued scene.start never boots and the screen
-  // appears frozen. Force the loop back awake. Safe no-op if already running.
+  // Force the RAF game loop back awake. When a webview loses focus Phaser sets
+  // loop.hasFocus=false and TimeStep.step() becomes a silent no-op — the scene
+  // manager queue never drains and scene.start() appears to do nothing.
+  // Restoring hasFocus=true lets the already-scheduled RAF callbacks do real work.
   _wakeLoop() {
     try {
       const l = this.game.loop;
       if (!l) return;
+      // hasFocus=false is the silent killer: TimeStep.step() returns early when
+      // focus is lost, so l.step() calls from setInterval do nothing.
+      if (l.hasFocus === false) l.hasFocus = true;
       if (l.running === false) {
         if (l.wake)   l.wake();
         if (l.resume) l.resume();

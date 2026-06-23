@@ -171,12 +171,14 @@ export class L7_Stage3Scene extends L7BaseScene {
 
   _finishStage() {
     this.cameras.main.flash(300, 120, 220, 140);
-    this.completeStage('L7_Cutscene', 'Fuel Tank Full!', {
-      slides: [
-        { bg: 'l7_s4_sky', emoji: '🌧️', charTex: 'gleeda_idle', text: 'Tank full, Glenda swings the jeep onto the city highway. Rain hammers the windscreen; the wipers can barely keep up.' },
-        { bg: 'l7_hospital', emoji: '🏥', charTex: 'gleeda_idle', text: 'Somewhere ahead, past the traffic and the roadworks, the Animal Hospital is waiting. "Almost there. Stay with me, little ones."' },
-      ],
-      next: 'L7_Stage4', nextData: {}
+    this.registry.set('lives', this._lives);
+    this.registry.set('l7_checkpoint', 'L7_Stage4');
+    this.time.delayedCall(600, () => {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => {
+        this._wakeLoop();
+        this.scene.start('L7_Stage4');
+      });
     });
   }
 

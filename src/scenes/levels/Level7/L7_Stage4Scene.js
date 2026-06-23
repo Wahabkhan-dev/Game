@@ -498,6 +498,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._done = true; this._speed = 0;
     this._completeObj(5);
     this.registry.set('lives', this.registry.get('lives') ?? 3);
+    this.registry.set('l7_checkpoint', 'L7_Stage5');
     const ov = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0).setDepth(50).setScrollFactor(0);
     this.tweens.add({ targets: ov, alpha: 0.4, duration: 700 });
     this.time.delayedCall(700, () => {
@@ -506,15 +507,21 @@ export class L7_Stage4Scene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 + 48, `Puppies' safety: ${Math.round(this._health)}% ❤️`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.time.delayedCall(2000, () => {
         this.cameras.main.fadeOut(700, 0, 0, 0);
-        this.time.delayedCall(740, () => this.scene.start('L7_Cutscene', {
-          slides: [
-            { bg: 'l7_hospital', emoji: '🏥', charTex: 'gleeda_idle', text: 'Tyres screech to a stop under the glowing red cross. Glenda scoops up the trembling pups and rushes through the sliding doors.' },
-            { bg: 'l7_s5_bg', emoji: '🩺', charTex: 'gleeda_idle', text: '"Please, help them." The vet wheels over the exam table. Three tiny lives — and only steady hands can save them now.' },
-          ],
-          next: 'L7_Stage5', nextData: {}
-        }));
+        this.time.delayedCall(740, () => {
+          this._wakeLoop();
+          this.scene.start('L7_Stage5');
+        });
       });
     });
+  }
+
+  _wakeLoop() {
+    try {
+      const l = this.game.loop;
+      if (!l) return;
+      if (l.hasFocus === false) l.hasFocus = true;
+      if (l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
+    } catch (_) {}
   }
 
   _gameOver(msg) {

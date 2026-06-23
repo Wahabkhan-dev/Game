@@ -15,13 +15,33 @@ const IMG = 'assets/images/Level7/Stage1/';
 export class L7_Stage1Scene extends L7BaseScene {
   constructor() { super('L7_Stage1'); }
 
+  init(data) {
+    console.log('[L7_Stage1] init()', data);
+  }
+
   preload() {
-    ['l7_s1_bg', 'l7_s1_floor', 'l7_s1_window', 'l7_s1_ladder', 'l7_s1_basement',
-     'l7_s1_debris', 'l7_fusebox', 'l7_puddle', 'l7_keyfrag', 'l7_key']
-      .forEach(k => { if (!this.textures.exists(k)) this.load.image(k, `${IMG}${k}.png`); });
+    console.log('[L7_Stage1] preload() start');
+    const files = ['l7_s1_bg', 'l7_s1_floor', 'l7_s1_window', 'l7_s1_ladder', 'l7_s1_basement',
+      'l7_s1_debris', 'l7_fusebox', 'l7_puddle', 'l7_keyfrag', 'l7_key'];
+
+    files.forEach(k => {
+      if (!this.textures.exists(k)) {
+        console.log(`[L7_Stage1] queue image ${k}`);
+        this.load.image(k, `${IMG}${k}.png`);
+      }
+    });
+
+    this.load.on('filecomplete', (key) => {
+      console.log(`[L7_Stage1] loaded ${key}`);
+    });
+
+    this.load.on('loaderror', (file) => {
+      console.error(`[L7_Stage1] loaderror ${file?.key} @ ${file?.src}`);
+    });
   }
 
   create() {
+    console.log('[L7_Stage1] create() start');
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
@@ -190,12 +210,12 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.tweens.add({ targets: key, scale: 0.5, duration: 600, ease: 'Back.easeOut', yoyo: true, hold: 400, onComplete: () => key.destroy() });
     this.cameras.main.flash(300, 255, 220, 120);
     this.time.delayedCall(1100, () => {
-      this.completeStage('L7_Cutscene', 'Jeep Key Assembled!', {
-        slides: [
-          { bg: 'l7_s1_bg', emoji: '🔑', charTex: 'gleeda_idle', text: 'Glenda grips the cold jeep key. "Hold on, Gamma. The puppies need a doctor — and I\'m getting us there."' },
-          { bg: 'l7_s2_bg', emoji: '🚙', charTex: 'gleeda_idle', text: 'But out in the garage, the jeep sits low on one corner. A flat tyre. No journey starts until it\'s fixed.' },
-        ],
-        next: 'L7_Stage2', nextData: {}
+      this.registry.set('lives', this._lives);
+      this.registry.set('l7_checkpoint', 'L7_Stage2');
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => {
+        this._wakeLoop();
+        this.scene.start('L7_Stage2');
       });
     });
   }
