@@ -13,6 +13,22 @@ const GROUND_Y = 408;
 export class L7_Stage3Scene extends L7BaseScene {
   constructor() { super('L7_Stage3'); }
 
+  preload() {
+    const P = 'assets/images/Level7/Stage3/';
+    // Real Gemini art for Stage 3. A procedural placeholder for these keys may
+    // already exist (generateL7Assets in an earlier scene); drop it so the real
+    // PNG loads. If a file is missing, generateL7Assets() in create() regenerates it.
+    ['l7_s3_sky', 'l7_s3_ground', 'l7_s3_station', 'l7_barrel', 'l7_generator',
+     'l7_barrier', 'l7_pipe_straight', 'l7_pipe_elbow', 'l7_fuelcan']
+      .forEach(k => { if (this.textures.exists(k)) this.textures.remove(k); this.load.image(k, `${P}${k}.png`); });
+    // reused jeep from Stage 2
+    if (!this.textures.exists('l7_jeep_side')) this.load.image('l7_jeep_side', 'assets/images/Level7/Stage2/l7_jeep_side.png');
+    this.load.on('loaderror', () => { /* generateL7Assets regenerates a fallback */ });
+  }
+
+  // size an image by target HEIGHT, preserving its native aspect ratio
+  _wh(key, h) { const s = this.textures.get(key).getSourceImage(); return [h * s.width / s.height, h]; }
+
   create() {
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
@@ -38,23 +54,32 @@ export class L7_Stage3Scene extends L7BaseScene {
   }
 
   _buildWorld() {
+    // full-scene night roadside backdrop, scaled to fit the viewport height; the
+    // existing update() parallax (tilePositionX) then drifts it gently.
     this._sky = this.add.tileSprite(W / 2, H / 2, W, H, 'l7_s3_sky').setScrollFactor(0).setDepth(-30);
-    // gas station building near the right
-    this.add.image(2750, GROUND_Y + 8, 'l7_s3_station').setOrigin(0.5, 1).setDisplaySize(360, 236).setDepth(2);
+    const sky = this.textures.get('l7_s3_sky').getSourceImage();
+    if (sky && sky.height) this._sky.tileScaleX = this._sky.tileScaleY = H / sky.height;
+    // gas station building near the right (aspect-preserved)
+    const [stw, sth] = this._wh('l7_s3_station', 224);
+    this.add.image(2750, GROUND_Y + 10, 'l7_s3_station').setOrigin(0.5, 1).setDisplaySize(stw, sth).setDepth(2);
     // a parked jeep at the start (the one that ran dry)
-    this.add.image(180, GROUND_Y + 12, 'l7_jeep_side').setOrigin(0.5, 1).setDisplaySize(200, 120).setDepth(3).setAlpha(0.95);
+    const [jw, jh] = this._wh('l7_jeep_side', 118);
+    this.add.image(180, GROUND_Y + 12, 'l7_jeep_side').setOrigin(0.5, 1).setDisplaySize(jw, jh).setDepth(3).setAlpha(0.97);
   }
 
   _buildGround() {
     const stripH = 90;
-    this.add.tileSprite(WORLD_W / 2, GROUND_Y + stripH / 2 - 6, WORLD_W, stripH, 'l7_s3_ground').setDepth(5);
+    const ground = this.add.tileSprite(WORLD_W / 2, GROUND_Y + stripH / 2 - 6, WORLD_W, stripH, 'l7_s3_ground').setDepth(5);
+    const gs = this.textures.get('l7_s3_ground').getSourceImage();
+    if (gs && gs.height) ground.tileScaleX = ground.tileScaleY = stripH / gs.height;  // fit the wet-road texture into the strip
     const body = this.add.rectangle(WORLD_W / 2, GROUND_Y + 16, WORLD_W, 28, 0, 0);
     this.physics.add.existing(body, true);
     this._ground = body;
 
     // Roadblock barriers (jump hurdles)
+    const [bw, bh] = this._wh('l7_barrier', 58);
     this._barriers = [850, 1850].map(x => {
-      this.add.image(x, GROUND_Y + 14, 'l7_barrier').setOrigin(0.5, 1).setDisplaySize(90, 50).setDepth(8);
+      this.add.image(x, GROUND_Y + 14, 'l7_barrier').setOrigin(0.5, 1).setDisplaySize(bw, bh).setDepth(8);
       const b = this.add.rectangle(x, GROUND_Y - 8, 80, 30, 0, 0);
       this.physics.add.existing(b, true);
       return b;
@@ -63,14 +88,15 @@ export class L7_Stage3Scene extends L7BaseScene {
 
   _buildStations() {
     this._stations = [
-      { key: 'barrel',    x: 600,  tex: 'l7_barrel',    dw: 50, dh: 70,  label: '🛢️ Barrel',    obj: 0, run: () => this._moveBarrel() },
-      { key: 'generator', x: 1200, tex: 'l7_generator', dw: 96, dh: 78,  label: '🔌 Generator', obj: 1, run: () => this._startGenerator() },
-      { key: 'pipes',     x: 1600, tex: 'l7_pipe_elbow',dw: 56, dh: 56,  label: '🔧 Pipes',     obj: 2, run: () => this._connectPipes() },
-      { key: 'tank',      x: 2300, tex: 'l7_fuelcan',   dw: 56, dh: 64,  label: '🔒 Tank',      obj: 3, run: () => this._unlockTank() },
-      { key: 'fill',      x: 2650, tex: 'l7_fuelcan',   dw: 60, dh: 70,  label: '⛽ Fill',      obj: 4, run: () => this._fillFuel() },
+      { key: 'barrel',    x: 600,  tex: 'l7_barrel',    dh: 86, label: '🛢️ Barrel',    obj: 0, run: () => this._moveBarrel() },
+      { key: 'generator', x: 1200, tex: 'l7_generator', dh: 72, label: '🔌 Generator', obj: 1, run: () => this._startGenerator() },
+      { key: 'pipes',     x: 1600, tex: 'l7_pipe_elbow',dh: 60, label: '🔧 Pipes',     obj: 2, run: () => this._connectPipes() },
+      { key: 'tank',      x: 2300, tex: 'l7_fuelcan',   dh: 90, label: '🔒 Tank',      obj: 3, run: () => this._unlockTank() },
+      { key: 'fill',      x: 2650, tex: 'l7_fuelcan',   dh: 96, label: '⛽ Fill',      obj: 4, run: () => this._fillFuel() },
     ];
     this._stations.forEach(st => {
-      st.sprite = this.add.image(st.x, GROUND_Y - 4, st.tex).setOrigin(0.5, 1).setDisplaySize(st.dw, st.dh).setDepth(9).setInteractive({ useHandCursor: true });
+      const [sw, sh] = this._wh(st.tex, st.dh);
+      st.sprite = this.add.image(st.x, GROUND_Y - 4, st.tex).setOrigin(0.5, 1).setDisplaySize(sw, sh).setDepth(9).setInteractive({ useHandCursor: true });
       st.glow = this.add.circle(st.x, GROUND_Y - st.dh / 2 - 4, 28, 0x66ecff, 0.16).setDepth(8);
       this.tweens.add({ targets: st.glow, alpha: 0.4, scale: 1.25, duration: 800, yoyo: true, repeat: -1 });
       st.prompt = this.add.text(st.x, GROUND_Y - st.dh - 24, `${st.label}\n[E] / tap`, {
@@ -188,7 +214,7 @@ export class L7_Stage3Scene extends L7BaseScene {
     const targetX = px + pw - 110, targetY = py + ph - 90;
     const marker = this.add.circle(targetX, targetY, 42, 0x44dd66, 0.18).setScrollFactor(0).setDepth(102).setStrokeStyle(3, 0x44dd66, 0.9); td.push(marker);
     td.push(this.add.text(targetX, targetY - 58, 'PLACE HERE', { fontSize: '11px', color: '#7dff88' }).setOrigin(0.5).setScrollFactor(0).setDepth(102));
-    const barrel = this.add.image(px + 120, targetY, 'l7_barrel').setDisplaySize(60, 80).setScrollFactor(0).setDepth(104).setInteractive({ draggable: true, useHandCursor: true });
+    const barrel = this.add.image(px + 120, targetY, 'l7_barrel').setDisplaySize(...this._wh('l7_barrel', 96)).setScrollFactor(0).setDepth(104).setInteractive({ draggable: true, useHandCursor: true });
     td.push(barrel); this.input.setDraggable(barrel);
     barrel.on('drag', (p, x, y) => barrel.setPosition(x, y));
     barrel.on('dragend', () => {
@@ -206,7 +232,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   // ── Start the Generator (tap-to-pull) ──────────────────────────────────────
   _startGenerator() {
     const { td, close, px, py, pw, ph } = this.openPanel('🔌 Start the Generator', 'Tap PULL or SPACE rapidly!', { w: 420, h: 320 });
-    this.add.image(W / 2, py + 150, 'l7_generator').setDisplaySize(150, 122).setScrollFactor(0).setDepth(102);
+    this.add.image(W / 2, py + 150, 'l7_generator').setDisplaySize(...this._wh('l7_generator', 104)).setScrollFactor(0).setDepth(102);
     let val = 0, done = false;
     const barX = px + 40, barY = py + 90, barW = 30, barH = 160;
     const frame = this.add.graphics().setScrollFactor(0).setDepth(103);
@@ -300,7 +326,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   // ── Fill the Fuel (hold to pour, meter fills gradually) ────────────────────
   _fillFuel() {
     const { td, close, px, py, pw, ph } = this.openPanel('⛽ Fill the Fuel', 'Hold POUR until the tank is FULL!', { w: 440, h: 320 });
-    this.add.image(W / 2, py + 150, 'l7_fuelcan').setDisplaySize(90, 102).setScrollFactor(0).setDepth(102);
+    this.add.image(W / 2, py + 150, 'l7_fuelcan').setDisplaySize(...this._wh('l7_fuelcan', 120)).setScrollFactor(0).setDepth(102);
     let level = this._fuel; // continue from 75
     const barX = px + pw - 90, barY = py + 80, barW = 40, barH = 170;
     const frame = this.add.graphics().setScrollFactor(0).setDepth(103);
