@@ -56,6 +56,11 @@ import { L7_Stage2Scene }   from './scenes/levels/Level7/L7_Stage2Scene.js';
 import { L7_Stage3Scene }   from './scenes/levels/Level7/L7_Stage3Scene.js';
 import { L7_Stage4Scene }   from './scenes/levels/Level7/L7_Stage4Scene.js';
 import { L7_Stage5Scene }   from './scenes/levels/Level7/L7_Stage5Scene.js';
+// Level 8 — Puppy Care Day (collect food → feed → collect home items → decorate)
+import { L8_FoodRunScene }  from './scenes/levels/Level8/L8_FoodRunScene.js';
+import { L8_FeedingScene }  from './scenes/levels/Level8/L8_FeedingScene.js';
+import { L8_HomeRunScene }  from './scenes/levels/Level8/L8_HomeRunScene.js';
+import { L8_DecorateScene } from './scenes/levels/Level8/L8_DecorateScene.js';
 import { W, H }                  from './config/GameConfig.js';
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
@@ -189,6 +194,11 @@ const config = {
     L7_Stage3Scene,
     L7_Stage4Scene,
     L7_Stage5Scene,
+    // Level 8 — Puppy Care Day
+    L8_FoodRunScene,
+    L8_FeedingScene,
+    L8_HomeRunScene,
+    L8_DecorateScene,
   ]
 };
 

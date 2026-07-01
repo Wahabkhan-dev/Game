@@ -232,7 +232,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   // ── Start the Generator (tap-to-pull) ──────────────────────────────────────
   _startGenerator() {
     const { td, close, px, py, pw, ph } = this.openPanel('🔌 Start the Generator', 'Tap PULL or SPACE rapidly!', { w: 420, h: 320 });
-    this.add.image(W / 2, py + 150, 'l7_generator').setDisplaySize(...this._wh('l7_generator', 104)).setScrollFactor(0).setDepth(102);
+    td.push(this.add.image(W / 2, py + 150, 'l7_generator').setDisplaySize(...this._wh('l7_generator', 104)).setScrollFactor(0).setDepth(102));
     let val = 0, done = false;
     const barX = px + 40, barY = py + 90, barW = 30, barH = 160;
     const frame = this.add.graphics().setScrollFactor(0).setDepth(103);
@@ -326,7 +326,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   // ── Fill the Fuel (hold to pour, meter fills gradually) ────────────────────
   _fillFuel() {
     const { td, close, px, py, pw, ph } = this.openPanel('⛽ Fill the Fuel', 'Hold POUR until the tank is FULL!', { w: 440, h: 320 });
-    this.add.image(W / 2, py + 150, 'l7_fuelcan').setDisplaySize(...this._wh('l7_fuelcan', 120)).setScrollFactor(0).setDepth(102);
+    td.push(this.add.image(W / 2, py + 150, 'l7_fuelcan').setDisplaySize(...this._wh('l7_fuelcan', 120)).setScrollFactor(0).setDepth(102));
     let level = this._fuel; // continue from 75
     const barX = px + pw - 90, barY = py + 80, barW = 40, barH = 170;
     const frame = this.add.graphics().setScrollFactor(0).setDepth(103);

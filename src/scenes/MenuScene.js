@@ -39,9 +39,12 @@ export class MenuScene extends Phaser.Scene {
       next: 'L7_Stage1'
     }), BW);
 
-    this._secondaryBtn(colB, r[3], '🔧', 'Dev / QA', () => this._showDevMenu(), BW);
-    this._secondaryBtn(colA, 424, '📖', 'Continue', () => this._showContinueMsg(), BW);
-    this._secondaryBtn(colB, 424, '⚙', 'Settings',  () => this._showSettings(),    BW);
+    this._playBtn(colB, r[3], '🐾 Level 8', () => this._go('L8_FoodRun', { lives: 3, points: 0, l8_score: 0, l8_hp: 3 }), BW);
+
+    // secondary row — three compact buttons (Dev/QA, Continue, Settings)
+    this._secondaryBtn(150, 424, '🔧', 'Dev / QA', () => this._showDevMenu(),     150);
+    this._secondaryBtn(330, 424, '📖', 'Continue', () => this._showContinueMsg(), 150);
+    this._secondaryBtn(510, 424, '⚙', 'Settings',  () => this._showSettings(),    150);
   }
 
   // ── Shared launch helper: set registry, fade out, start scene ───────────────
@@ -300,6 +303,10 @@ export class MenuScene extends Phaser.Scene {
       ['⛽  L7 Stage 3 — Fuel',   () => this._go('L7_Stage3')],
       ['🚗  L7 Stage 4 — Drive',  () => this._go('L7_Stage4')],
       ['🐶  L7 Stage 5 — Puppies',() => this._go('L7_Stage5')],
+      ['▶  L8 — Puppy Care Day',  () => this._go('L8_FoodRun', { lives: 3, points: 0, l8_score: 0, l8_hp: 3 })],
+      ['🍖  L8 — Feed Puppies',    () => this._go('L8_Feeding', { lives: 3, l8_score: 1000, l8_hp: 3 })],
+      ['🏃  L8 — Home Run',        () => this._go('L8_HomeRun', { lives: 3, l8_score: 1500, l8_hp: 3 })],
+      ['🎨  L8 — Decorate',        () => this._go('L8_Decorate', { lives: 3, l8_score: 2500, l8_hp: 3 })],
       ['1️⃣  L2 Phase 1',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 1 })],
       ['2️⃣  L2 Phase 2',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 2 })],
       ['3️⃣  L2 Phase 3',         () => this._go('Level2', { lives: 3, points: 0, l2_testPhase: 3 })],
@@ -314,12 +321,12 @@ export class MenuScene extends Phaser.Scene {
       ['🐶  L6 Family',           () => this._go('L6_Introduction', {}, { names, stars: 1400 })],
     ];
 
-    const bw = 270, bh = 30;
+    const bw = 270, bh = 28, perCol = 11;
     items.forEach(([label, fn], i) => {
-      const col = i < 9 ? 0 : 1;
-      const row = i % 9;
+      const col = i < perCol ? 0 : 1;
+      const row = i % perCol;
       const cx = col ? 545 : 255;
-      const cy = 92 + row * 36;
+      const cy = 84 + row * 32;
 
       const g = this.add.graphics().setDepth(32);
       g.fillStyle(0x1c2436, 0.96); g.fillRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8);

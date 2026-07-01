@@ -22,7 +22,16 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(curl -s http://localhost:3000/)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\src\\\\scenes\\\\levels\\\\\" -Directory)",
-      "Read(//c/Users/Abdul Wahab/Desktop/shadowgame/ShadowGamma/src/scenes/levels/**)"
+      "Read(//c/Users/Abdul Wahab/Desktop/shadowgame/ShadowGamma/src/scenes/levels/**)",
+      "Read(//c/Users/Abdul Wahab/.claude/projects/c--Users-Abdul-Wahab-Desktop-shadowgame-ShadowGamma/memory/**)",
+      "Bash(dir \"C:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\public\\\\assets\\\\images\\\\level8\" /s /b)",
+      "PowerShell(Head -50)",
+      "PowerShell(Head -20)",
+      "PowerShell($src = \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\public\\\\assets\\\\images\\\\level 6\"; $dst = \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\public\\\\assets\\\\images\\\\level8\"; Get-ChildItem $src | Select-Object Name; \"---DEST---\"; Copy-Item \"$src\\\\background.png\" \"$dst\\\\l8_bg.png\" -Force; Copy-Item \"$src\\\\surface.png\" \"$dst\\\\l8_surface.png\" -Force; Get-ChildItem $dst | Select-Object Name, Length)",
+      "Bash(node -e \"require\\('@babel/core'\\) || 0\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Abdul Wahab\\.claude\\projects\\c--Users-Abdul-Wahab-Desktop-shadowgame-ShadowGamma\\memory"
     ]
   }
 }

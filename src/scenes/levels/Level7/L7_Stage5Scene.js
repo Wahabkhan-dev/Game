@@ -98,7 +98,6 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.add.text(W / 2, H / 2 - 30, '🐾 All Puppies Safe!', {
       fontSize: '26px', fontFamily: 'Georgia, serif', color: '#2a7a4a', stroke: '#fff', strokeThickness: 4
     }).setOrigin(0.5).setDepth(80);
-    // hearts rising
     for (let i = 0; i < 16; i++) {
       this.time.delayedCall(i * 120, () => {
         const hX = Phaser.Math.Between(W / 2 - 140, W / 2 + 140);
@@ -109,8 +108,12 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.cameras.main.flash(500, 255, 240, 200);
     this.time.delayedCall(2200, () => {
       this.registry.set('lives', this._lives);
+      this.registry.set('l7_checkpoint', 'L7_COMPLETE');
       this.cameras.main.fadeOut(700, 0, 0, 0);
-      this.time.delayedCall(740, () => this.scene.start('L7_Cutscene', { final: true, next: 'Menu' }));
+      this.time.delayedCall(740, () => {
+        this._wakeLoop();
+        this.scene.start('EndScene');
+      });
     });
   }
 
