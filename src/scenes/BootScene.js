@@ -88,6 +88,13 @@ export class BootScene extends Phaser.Scene {
     generateAssets(this);
     this.scene.start('Menu');
 
+    // Debug: launch sprite simulator on Ctrl+Shift+S
+    this.input.keyboard.on('keydown-S', (e) => {
+      if (e.ctrlKey && e.shiftKey) {
+        this.scene.start('SpriteSimulator');
+      }
+    });
+
     let pct = 0;
     const tips = ['Waking Shadow up...', 'Brewing forest magic...', 'Hiding berries...', 'Training the snake...', 'Almost ready...'];
     const iv = setInterval(() => {

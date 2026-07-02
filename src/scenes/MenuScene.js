@@ -297,6 +297,7 @@ export class MenuScene extends Phaser.Scene {
     };
 
     const items = [
+      ['🎬  SPIRIT SIMULATOR',    () => this._go('SpriteSimulator')],
       ['▶  L7 — Full Story',     () => this._go('L7_Cutscene', { lives: 3, points: 0 }, L7_INTRO)],
       ['🏠  L7 Stage 1 — Key',    () => this._go('L7_Stage1')],
       ['🔧  L7 Stage 2 — Tyre',   () => this._go('L7_Stage2')],

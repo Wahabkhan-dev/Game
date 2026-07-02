@@ -61,6 +61,8 @@ import { L8_FoodRunScene }  from './scenes/levels/Level8/L8_FoodRunScene.js';
 import { L8_FeedingScene }  from './scenes/levels/Level8/L8_FeedingScene.js';
 import { L8_HomeRunScene }  from './scenes/levels/Level8/L8_HomeRunScene.js';
 import { L8_DecorateScene } from './scenes/levels/Level8/L8_DecorateScene.js';
+// Sprite Animator / Test Simulator
+import { SpriteSimulator }  from './scenes/SpriteSimulator.js';
 import { W, H }                  from './config/GameConfig.js';
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
@@ -199,6 +201,8 @@ const config = {
     L8_FeedingScene,
     L8_HomeRunScene,
     L8_DecorateScene,
+    // Sprite Simulator (test scene)
+    SpriteSimulator,
   ]
 };
 
