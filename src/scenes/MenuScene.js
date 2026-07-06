@@ -41,6 +41,9 @@ export class MenuScene extends Phaser.Scene {
 
     this._playBtn(colB, r[3], '🐾 Level 8', () => this._go('L8_FoodRun', { lives: 3, points: 0, l8_score: 0, l8_hp: 3 }), BW);
 
+    // Level 9 — added in a clear right-side slot so no existing button moves
+    this._playBtn(515, r[3], '🎄 Level 9', () => this._go('L9_GiftRun', { lives: 3, points: 0, l9_score: 0, l9_hp: 3, l9_gifts: 0, l9_bows: 0 }), BW);
+
     // secondary row — three compact buttons (Dev/QA, Continue, Settings)
     this._secondaryBtn(150, 424, '🔧', 'Dev / QA', () => this._showDevMenu(),     150);
     this._secondaryBtn(330, 424, '📖', 'Continue', () => this._showContinueMsg(), 150);
@@ -320,14 +323,22 @@ export class MenuScene extends Phaser.Scene {
       ['🐾  L6 Run',              () => this._go('Level6', { lives: 3, points: 0, l6_stars: 0 })],
       ['🏆  L6 Naming',           () => this._go('L6_NamingCeremony', {}, { names, stars: 1400 })],
       ['🐶  L6 Family',           () => this._go('L6_Introduction', {}, { names, stars: 1400 })],
+      ['🎄  L9 — Full Level',     () => this._go('L9_GiftRun',  { lives: 3, points: 0, l9_score: 0, l9_hp: 3, l9_gifts: 0, l9_bows: 0 })],
+      ['🎁  L9 Gift Run',         () => this._go('L9_GiftRun',  { lives: 3, points: 0, l9_score: 0, l9_hp: 3, l9_gifts: 0 })],
+      ['🎀  L9 Unwrap Gifts',     () => this._go('L9_Unwrap',   { lives: 3, points: 0, l9_score: 800, l9_hp: 3, l9_gifts: 8 })],
+      ['🎀  L9 Bow Run',          () => this._go('L9_BowRun',   { lives: 3, points: 0, l9_score: 1400, l9_hp: 3 })],
+      ['🐶  L9 Bow-Tie Puppies',  () => this._go('L9_BowTie',   { lives: 3, points: 0, l9_score: 2200, l9_hp: 3, l9_bows: 7 })],
     ];
 
-    const bw = 270, bh = 28, perCol = 11;
+    // 2-column grid that auto-tightens its row spacing so any number of items fit
+    const perCol  = Math.ceil(items.length / 2);
+    const rowStep = Math.min(32, Math.floor((404 - 84) / perCol));
+    const bw = 270, bh = Math.min(28, rowStep - 4);
     items.forEach(([label, fn], i) => {
       const col = i < perCol ? 0 : 1;
       const row = i % perCol;
       const cx = col ? 545 : 255;
-      const cy = 84 + row * 32;
+      const cy = 84 + row * rowStep;
 
       const g = this.add.graphics().setDepth(32);
       g.fillStyle(0x1c2436, 0.96); g.fillRoundedRect(cx - bw / 2, cy - bh / 2, bw, bh, 8);

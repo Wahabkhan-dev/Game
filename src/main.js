@@ -61,6 +61,11 @@ import { L8_FoodRunScene }  from './scenes/levels/Level8/L8_FoodRunScene.js';
 import { L8_FeedingScene }  from './scenes/levels/Level8/L8_FeedingScene.js';
 import { L8_HomeRunScene }  from './scenes/levels/Level8/L8_HomeRunScene.js';
 import { L8_DecorateScene } from './scenes/levels/Level8/L8_DecorateScene.js';
+// Level 9 — A Holiday for the Puppies (collect gifts → unwrap → collect bows → tie a bow on each puppy)
+import { L9_GiftRunScene }  from './scenes/levels/Level9/L9_GiftRunScene.js';
+import { L9_UnwrapScene }   from './scenes/levels/Level9/L9_UnwrapScene.js';
+import { L9_BowRunScene }   from './scenes/levels/Level9/L9_BowRunScene.js';
+import { L9_BowTieScene }   from './scenes/levels/Level9/L9_BowTieScene.js';
 // Sprite Animator / Test Simulator
 import { SpriteSimulator }  from './scenes/SpriteSimulator.js';
 import { W, H }                  from './config/GameConfig.js';
@@ -201,6 +206,11 @@ const config = {
     L8_FeedingScene,
     L8_HomeRunScene,
     L8_DecorateScene,
+    // Level 9 — A Holiday for the Puppies
+    L9_GiftRunScene,
+    L9_UnwrapScene,
+    L9_BowRunScene,
+    L9_BowTieScene,
     // Sprite Simulator (test scene)
     SpriteSimulator,
   ]

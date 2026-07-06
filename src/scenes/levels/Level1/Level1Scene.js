@@ -1,10 +1,57 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { BaseLevelScene } from '../BaseLevelScene.js';
+import { L1HUD } from './hud/L1_HUD.js';
 
 // Chapter 1 — Three zones: Easy → Medium → Boss → Free Gemma
 export class Level1Scene extends BaseLevelScene {
   constructor() { super('Level1'); }
+
+  // ── Premium fantasy HUD (Level 1 only) ──────────────────────────────────────
+  // Overrides the shared BaseLevelScene._buildHUD so ONLY Level 1 gets the new
+  // header/footer. The HUD manager re-creates every field the base logic expects
+  // (hearts, HP, points, timer, progress, pause) so nothing else changes.
+  _buildHUD(config) {
+    this._hud = new L1HUD(this, config);
+    this._hud.build();
+  }
+
+  // Route the base HP-pip draw to the header's green bars (Level 1 only).
+  _drawHPPips() {
+    if (this._hud) this._hud.drawHP(this._shadowHP);
+  }
+
+  // Boss attack button is now a Phaser wood button in the footer (Level 1 only).
+  _setAttackBtn(visible) {
+    if (this._hud) this._hud.setAttackVisible(visible);
+  }
+
+  // ── Coin display: header CoinPanel shows the count with a gold coin (no star) ─
+  _givePoints(n) {
+    this._points = (this._points || 0) + n;
+    this.registry.set('points', this._points);
+    if (this._pointsTxt) this._pointsTxt.setText(`${this._points}`);
+    const pop = this.add.text(W / 2, H / 2 - 80, `+${n} 🪙`, {
+      fontSize: '26px', fontFamily: 'Georgia, serif', color: '#ffd24a', stroke: '#1a0f04', strokeThickness: 3
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(90);
+    this.tweens.add({ targets: pop, y: pop.y - 40, alpha: 0, duration: 1000, onComplete: () => pop.destroy() });
+  }
+
+  _spendPoints(n) {
+    this._points = Math.max(0, (this._points || 0) - n);
+    this.registry.set('points', this._points);
+    if (this._pointsTxt) this._pointsTxt.setText(`${this._points}`);
+  }
+
+  // Header timer uses the 🕒 clock glyph (matches the reference).
+  _resetTimer(seconds) {
+    if (!this._timerTxt) return;
+    this._timerLeft  = seconds;
+    this._timerFull  = seconds;
+    this._timerFired = false;
+    this._timerTxt.setText(`🕒 ${seconds}s`);
+    this._timerTxt.setColor('#ffe08a');
+  }
 
   create() {
     const config = {
@@ -95,6 +142,10 @@ export class Level1Scene extends BaseLevelScene {
     };
 
     this.initLevel(config);
+    // Level 1 renders its controls as Phaser wood buttons (see hud/), so hide the
+    // shared HTML footer. Base shutdown + other levels' initLevel restore it.
+    const _htmlFooter = document.getElementById('game-footer');
+    if (_htmlFooter) _htmlFooter.style.display = 'none';
     this._initZoneProgressBar();
 
     this._zone2Entered = false;
@@ -238,15 +289,16 @@ export class Level1Scene extends BaseLevelScene {
     this._lightningModalObjs = null;
     this._attackKey          = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
-    this._snakeHPText = this.add.text(W / 2, H - 32, '🐍 Boss HP: ❤️❤️❤️', {
+    // (y positions clear the new premium header banner/timer + footer bar)
+    this._snakeHPText = this.add.text(W / 2, H - 48, '🐍 Boss HP: ❤️❤️❤️', {
       fontSize: '13px', fontFamily: 'Georgia, serif',
       color: '#ee4422', stroke: '#0a0502', strokeThickness: 2
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(35).setVisible(false);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(46).setVisible(false);
 
-    this._attackTxt = this.add.text(W - 20, 38, '⚔️ Hits: 0 / 3', {
+    this._attackTxt = this.add.text(W - 20, 96, '⚔️ Hits: 0 / 3', {
       fontSize: '14px', fontFamily: 'Georgia, serif',
       color: '#f5e0b0', stroke: '#1a0802', strokeThickness: 2
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(35).setVisible(false);
+    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(46).setVisible(false);
 
     // ── Gemma cage (Zone 3 far end — x=16700, solid ground past last gap 16390+155=16545)
     {
@@ -312,45 +364,13 @@ export class Level1Scene extends BaseLevelScene {
   }
 
   // ── Zone progress bar ────────────────────────────────────────────────────
+  // Delegated to the premium footer HUD, which draws the carved-wood checkpoint
+  // bar and publishes the same _zpFill / _zpRunner / _zpLeft / _zpWidth /
+  // _zpWorldW fields this scene's update() loop drives (unchanged).
   _initZoneProgressBar() {
-    const WORLD_W = this.lvlConfig.worldWidth || 17000;
-    const LEFT = 88, RIGHT = W - 88, BAR_W = RIGHT - LEFT;
-    const TY = H - 10;
-
     if (this._progressBar) this._progressBar.setAlpha(0);
-
-    this.add.rectangle(W / 2, TY, W - 172, 10, 0x120904, 1)
-      .setScrollFactor(0).setDepth(30);
-    this.add.rectangle(LEFT + BAR_W / 2, TY, BAR_W, 3, 0x3a2810, 1)
-      .setScrollFactor(0).setDepth(31);
-
-    this._zpFill = this.add.rectangle(LEFT, TY, 2, 3, 0x44cc44, 1)
-      .setScrollFactor(0).setDepth(32).setOrigin(0, 0.5);
-
-    const zones = [
-      { wx: 0,       label: 'Z1', color: 0x44cc44 },
-      { wx: 5750,    label: 'Z2', color: 0xf5c840 },
-      { wx: 11550,   label: 'Z3', color: 0xee5522 },
-      { wx: WORLD_W, label: '🏁', color: 0xffffff },
-    ];
-
-    zones.forEach(z => {
-      const bx = LEFT + (z.wx / WORLD_W) * BAR_W;
-      const fg = this.add.graphics().setScrollFactor(0).setDepth(33);
-      fg.fillStyle(z.color, 1);
-      fg.fillRect(bx - 1, TY - 18, 2, 16);
-      fg.fillTriangle(bx + 1, TY - 18, bx + 1, TY - 10, bx + 10, TY - 14);
-      this.add.text(bx, TY - 28, z.label, {
-        fontSize: '8px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(34);
-    });
-
-    this._zpRunner = this.add.text(LEFT, TY - 7, '🐾', { fontSize: '12px' })
-      .setScrollFactor(0).setDepth(34).setOrigin(0.5, 1);
-
-    this._zpLeft   = LEFT;
-    this._zpWidth  = BAR_W;
-    this._zpWorldW = WORLD_W;
+    const WORLD_W = this.lvlConfig.worldWidth || 17000;
+    if (this._hud) this._hud.buildProgressBar(WORLD_W);
   }
 
   // ── Bridge ────────────────────────────────────────────────────────────────
@@ -514,16 +534,17 @@ export class Level1Scene extends BaseLevelScene {
 
   // ── Gemma life bar — shown in Zone 3 to show urgency ──────────────────────
   _createGemmaLifeBar() {
-    const CX = W / 2, BY = 66, BW = 170, BH = 10;
+    // y shifted below the new premium header banner + hanging timer box
+    const CX = W / 2, BY = 106, BW = 170, BH = 10;
 
     // Outer panel
     const panel = this.add.graphics().setScrollFactor(0).setDepth(34);
     panel.fillStyle(0x1a0904, 0.78);
-    panel.fillRoundedRect(CX - BW / 2 - 4, 52, BW + 8, 24, 5);
+    panel.fillRoundedRect(CX - BW / 2 - 4, 92, BW + 8, 24, 5);
     this._gemmaBarPanel = panel;
 
     // Label
-    this._gemmaBarLabel = this.add.text(CX, 57, '💛 GEMMA\'S LIFE', {
+    this._gemmaBarLabel = this.add.text(CX, 97, '💛 GEMMA\'S LIFE', {
       fontSize: '11px', fontFamily: 'Georgia, serif',
       color: '#ffdd44', stroke: '#1a0802', strokeThickness: 2
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(36);
@@ -691,11 +712,6 @@ export class Level1Scene extends BaseLevelScene {
       this._setAttackBtn(false);
       this._defeatSnake();
     }
-  }
-
-  _setAttackBtn(visible) {
-    const btn = document.getElementById('btn-attack');
-    if (btn) btn.style.display = visible ? 'inline-block' : 'none';
   }
 
   update() {
