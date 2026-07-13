@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
 import { generateL8Assets } from './L8Assets.js';
+import { preloadGlendaSkin } from './L8_GlendaSkin.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 8 — STAGE 1: GLEEDA RUNS THROUGH PUPPY TOWN TO COLLECT FOOD
@@ -70,6 +71,7 @@ export class L8_FoodRunScene extends L8BaseScene {
   //    real PNGs must be in the texture manager BEFORE that first call so the
   //    procedural fallbacks are skipped for every key that has a real image.
   preload() {
+    preloadGlendaSkin(this);
     const B  = 'assets/images/level8/';
     const F  = `${B}food/`;
     const HI = `${B}home-item/`;

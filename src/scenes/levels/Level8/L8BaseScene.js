@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { ACTIVITY_META } from './L8_Activities.js';
+import { applyGlendaSkin } from './L8_GlendaSkin.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L8BaseScene — shared scaffolding for Level 8 "Puppy Care Day".
@@ -74,6 +75,11 @@ export class L8BaseScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this._ground);
     this.player.play('gleeda_idle');
+    // applyGlendaSkin computes and stores _normalBodyW/H and _slideBodyW/H
+    // (world-space, derived from the ORIGINAL 0.18 scale before it changes
+    // this.player's scale) — _startSlide/_endSlide below use those so the
+    // slide hitbox stays correct regardless of the scale the skin picks.
+    applyGlendaSkin(this);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('A,D,W,S,SPACE');
     const footer = document.getElementById('game-footer');
@@ -93,10 +99,14 @@ export class L8BaseScene extends Phaser.Scene {
   _startSlide() {
     if (this._sliding) return;
     this._sliding = true;
-    this.player.body.setSize(120, 30, true);
+    const s = this.player.scaleX;
+    this.player.body.setSize(this._slideBodyW / s, this._slideBodyH / s, true);
     this._slideTimer = this.time.delayedCall(620, () => {
       this._sliding = false;
-      if (this.player?.body) this.player.body.setSize(73, 56, true);
+      if (this.player?.body) {
+        const s2 = this.player.scaleX;
+        this.player.body.setSize(this._normalBodyW / s2, this._normalBodyH / s2, true);
+      }
     });
   }
 

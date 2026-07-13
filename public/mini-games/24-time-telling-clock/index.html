@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Telling — ShadowGamma</title>
+<link rel="stylesheet" href="../shared/shared.css">
+<style>
+/* Game-24-only: pure-CSS analog clock */
+.clock{position:relative;width:230px;height:230px;border-radius:50%;
+  background:#fff;border:10px solid var(--brand);box-shadow:var(--shadow);margin:0 auto;}
+.clock .num{position:absolute;font-size:22px;font-weight:bold;color:#4a4e73;
+  transform:translate(-50%,-50%);}
+.clock .hand{position:absolute;left:50%;bottom:50%;transform-origin:bottom center;
+  border-radius:6px;background:var(--ink);}
+.clock .hour{width:8px;height:62px;margin-left:-4px;}
+.clock .minute{width:5px;height:88px;margin-left:-2.5px;background:var(--brand2);}
+.clock .pin{position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;
+  background:var(--warn);transform:translate(-50%,-50%);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/shared.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

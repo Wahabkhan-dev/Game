@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShadowGamma — Learning Games</title>
+<link rel="stylesheet" href="shared/shared.css">
+</head>
+<body>
+<!-- =========================================================
+     SHADOWGAMMA HUB — links all 20 games.
+     Games 1-10 open the batch-1 single file (../shadowgamma.html).
+     Games 11-20 open their own folder's index.html.
+     Add a new game by adding one <a class="hub-card"> below.
+     ========================================================= -->
+<div id="app">
+  <div class="hub-head">
+    <h1>ShadowGamma</h1>
+    <p>Pick a game to play! 🎈</p>
+  </div>
+  <div class="hub-grid" id="grid"></div>
+</div>
+
+<script src="shared/shared.js"></script>
+<script>
+// All 20 games now live in their own folders under /mini-games.
+const CARDS = [
+  {n:1, icon:'🔤', name:'Alphabet Catch',        href:'01-alphabet-catch/index.html'},
+  {n:2, icon:'🔢', name:'Number Match',          href:'02-number-match/index.html'},
+  {n:3, icon:'⭐', name:'Shape Sorter',          href:'03-shape-sorter/index.html'},
+  {n:4, icon:'🎨', name:'Color Mixing Lab',      href:'04-color-mixing-lab/index.html'},
+  {n:5, icon:'🔡', name:'Word Builder',          href:'05-word-builder/index.html'},
+  {n:6, icon:'🔊', name:'Animal Sound Match',    href:'06-animal-sound-match/index.html'},
+  {n:7, icon:'🫧', name:'Addition Bubbles',      href:'07-addition-bubbles/index.html'},
+  {n:8, icon:'🃏', name:'Memory Flip Cards',     href:'08-memory-flip-cards/index.html'},
+  {n:9, icon:'🔁', name:'Pattern Sequence',      href:'09-pattern-sequence/index.html'},
+  {n:10,icon:'📏', name:'Sorting by Size',       href:'10-sorting-by-size/index.html'},
+  {n:11,icon:'🔤', name:'Missing Letter Fill',   href:'11-missing-letter-fill/index.html'},
+  {n:12,icon:'🪙', name:'Coin Counting',         href:'12-coin-counting/index.html'},
+  {n:13,icon:'📅', name:'Days of the Week',      href:'13-days-of-week-order/index.html'},
+  {n:14,icon:'😀', name:'Emotion Matching',      href:'14-emotion-matching/index.html'},
+  {n:15,icon:'🎵', name:'Rhyme Time',            href:'15-rhyme-time/index.html'},
+  {n:16,icon:'🌱', name:'Plant Growth',          href:'16-plant-growth-sequence/index.html'},
+  {n:17,icon:'🚦', name:'Traffic Light Rules',   href:'17-traffic-light-rules/index.html'},
+  {n:18,icon:'🧍', name:'Body Parts Labeling',   href:'18-body-parts-labeling/index.html'},
+  {n:19,icon:'🧥', name:'Weather Dress-Up',      href:'19-weather-dress-up/index.html'},
+  {n:20,icon:'🥁', name:'Instrument Match',       href:'20-musical-instrument-match/index.html'},
+  {n:21,icon:'🗺️', name:'Continent Tap',          href:'21-continent-country-tap/index.html'},
+  {n:22,icon:'🍎', name:'Fruit & Veg Sort',       href:'22-fruit-vegetable-sort/index.html'},
+  {n:23,icon:'🌑', name:'Shadow Matching',        href:'23-shadow-matching/index.html'},
+  {n:24,icon:'🕐', name:'Time Telling',           href:'24-time-telling-clock/index.html'},
+  {n:25,icon:'↔️', name:'Opposites Match',        href:'25-opposites-match/index.html'},
+  {n:26,icon:'🚀', name:'Space Objects Match',    href:'26-space-objects-match/index.html'},
+  {n:27,icon:'👷', name:'Community Helpers',      href:'27-community-helpers-match/index.html'},
+  {n:28,icon:'💧', name:'Sink or Float',          href:'28-sink-or-float/index.html'},
+  {n:29,icon:'🔍', name:'Odd One Out',            href:'29-odd-one-out/index.html'},
+  {n:30,icon:'🔢', name:'Counting by Groups',     href:'30-counting-by-groups/index.html'},
+  {n:31,icon:'🔠', name:'Vowel or Consonant',     href:'31-vowel-consonant-sort/index.html'},
+  {n:32,icon:'✖️', name:'Multiplication Groups',  href:'32-multiplication-groups/index.html'},
+  {n:33,icon:'🍂', name:'Seasons Sort',           href:'33-seasons-sort/index.html'},
+  {n:34,icon:'💭', name:'Feelings Story',         href:'34-feelings-story-choice/index.html'},
+  {n:35,icon:'🔗', name:'Compound Words',         href:'35-compound-word-builder/index.html'},
+  {n:36,icon:'🐣', name:'Animal Baby Match',      href:'36-animal-baby-match/index.html'},
+  {n:37,icon:'🍕', name:'Simple Fractions',       href:'37-simple-fractions/index.html'},
+  {n:38,icon:'🎶', name:'Rhythm Copy',            href:'38-instrument-rhythm-copy/index.html'},
+  {n:39,icon:'🌗', name:'Day or Night Animals',   href:'39-nocturnal-diurnal-sort/index.html'},
+  {n:40,icon:'📖', name:'Story Word Fill-In',     href:'40-story-word-fill-in/index.html'}
+];
+const grid = document.getElementById('grid');
+CARDS.forEach(c=>{
+  grid.appendChild(el('a.hub-card',{href:c.href},[
+    el('.ico',null,c.icon),
+    el('.num',null,'Game '+c.n),
+    el('.name',null,c.name)
+  ]));
+});
+</script>
+</body>
+</html>

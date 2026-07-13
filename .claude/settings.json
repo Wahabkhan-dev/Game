@@ -29,7 +29,10 @@
       "PowerShell(Head -20)",
       "PowerShell($src = \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\public\\\\assets\\\\images\\\\level 6\"; $dst = \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\public\\\\assets\\\\images\\\\level8\"; Get-ChildItem $src | Select-Object Name; \"---DEST---\"; Copy-Item \"$src\\\\background.png\" \"$dst\\\\l8_bg.png\" -Force; Copy-Item \"$src\\\\surface.png\" \"$dst\\\\l8_surface.png\" -Force; Get-ChildItem $dst | Select-Object Name, Length)",
       "Bash(node -e \"require\\('@babel/core'\\) || 0\")",
-      "Bash(xargs grep -l \"new Phaser.Game\")"
+      "Bash(xargs grep -l \"new Phaser.Game\")",
+      "Bash(file 01.png 02.png)",
+      "Bash(identify 01.png)",
+      "Bash(grep -n \"super\\\\\\\\.create\\\\\\\\|BaseLevelScene\" \"c:\\\\Users\\\\Abdul Wahab\\\\Desktop\\\\shadowgame\\\\ShadowGamma\\\\src\\\\scenes\\\\levels\\\\Level2\\\\Level2Scene.js\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Abdul Wahab\\.claude\\projects\\c--Users-Abdul-Wahab-Desktop-shadowgame-ShadowGamma\\memory"

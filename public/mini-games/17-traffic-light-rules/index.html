@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Light Rules — ShadowGamma</title>
+<link rel="stylesheet" href="../shared/shared.css">
+<style>
+/* Game-17-only styles (traffic light built with pure CSS) */
+.tl-pole{background:#2b2d42;border-radius:24px;padding:18px;display:flex;
+  flex-direction:column;gap:16px;box-shadow:var(--shadow);}
+.tl-lamp{width:90px;height:90px;border-radius:50%;background:#444;opacity:.25;transition:opacity .2s;}
+.tl-lamp.on{opacity:1;box-shadow:0 0 30px currentColor;}
+.tl-red{color:#ff4d4d;background:#ff4d4d;}
+.tl-yellow{color:#ffd23f;background:#ffd23f;}
+.tl-green{color:#38d66b;background:#38d66b;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/shared.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

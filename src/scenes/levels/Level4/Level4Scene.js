@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL4Assets, generateL4StreetAssets } from './L4Assets.js';
+import { preloadGlendaSkin, applyGlendaSkin } from './L4_GlendaSkin.js';
 
 // ── Level 4 — Build Gamma's New Home: 3 checkpoints to collect 6 materials ──
 // CP1: Wood + Roof (x: 0-4000)  |  CP2: Nails + Paint (x: 4000-8000)  |  CP3: Bedding + Bowl (x: 8000-12000)
@@ -41,6 +42,10 @@ const OBSTACLES = [
 export class Level4Scene extends Phaser.Scene {
   constructor() { super('Level4'); }
 
+  preload() {
+    preloadGlendaSkin(this);
+  }
+
   create() {
     generateL4Assets(this);
     generateL4StreetAssets(this);
@@ -80,6 +85,7 @@ export class Level4Scene extends Phaser.Scene {
     this._buildItems();
     this._buildObstacles();
     this._buildPlayer();
+    applyGlendaSkin(this);
     this._buildHUD();
     this._buildControls();
 
@@ -185,13 +191,7 @@ export class Level4Scene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this._groundCollider = this.physics.add.collider(this.player, this._ground);
 
-    // Animations (same as Level 2)
-    if (!this.anims.exists('gleeda_walk')) {
-      this.anims.create({ key: 'gleeda_walk',      frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'gleeda_idle_anim', frames: [{ key: 'gleeda_idle' }], frameRate: 1, repeat: -1 });
-      this.anims.create({ key: 'gleeda_jump_anim', frames: [{ key: 'gleeda_jump' }], frameRate: 1, repeat: -1 });
-    }
-    this.player.play('gleeda_idle_anim');
+    // Animations are now set up by L4_GlendaSkin (after this method is called in create)
 
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);   // slight lag = premium feel
     this._facing = 1;

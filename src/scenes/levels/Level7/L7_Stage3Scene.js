@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
+import { preloadGlendaSkin } from './L7_GlendaSkin.js';
 
 const WORLD_W = 3000;
 const GROUND_Y = 408;
@@ -14,6 +15,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   constructor() { super('L7_Stage3'); }
 
   preload() {
+    preloadGlendaSkin(this);
     const P = 'assets/images/Level7/Stage3/';
     // Real Gemini art for Stage 3. A procedural placeholder for these keys may
     // already exist (generateL7Assets in an earlier scene); drop it so the real

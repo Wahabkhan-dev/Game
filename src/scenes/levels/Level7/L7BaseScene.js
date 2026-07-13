@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
+import { applyGlendaSkin } from './L7_GlendaSkin.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L7BaseScene — shared scaffolding for every Level 7 stage:
@@ -133,6 +134,7 @@ export class L7BaseScene extends Phaser.Scene {
     this.player.body.setSize(73, 56, true);
     this.player.setCollideWorldBounds(true);
     this.player.play('gleeda_idle_anim');
+    applyGlendaSkin(this);
     this._facing = 1;
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('A,D,W,SPACE,E');

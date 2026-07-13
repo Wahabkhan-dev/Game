@@ -1,11 +1,19 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { BaseLevelScene } from '../BaseLevelScene.js';
+import { preloadGlendaSkin, applyGlendaSkin } from './L2_GlendaSkin.js';
+import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
+import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
 // Each zone is ~6000 units wide → ~45 s real play time at speed 200 with obstacles.
 export class Level2Scene extends BaseLevelScene {
   constructor() { super('Level2'); }
+
+  // Load the Glenda run/idle/jump frames (visual-only swap; see L2_GlendaSkin.js).
+  preload() {
+    preloadGlendaSkin(this);
+  }
 
   create() {
     const config = {
@@ -45,7 +53,10 @@ export class Level2Scene extends BaseLevelScene {
     };
 
     this.initLevel(config);
-    this._initL2ZoneBar();
+    // Swap the player VISUAL to Glenda's run/idle/jump art (gameplay/physics untouched).
+    applyGlendaSkin(this);
+    // The premium HUD (header + checkpoint footer) is built by _buildHUD() during
+    // initLevel above; nothing else to init here.
 
     // Kill any checkpoint overlay left over from a previous attempt, and clean up on exit
     this._stopCheckpointOverlays();
@@ -327,13 +338,8 @@ export class Level2Scene extends BaseLevelScene {
     this.key2Obj = this.physics.add.staticImage(K2_X, K2_Y, 'key2')
       .setDisplaySize(72, 107).setOrigin(0.5, 1).setDepth(12).refreshBody();
 
-    // ── Key HUD — right side, stacked vertically, clear of all other HUD ──
-    this._key1HUD = this.add.text(W - 12, 52, '🔑 Key 1', {
-      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#666666', stroke: '#000', strokeThickness: 2
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(40);
-    this._key2HUD = this.add.text(W - 12, 70, '🗝️ Key 2', {
-      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#666666', stroke: '#000', strokeThickness: 2
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(40);
+    // ── Key HUD — premium gold-key slots, centered just below the title ──
+    this._buildKeyHud();
 
     // ── Gemma health bar (Zone 3 only) ────────────────────────────────────
     this._gemmaHP = 100;
@@ -424,7 +430,7 @@ export class Level2Scene extends BaseLevelScene {
       if (this._hasKey1) return;
       this._hasKey1 = true;
       this.key1Obj.destroy();
-      this._key1HUD.setColor('#ffd700').setText('🔑 Key 1 ✓');
+      this._lightKey(0);
       const sp = this.add.ellipse(K1_X, H - 100, 40, 40, 0xffee44, 0.9).setDepth(20);
       this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
       this.cameras.main.flash(300, 80, 160, 10);
@@ -435,7 +441,7 @@ export class Level2Scene extends BaseLevelScene {
       if (this._hasKey2) return;
       this._hasKey2 = true;
       this.key2Obj.destroy();
-      this._key2HUD.setColor('#88eeff').setText('🗝️ Key 2 ✓');
+      this._lightKey(1);
       const sp = this.add.ellipse(K2_X, H - 100, 40, 40, 0x44ccff, 0.9).setDepth(20);
       this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
       this.cameras.main.flash(300, 20, 140, 80);
@@ -528,39 +534,65 @@ export class Level2Scene extends BaseLevelScene {
   }
 
   // ── Zone progress bar ─────────────────────────────────────────────────────
-  _initL2ZoneBar() {
-    const WORLD_W = 18500;
-    const LEFT = 88, RIGHT = W - 88, BAR_W = RIGHT - LEFT;
-    const TY = H - 10;
-
-    this.add.rectangle(W / 2, TY, W - 172, 10, 0x120904, 1).setScrollFactor(0).setDepth(30);
-    this.add.rectangle(LEFT + BAR_W / 2, TY, BAR_W, 3, 0x3a2810, 1).setScrollFactor(0).setDepth(31);
-
-    this._zpFill = this.add.rectangle(LEFT, TY, 2, 3, 0x44cc44, 1)
-      .setScrollFactor(0).setDepth(32).setOrigin(0, 0.5);
-
-    // Zone markers — short ticks + labels kept inside the bottom bar strip only
-    [
-      { wx: 0,       label: 'Z1', color: 0x44cc44 },
-      { wx: 6000,    label: 'Z2', color: 0xf5c840 },
-      { wx: 12000,   label: 'Z3', color: 0xee5522 },
-      { wx: WORLD_W, label: '🏁', color: 0xffffff },
-    ].forEach(z => {
-      const bx = LEFT + (z.wx / WORLD_W) * BAR_W;
-      const fg = this.add.graphics().setScrollFactor(0).setDepth(33);
-      fg.fillStyle(z.color, 1);
-      fg.fillRect(bx - 1, TY - 6, 2, 8); // short tick, stays inside bar strip
-      this.add.text(bx, TY - 8, z.label, {
-        fontSize: '7px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
-      }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(34);
+  // ── Premium shared HUD (same wood/gold look as Level 1) ─────────────────────
+  // Overrides BaseLevelScene._buildHUD (called from initLevel) to build the
+  // shared PremiumHUD instead of the plain base HUD. It re-creates every field
+  // the base gameplay logic reads (_hearts/_hpGraphics/_pointsTxt/timer/etc.),
+  // so nothing else in Level 2 changes.
+  _buildHUD(config) {
+    this._hud = new PremiumHUD(this, {
+      chapterLabel: 'CHAPTER 2',
+      title: 'RESCUE GEMMA!',
+      timer: config.timer,
+      worldWidth: config.worldWidth,
+      runnerEmoji: '👧',
+      zones: [
+        { label: 'Z1', color: 0x44cc44 },
+        { label: 'Z2', color: 0xf5c840 },
+        { label: 'Z3', color: 0xee5522 },
+        { label: '🏁', color: 0x8fd0ff },
+      ],
     });
+    this._hud.build();
+  }
 
-    this._zpRunner = this.add.text(LEFT, TY - 4, '👧', { fontSize: '10px' })
-      .setScrollFactor(0).setDepth(34).setOrigin(0.5, 1);
+  // Route base HP/timer/points logic to the premium header/footer.
+  _drawHPPips()       { this._hud?.drawHP(this._shadowHP); }
+  _resetTimer(sec)    { this._hud?.resetTimer(sec); }
+  _givePoints(n)      { this._hud?.givePoints(n); }
+  _spendPoints(n)     { this._hud?.spendPoints(n); }
 
-    this._zpLeft   = LEFT;
-    this._zpWidth  = BAR_W;
-    this._zpWorldW = WORLD_W;
+  // ── Key objective HUD — two gold-key slots in a wood panel, centered on the
+  // line just below the title banner. Keys start dim; _lightKey(i) turns one gold.
+  _buildKeyHud() {
+    const PANEL_W = 78, PANEL_H = 30;
+    const px = W / 2 - PANEL_W / 2, py = 54;
+
+    const sh = this.add.graphics().setScrollFactor(0).setDepth(42);
+    sh.fillStyle(0x000000, 0.28); sh.fillRoundedRect(px + 2, py + 3, PANEL_W, PANEL_H, 9);
+    makePanel(this, px, py, PANEL_W, PANEL_H, 43);
+
+    const cy = py + PANEL_H / 2;
+    const slotX = [px + 24, px + PANEL_W - 24];
+    this._keySlots = slotX.map((sx) => {
+      const slot = this.add.graphics().setScrollFactor(0).setDepth(44);
+      slot.fillStyle(0x140c04, 1); slot.fillCircle(sx, cy, 12);
+      slot.lineStyle(1.5, 0x8a6018, 1); slot.strokeCircle(sx, cy, 12);
+      const glow = this.add.circle(sx, cy, 13, 0xffd24a, 0).setScrollFactor(0).setDepth(44);
+      const icon = this.add.image(sx, cy, 'shud_key').setScale(0.34).setScrollFactor(0).setDepth(45)
+        .setTint(0x5a4a2a).setAlpha(0.5);
+      return { icon, glow, collected: false };
+    });
+  }
+
+  _lightKey(i) {
+    const k = this._keySlots?.[i];
+    if (!k || k.collected) return;
+    k.collected = true;
+    k.icon.clearTint().setTint(0xffe08a).setAlpha(1);
+    this.tweens.add({ targets: k.icon, scale: { from: 0.34, to: 0.44 }, duration: 220, yoyo: true, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: k.glow, alpha: { from: 0, to: 0.55 }, duration: 400, yoyo: true, repeat: 2,
+      onComplete: () => k.glow.setAlpha(0.3) });
   }
 
   // ── Gemma HP bar ─────────────────────────────────────────────────────────
@@ -661,13 +693,8 @@ export class Level2Scene extends BaseLevelScene {
     const sx = this.shadow.x;
     const py = this.shadow.y;
 
-    // ── Zone progress bar ──────────────────────────────────────────────────
-    if (this._zpFill) {
-      const pct = Math.min(sx / this._zpWorldW, 1);
-      this._zpFill.width = Math.max(2, pct * this._zpWidth);
-      this._zpRunner.x = this._zpLeft + pct * this._zpWidth;
-      this._zpFill.setFillStyle(sx < 6000 ? 0x44cc44 : sx < 12000 ? 0xf5c840 : 0xee5522);
-    }
+    // ── Premium checkpoint footer follows the player ───────────────────────
+    this._hud?.updateFooter(sx);
 
     // ── Checkpoint 1 (at the flag, Road → Jungle) — Catch the Supplies ───────
     if (!this._cp1Done && sx > 5900) {
@@ -852,4 +879,5 @@ export class Level2Scene extends BaseLevelScene {
       });
     }
   }
+
 }

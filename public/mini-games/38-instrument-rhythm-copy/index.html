@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhythm Copy — ShadowGamma</title>
+<link rel="stylesheet" href="../shared/shared.css">
+<style>
+/* Game-48-only: xylophone / drum pads */
+.pads{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+.pad{width:96px;height:150px;border-radius:16px;box-shadow:var(--shadow);cursor:pointer;
+  border:5px solid rgba(0,0,0,.08);transition:transform .08s ease,filter .08s ease;
+  display:flex;align-items:flex-end;justify-content:center;font-size:32px;padding-bottom:10px;color:rgba(255,255,255,.9);}
+.pad:active{transform:translateY(3px);}
+.pad.lit{filter:brightness(1.5);transform:scale(1.05);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/shared.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

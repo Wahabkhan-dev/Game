@@ -2,10 +2,16 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { BaseLevelScene } from '../BaseLevelScene.js';
 import { L1HUD } from './hud/L1_HUD.js';
+import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
 
 // Chapter 1 — Three zones: Easy → Medium → Boss → Free Gemma
 export class Level1Scene extends BaseLevelScene {
   constructor() { super('Level1'); }
+
+  // Load the NEW-RUN black-dog frames (visual-only swap; see L1_DogSkin.js).
+  preload() {
+    preloadDogSkin(this);
+  }
 
   // ── Premium fantasy HUD (Level 1 only) ──────────────────────────────────────
   // Overrides the shared BaseLevelScene._buildHUD so ONLY Level 1 gets the new
@@ -142,6 +148,8 @@ export class Level1Scene extends BaseLevelScene {
     };
 
     this.initLevel(config);
+    // Swap the player VISUAL to the NEW-RUN black dog (gameplay/physics untouched).
+    applyDogSkin(this);
     // Level 1 renders its controls as Phaser wood buttons (see hud/), so hide the
     // shared HTML footer. Base shutdown + other levels' initLevel restore it.
     const _htmlFooter = document.getElementById('game-footer');

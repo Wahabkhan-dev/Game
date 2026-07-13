@@ -34,6 +34,33 @@ const SPIRIT_ACTIONS = {
     loop: true,
     beltSpeed: 7,
   },
+  new_run: {
+    label: 'New Run',
+    folder: 'NEW-RUN',
+    frameCount: 8,
+    fps: 14,
+    loop: true,
+    beltSpeed: 8,
+    padZero: true,
+    chromaKey: true, // frames have a flat gray backdrop baked in — strip it at runtime
+  },
+  spirit_run: {
+    label: 'Spirit Run',
+    folder: 'glenda-run',
+    fps: 26,
+    loop: true,
+    beltSpeed: 7,
+    // PNG frames already have real transparency — no background removal needed.
+    customFrames: [
+      'frame_001.png', 'frame_002.png', 'frame_003.png', 'frame_004.png',
+      'frame_005.png', 'frame_006.png', 'frame_007.png', 'frame_008.png',
+      'frame_009.png', 'frame_010.png', 'frame_011.png', 'frame_012.png',
+      'frame_013.png', 'frame_014.png', 'frame_015.png', 'frame_016.png',
+      'frame_017.png', 'frame_018.png', 'frame_019.png', 'frame_020.png',
+      'frame_021.png', 'frame_022.png', 'frame_023.png', 'frame_024.png',
+      'frame_025.png', 'frame_026.png',
+    ],
+  },
   jump: {
     label: 'Jump',
     folder: 'Jumping  Frames',
@@ -96,14 +123,17 @@ export class SpriteSimulator extends Phaser.Scene {
 
     this.load.on('loaderror', f => {
       this._failedKeys.add(f.key);
+      console.error(`[Spirit] LOAD FAILED: key="${f.key}" url="${f.url}"`);
     });
 
     for (const [action, cfg] of Object.entries(SPIRIT_ACTIONS)) {
       const filenames = _filenames(cfg);
       filenames.forEach((fname, i) => {
         const k = KEY(action, i);
+        const path = `${BASE}${cfg.folder}/${fname}`;
         if (!this.textures.exists(k)) {
-          this.load.image(k, `${BASE}${cfg.folder}/${fname}`);
+          console.log(`[Spirit] Loading: "${k}" from "${path}"`);
+          this.load.image(k, path);
         }
       });
     }
@@ -112,6 +142,7 @@ export class SpriteSimulator extends Phaser.Scene {
   // ── CREATE ────────────────────────────────────────────────────────────────
   create() {
     this._buildValidFrameLists();
+    this._chromaKeyFrames();
     this._makePlaceholderTexture();
 
     // Runtime state
@@ -190,6 +221,62 @@ export class SpriteSimulator extends Phaser.Scene {
     if (this._warnings.length) {
       console.warn(`[Spirit] ${this._warnings.length} warning(s) — check console above`);
     }
+  }
+
+  // ── CHROMA-KEY PASS ────────────────────────────────────────────────────────
+  // Some source frames (e.g. NEW-RUN) come with a flat, opaque background
+  // baked in instead of real transparency. For any action flagged
+  // `chromaKey: true`, sample the corner pixel as the background color and
+  // punch it out to alpha=0 (with a soft edge) so the sprite floats cleanly.
+  _chromaKeyFrames() {
+    for (const [action, cfg] of Object.entries(SPIRIT_ACTIONS)) {
+      if (!cfg.chromaKey) continue;
+      for (const key of this._frames[action] || []) {
+        this._chromaKeyTexture(key);
+      }
+    }
+  }
+
+  _chromaKeyTexture(key, tolerance = 26) {
+    const src = this.textures.get(key).getSourceImage();
+    const w = src.width, h = src.height;
+    if (!w || !h) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+
+    let imgData;
+    try {
+      imgData = ctx.getImageData(0, 0, w, h);
+    } catch (e) {
+      console.warn(`[Spirit] chroma-key skipped for "${key}" (canvas tainted):`, e);
+      return;
+    }
+    const d = imgData.data;
+
+    // Sample background color from the four corners (average) — more robust
+    // than a single pixel if there's a slight gradient or noise.
+    const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + w - 1) * 4];
+    let bgR = 0, bgG = 0, bgB = 0;
+    corners.forEach(o => { bgR += d[o]; bgG += d[o + 1]; bgB += d[o + 2]; });
+    bgR /= corners.length; bgG /= corners.length; bgB /= corners.length;
+
+    const soft = tolerance * 1.8;
+    for (let i = 0; i < d.length; i += 4) {
+      const dr = d[i] - bgR, dg = d[i + 1] - bgG, db = d[i + 2] - bgB;
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (dist < tolerance) {
+        d[i + 3] = 0;
+      } else if (dist < soft) {
+        d[i + 3] = Math.round(d[i + 3] * ((dist - tolerance) / (soft - tolerance)));
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
   }
 
   // ── PLACEHOLDER TEXTURE ───────────────────────────────────────────────────
@@ -373,8 +460,8 @@ export class SpriteSimulator extends Phaser.Scene {
 
     // Key hints
     const hints = [
-      'W Walk', 'R Run', 'J Jump',
-      'A Attack', 'S Sit', 'I Idle',
+      'W Walk', 'R Run', 'N New Run', 'G Spirit',
+      'J Jump', 'A Attack', 'S Sit', 'I Idle',
       'F Flip', '↑↓ Scale', '◀▶ Step', 'SPC Play',
     ];
     let hy = H - BOT_H - 14 - hints.length * 13;
@@ -511,6 +598,8 @@ export class SpriteSimulator extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-W',     () => this._switchAction('walk'));
     kb.on('keydown-R',     () => this._switchAction('run'));
+    kb.on('keydown-N',     () => this._switchAction('new_run'));
+    kb.on('keydown-G',     () => this._switchAction('spirit_run'));
     kb.on('keydown-J',     () => this._switchAction('jump'));
     kb.on('keydown-A',     () => this._switchAction('attack'));
     kb.on('keydown-S',     () => this._switchAction('sit'));
@@ -544,6 +633,15 @@ export class SpriteSimulator extends Phaser.Scene {
 
     this._updateSprite();
     this._refreshHUD();
+  }
+
+  // ── CYCLE ACTIONS WITH ARROW KEYS ──────────────────────────────────────────
+  _cycleAction(dir) {
+    const actionKeys = Object.keys(SPIRIT_ACTIONS);
+    const idx = actionKeys.indexOf(this._action);
+    const nextIdx = (idx + dir + actionKeys.length) % actionKeys.length;
+    const nextKey = actionKeys[nextIdx];
+    this._switchAction(nextKey);
   }
 
   // ── FRAME NAVIGATION ─────────────────────────────────────────────────────
@@ -658,5 +756,10 @@ export class SpriteSimulator extends Phaser.Scene {
 // ── Internal: get filename list for a config entry ────────────────────────────
 function _filenames(cfg) {
   if (cfg.customFrames) return cfg.customFrames;
-  return Array.from({ length: cfg.frameCount }, (_, i) => `${i + 1}.png`);
+  const pad = cfg.padZero ? 2 : 0; // Always 2 digits: 01, 02, ..., 99
+  const ext = cfg.ext || 'png';
+  return Array.from({ length: cfg.frameCount }, (_, i) => {
+    const num = String(i + 1).padStart(pad, '0');
+    return `${num}.${ext}`;
+  });
 }

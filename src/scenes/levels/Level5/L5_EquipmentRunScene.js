@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL5Assets, generateL5StreetAssets } from './L5Assets.js';
+import { preloadGlendaSkin, applyGlendaSkin } from './L5_GlendaSkin.js';
 
 // ── Level 5 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
 const WORLD_W  = 12200;
@@ -37,6 +38,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   constructor() { super('L5_EquipmentRun'); }
 
   preload() {
+    preloadGlendaSkin(this);
     const IMG_PATH = 'assets/images/Level%205/treatment/';
     const propFiles = {
       stethoscope: 'stethoscope',
@@ -81,6 +83,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this._buildItems();
     this._buildObstacles();
     this._buildPlayer();
+    applyGlendaSkin(this);
     this._buildHUD();
     this._buildProgressBar();
     this._buildControls();
@@ -155,12 +158,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this.player.body.setSize(73, 56, true);
     this.player.setCollideWorldBounds(true);
     this._groundCollider = this.physics.add.collider(this.player, this._ground);
-    if (!this.anims.exists('gleeda_walk')) {
-      this.anims.create({ key: 'gleeda_walk',      frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'gleeda_idle_anim', frames: [{ key: 'gleeda_idle'  }], frameRate: 1, repeat: -1 });
-      this.anims.create({ key: 'gleeda_jump_anim', frames: [{ key: 'gleeda_jump'  }], frameRate: 1, repeat: -1 });
-    }
-    this.player.play('gleeda_idle_anim');
+    // Animations are now set up by L5_GlendaSkin (after this method is called in create)
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this._facing = 1;
   }

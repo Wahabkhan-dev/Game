@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L9BaseScene, L9 } from './L9BaseScene.js';
 import { generateL9Assets } from './L9Assets.js';
+import { preloadGlendaSkin } from './L9_GlendaSkin.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 9 — PART 1 · STAGE 1: "Gift Run"  🎁
@@ -69,6 +70,7 @@ export class L9_GiftRunScene extends L9BaseScene {
   constructor() { super('L9_GiftRun'); }
 
   preload() {
+    preloadGlendaSkin(this);
     // Guarded real-PNG loading — any missing file falls back to procedural art.
     const B = 'assets/images/level9/';
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
 import { generateL8Assets } from './L8Assets.js';
+import { preloadGlendaSkin } from './L8_GlendaSkin.js';
 
 const WORLD_W = 6200;
 const GROUND_Y = 380;
@@ -49,6 +50,7 @@ export class L8_HomeRunScene extends L8BaseScene {
   constructor() { super('L8_HomeRun'); }
 
   preload() {
+    preloadGlendaSkin(this);
     const B  = 'assets/images/level8/';
     const HI = `${B}home-item/`;
     const OB = `${B}obstacle/`;

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
+import { preloadGlendaSkin } from './L7_GlendaSkin.js';
 
 const WORLD_W = 1900;
 const GROUND_Y = 400;
@@ -21,6 +22,7 @@ export class L7_Stage1Scene extends L7BaseScene {
 
   preload() {
     console.log('[L7_Stage1] preload() start');
+    preloadGlendaSkin(this);
     const files = ['l7_s1_bg', 'l7_s1_floor', 'l7_s1_window', 'l7_s1_ladder', 'l7_s1_basement',
       'l7_s1_debris', 'l7_fusebox', 'l7_puddle', 'l7_keyfrag', 'l7_key'];
 

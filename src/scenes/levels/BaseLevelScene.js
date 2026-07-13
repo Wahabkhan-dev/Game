@@ -128,9 +128,6 @@ export class BaseLevelScene extends Phaser.Scene {
     // atmospheric mist overlay (fixed to camera)
     this._fogLayer = this.add.tileSprite(400, 400, 800, 80, 'fog')
       .setScrollFactor(0).setAlpha(0.55).setDepth(18);
-    // dark bottom vignette so ground reads clearly
-    const vignette = this.add.rectangle(400, 430, 800, 40, 0x000000, 0.45)
-      .setScrollFactor(0).setDepth(19);
 
     this.time.delayedCall(500, () => this._showObjective(config.objective));
   }

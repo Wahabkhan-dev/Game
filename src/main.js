@@ -68,6 +68,8 @@ import { L9_BowRunScene }   from './scenes/levels/Level9/L9_BowRunScene.js';
 import { L9_BowTieScene }   from './scenes/levels/Level9/L9_BowTieScene.js';
 // Sprite Animator / Test Simulator
 import { SpriteSimulator }  from './scenes/SpriteSimulator.js';
+import { GlendaAnimSimulator } from './scenes/GlendaAnimSimulator.js';
+import { ShadowAnimSimulator } from './scenes/ShadowAnimSimulator.js';
 import { W, H }                  from './config/GameConfig.js';
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
@@ -213,6 +215,8 @@ const config = {
     L9_BowTieScene,
     // Sprite Simulator (test scene)
     SpriteSimulator,
+    GlendaAnimSimulator,
+    ShadowAnimSimulator,
   ]
 };
 

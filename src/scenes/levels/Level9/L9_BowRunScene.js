@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L9BaseScene, L9 } from './L9BaseScene.js';
 import { generateL9Assets } from './L9Assets.js';
+import { preloadGlendaSkin } from './L9_GlendaSkin.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 9 — PART 2 · STAGE 1: "Bow Run"  🎀
@@ -52,6 +53,10 @@ const CP_XS = [1200, 2600, 4000];
 
 export class L9_BowRunScene extends L9BaseScene {
   constructor() { super('L9_BowRun'); }
+
+  preload() {
+    preloadGlendaSkin(this);
+  }
 
   create() {
     generateL9Assets(this);
