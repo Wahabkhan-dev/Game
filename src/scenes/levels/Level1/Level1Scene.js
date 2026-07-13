@@ -174,14 +174,14 @@ export class Level1Scene extends BaseLevelScene {
 
     // ── LEVER 1: end of Zone 1 ─────────────────────────────────────────────
     this._spawnLever(5350, () => {
-      this._puzzleMemoryCards(() => {
+      this._launchMiniGame('09-pattern-sequence', () => {
         this._buildBridge(5400, 350);
       });
     });
 
     // ── LEVER 2: end of Zone 2 ─────────────────────────────────────────────
     this._spawnLever(11150, () => {
-      this._puzzleMatchColumns(() => {
+      this._launchMiniGame('03-shape-sorter', () => {
         this._buildBridge(11200, 350);
       });
     });

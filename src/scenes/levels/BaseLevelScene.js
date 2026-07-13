@@ -309,6 +309,8 @@ export class BaseLevelScene extends Phaser.Scene {
           this._timerTxt.setText(`⏱ ${this._timerLeft}s`);
           this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff3300' : '#f5c87a');
           if (this._timerLeft <= 0 && !this._timerFired) {
+            // Ran out mid-mini-game → close it (no reward, no bridge) first
+            if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
             this._timerFired = true;
             this._isDying = true;
             this._showMessage("⏱ Time's up! -1 Life! 💀");
@@ -591,7 +593,7 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   updateMovement() {
-    if (this._isDying || this._puzzleActive || this._pauseMenuOpen) return;
+    if (this._isDying || this._puzzleActive || this._pauseMenuOpen || this._miniGameOpen) return;
 
     // Fell into a gap — trigger death
     if (this.shadow.y > H + 80) { this._onFallDeath(); return; }
@@ -869,6 +871,86 @@ export class BaseLevelScene extends Phaser.Scene {
     this._timerFired = false;
     this._timerTxt.setText(`⏱ ${seconds}s`);
     this._timerTxt.setColor('#f5c87a');
+  }
+
+  // ── Embedded HTML mini-game launcher ────────────────────────────────────
+  // Overlays a standalone game from /mini-games/<folder>/ as an iframe on top
+  // of the canvas. Pauses the clock + movement (same as a puzzle). The game
+  // posts { type:'minigame-complete', stars } back when finished (see
+  // public/mini-games/shared/shared.js), which awards ⭐ and runs onComplete().
+  _launchMiniGame(folder, onComplete) {
+    if (this._miniGameOpen) return;
+    this._miniGameOpen = true;
+    // Freeze the dog + hazards so the paused world is fair, but DON'T set
+    // _puzzleActive — that would pause the level clock. The countdown keeps
+    // running so the player must beat the mini-game before time runs out.
+    this.physics.pause();
+
+    const host = document.getElementById('game-wrapper') || document.body;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mini-game-overlay';
+    overlay.style.cssText =
+      'position:absolute;inset:0;z-index:60;background:rgba(2,4,2,0.9);' +
+      'display:flex;align-items:center;justify-content:center;';
+
+    const frame = document.createElement('iframe');
+    // cache-buster so theme/CSS edits to the game always load fresh
+    frame.src   = `/mini-games/${folder}/index.html?t=${Date.now()}`;
+    frame.title = folder;
+    frame.style.cssText = 'width:100%;height:100%;border:0;background:transparent;';
+    overlay.appendChild(frame);
+
+    // The canvas timer is hidden behind this overlay, so mirror the countdown
+    // on top so the player can see the clock ticking while they play. Only for
+    // levels that actually run a timer (_timerTxt exists).
+    let timerInt = null;
+    if (this._timerTxt) {
+      const timerBadge = document.createElement('div');
+      timerBadge.style.cssText =
+        'position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:62;' +
+        'font:bold 20px Georgia,serif;background:rgba(18,12,6,.92);' +
+        'border:1.5px solid rgba(245,200,122,.6);border-radius:999px;padding:6px 18px;' +
+        'pointer-events:none;text-shadow:0 2px 4px rgba(0,0,0,.6);';
+      overlay.appendChild(timerBadge);
+      const tick = () => {
+        const left = (this._timerLeft != null) ? this._timerLeft : 0;
+        timerBadge.textContent = `⏱ ${left}s`;
+        timerBadge.style.color = left <= 10 ? '#ff5544' : '#f5c87a';
+      };
+      tick();
+      timerInt = setInterval(tick, 250);
+    }
+
+    host.appendChild(overlay);
+
+    let done = false;
+    const finish = (success, stars) => {
+      if (done) return; done = true;
+      if (timerInt) clearInterval(timerInt);
+      window.removeEventListener('message', onMsg);
+      try { overlay.remove(); } catch (_) {}
+      this._miniGameOpen  = false;
+      this._miniGameClose = null;
+      this.physics.resume();
+      if (success) {
+        if (typeof stars === 'number' && stars > 0) this._givePoints(stars);
+        if (onComplete) onComplete(stars);
+      }
+    };
+
+    const onMsg = (e) => {
+      const d = e.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'minigame-complete') finish(true, d.stars || 1);
+      else if (d.type === 'minigame-exit') finish(false);
+    };
+    window.addEventListener('message', onMsg);
+
+    // Let the level's time-out (or a scene shutdown) abort the game cleanly —
+    // aborting does NOT run onComplete, so the bridge is only built on a win.
+    this._miniGameClose = () => finish(false);
+    this.events.once('shutdown', () => { if (!done) finish(false); });
   }
 
   // ── Activity intro card: Play / Skip shown before every puzzle ───────────
@@ -1804,13 +1886,25 @@ export class BaseLevelScene extends Phaser.Scene {
     let inputReady = false;
     this.time.delayedCall(220, () => { inputReady = true; });
 
-    // ── Emoji picture clue (big, centered) — replaces HTML .hint-box ───────
-    toDestroy.push(this.add.text(W / 2, 162, picked.emoji, { fontSize: '38px' })
-      .setOrigin(0.5).setScrollFactor(0).setDepth(78));
+    // ── Emoji picture clue on a gold medallion — replaces HTML .hint-box ───
+    const medY = 162;
+    const medal = this.add.graphics().setScrollFactor(0).setDepth(77);
+    medal.fillStyle(0x000000, 0.35); medal.fillCircle(W / 2 + 1, medY + 2, 28);
+    medal.fillStyle(0x0e0a06, 1);    medal.fillCircle(W / 2, medY, 28);
+    medal.fillStyle(0xd4a847, 0.10); medal.fillCircle(W / 2, medY, 28);
+    medal.lineStyle(2.5, 0xd4a847, 0.9); medal.strokeCircle(W / 2, medY, 28);
+    medal.lineStyle(1, 0xf5d98a, 0.35);  medal.strokeCircle(W / 2, medY, 23);
+    toDestroy.push(medal);
 
-    toDestroy.push(this.add.text(W / 2, 192, picked.clue, {
+    const emojiTxt = this.add.text(W / 2, medY, picked.emoji, { fontSize: '40px' })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(78);
+    toDestroy.push(emojiTxt);
+    this.tweens.add({ targets: emojiTxt, y: medY - 3, duration: 1100,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    toDestroy.push(this.add.text(W / 2, 199, picked.clue, {
       fontSize: '13px', fontFamily: 'Georgia, serif',
-      color: '#c8bfa8', fontStyle: 'italic', align: 'center'
+      color: '#dcc790', fontStyle: 'italic', align: 'center'
     }).setOrigin(0.5).setScrollFactor(0).setDepth(78));
 
     // ── Inline feedback — depth 82 so it's above popup at 75-77 ───────────
@@ -1844,51 +1938,58 @@ export class BaseLevelScene extends Phaser.Scene {
 
       const drawTile = (state) => {
         g.clear();
+        const hw = TILE_W / 2, hh = TILE_H / 2, R = 9;
+        // drop shadow (peeks bottom-right for depth)
+        g.fillStyle(0x000000, 0.38);
+        g.fillRoundedRect(-hw + 2, -hh + 3, TILE_W, TILE_H, R);
         switch (state) {
           case 'filled':
-            // HTML .tile — dark surface + subtle border
-            g.fillStyle(0x1a1712, 0.97);
-            g.fillRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(2, 0x3a3328, 0.85);
-            g.strokeRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            // .key::before top sheen
-            g.fillStyle(0xffffff, 0.035);
-            g.fillRoundedRect(-TILE_W / 2 + 2, -TILE_H / 2 + 2, TILE_W - 4, TILE_H * 0.35, 4);
+            g.fillStyle(0x2b2318, 1);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0x191309, 1);                       // darker lower half → bevel
+            g.fillRoundedRect(-hw, -hh + TILE_H * 0.46, TILE_W, TILE_H * 0.54, R);
+            g.fillStyle(0xffffff, 0.06);                    // top sheen
+            g.fillRoundedRect(-hw + 3, -hh + 3, TILE_W - 6, TILE_H * 0.34, R - 3);
+            g.lineStyle(2, 0x715c30, 0.9);
+            g.strokeRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
             break;
           case 'blank':
-            // HTML .tile.blank — var(--gold-dim) border + ::after underline
-            g.fillStyle(0x252118, 0.97);
-            g.fillRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(2, 0x6b5220, 0.88);
-            g.strokeRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            // ::after underline bar (bottom-8, left-8, right-8, height 2)
-            g.fillStyle(0x6b5220, 1);
-            g.fillRect(-TILE_W / 2 + 8, TILE_H / 2 - 10, TILE_W - 16, 2);
+            g.fillStyle(0x120d07, 1);                       // deep inset well
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0x000000, 0.35);
+            g.fillRoundedRect(-hw + 3, -hh + 3, TILE_W - 6, TILE_H * 0.4, R - 3);
+            g.lineStyle(2.5, 0xd4a847, 0.95);               // gold border
+            g.strokeRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0xf5d98a, 1);                       // gold underline
+            g.fillRoundedRect(-hw + 9, hh - 12, TILE_W - 18, 3, 1.5);
             break;
           case 'correct':
-            // HTML .tile.correct — var(--green) glow, box-shadow
-            g.fillStyle(0x27a060, 0.13);
-            g.fillRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(2.5, 0x27a060, 1);
-            g.strokeRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(1, 0x27a060, 0.28);
-            g.strokeRoundedRect(-TILE_W / 2 + 4, -TILE_H / 2 + 4, TILE_W - 8, TILE_H - 8, 4);
+            g.fillStyle(0x123a24, 1);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0x27c070, 0.16);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.lineStyle(2.5, 0x3ce089, 1);
+            g.strokeRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.lineStyle(1, 0x9fffcf, 0.35);
+            g.strokeRoundedRect(-hw + 4, -hh + 4, TILE_W - 8, TILE_H - 8, R - 3);
             break;
           case 'wrong':
-            // HTML .tile.wrong-letter — var(--red) border + fill
-            g.fillStyle(0xc0392b, 0.13);
-            g.fillRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(2, 0xc0392b, 0.9);
-            g.strokeRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
+            g.fillStyle(0x3a1512, 1);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0xc0392b, 0.20);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.lineStyle(2, 0xff5544, 0.95);
+            g.strokeRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
             break;
           case 'revealed':
-            // HTML .tile.revealed — var(--gold) glow
-            g.fillStyle(0xd4a847, 0.10);
-            g.fillRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(2.5, 0xd4a847, 1);
-            g.strokeRoundedRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H, 6);
-            g.lineStyle(1, 0xd4a847, 0.3);
-            g.strokeRoundedRect(-TILE_W / 2 + 4, -TILE_H / 2 + 4, TILE_W - 8, TILE_H - 8, 4);
+            g.fillStyle(0x2e2410, 1);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.fillStyle(0xd4a847, 0.18);
+            g.fillRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.lineStyle(2.5, 0xf5d98a, 1);
+            g.strokeRoundedRect(-hw, -hh, TILE_W, TILE_H, R);
+            g.lineStyle(1, 0xf5d98a, 0.35);
+            g.strokeRoundedRect(-hw + 4, -hh + 4, TILE_W - 8, TILE_H - 8, R - 3);
             break;
         }
       };
@@ -1896,12 +1997,20 @@ export class BaseLevelScene extends Phaser.Scene {
       drawTile(isBlank ? 'blank' : 'filled');
 
       const tileTxt = this.add.text(tx, TILE_Y, isBlank ? '' : letter, {
-        fontSize: '26px', fontFamily: 'Georgia, serif',
-        color: '#f0e8d0', fontStyle: 'bold'
+        fontSize: '28px', fontFamily: 'Georgia, serif',
+        color: '#f6ecd2', fontStyle: 'bold',
+        shadow: { offsetX: 0, offsetY: 2, color: '#000', blur: 4, fill: true }
       }).setOrigin(0.5).setScrollFactor(0).setDepth(79);
 
       toDestroy.push(g, tileTxt);
-      if (isBlank) blankTile = { g, txt: tileTxt, tx, drawTile };
+      if (isBlank) {
+        blankTile = { g, txt: tileTxt, tx, drawTile };
+      } else {
+        // staggered pop-in for the letters
+        g.setScale(0.8); tileTxt.setScale(0.8);
+        this.tweens.add({ targets: [g, tileTxt], scaleX: 1, scaleY: 1,
+          duration: 320, delay: 90 + i * 60, ease: 'Back.easeOut' });
+      }
     });
 
     // ── Letter choice buttons — 4 large touch-friendly buttons ─────────────
@@ -1916,40 +2025,49 @@ export class BaseLevelScene extends Phaser.Scene {
       let btnLocked = false;
 
       const bg = this.add.graphics().setScrollFactor(0).setDepth(78);
+      bg.x = bx; bg.y = BTN_Y;   // positioned so the whole key can scale/pop
 
       const drawBtn = (state) => {
         bg.clear();
+        const hw = BTN_W / 2, hh = BTN_H / 2, R = 10;
+        bg.fillStyle(0x000000, 0.38);                       // drop shadow
+        bg.fillRoundedRect(-hw + 2, -hh + 3, BTN_W, BTN_H, R);
         switch (state) {
           case 'normal':
-            bg.fillStyle(0x252118, 0.95);
-            bg.fillRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.lineStyle(1.5, 0x3a3328, 0.9);
-            bg.strokeRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.fillStyle(0xffffff, 0.04);
-            bg.fillRoundedRect(bx - BTN_W / 2 + 2, BTN_Y - BTN_H / 2 + 2, BTN_W - 4, BTN_H * 0.38, 4);
+            bg.fillStyle(0x312817, 1);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.fillStyle(0x1d1710, 1);                       // bevel lower half
+            bg.fillRoundedRect(-hw, -hh + BTN_H * 0.5, BTN_W, BTN_H * 0.5, R);
+            bg.fillStyle(0xffffff, 0.07);                    // top sheen
+            bg.fillRoundedRect(-hw + 3, -hh + 3, BTN_W - 6, BTN_H * 0.4, R - 3);
+            bg.lineStyle(1.5, 0x7c6636, 0.9);
+            bg.strokeRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
             break;
           case 'hover':
-            // .key:hover — gold border + outer glow ring
-            bg.fillStyle(0x1a1712, 0.97);
-            bg.fillRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.lineStyle(2, 0xd4a847, 1);
-            bg.strokeRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.lineStyle(1, 0xd4a847, 0.2);
-            bg.strokeRoundedRect(bx - BTN_W / 2 - 3, BTN_Y - BTN_H / 2 - 3, BTN_W + 6, BTN_H + 6, 9);
+            bg.fillStyle(0x3d3119, 1);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.fillStyle(0xffffff, 0.08);
+            bg.fillRoundedRect(-hw + 3, -hh + 3, BTN_W - 6, BTN_H * 0.4, R - 3);
+            bg.lineStyle(2.5, 0xf5d98a, 1);                  // bright gold border
+            bg.strokeRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.lineStyle(1.5, 0xd4a847, 0.28);               // outer glow ring
+            bg.strokeRoundedRect(-hw - 3, -hh - 3, BTN_W + 6, BTN_H + 6, R + 3);
             break;
           case 'correct':
-            // .key.correct-key — green
-            bg.fillStyle(0x27a060, 0.18);
-            bg.fillRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.lineStyle(2.5, 0x27a060, 1);
-            bg.strokeRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
+            bg.fillStyle(0x123a24, 1);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.fillStyle(0x27c070, 0.22);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.lineStyle(2.5, 0x3ce089, 1);
+            bg.strokeRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
             break;
           case 'wrong':
-            // .key.wrong-key — dark red, dimmed
-            bg.fillStyle(0xc0392b, 0.10);
-            bg.fillRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
-            bg.lineStyle(1.5, 0x4a1a14, 0.75);
-            bg.strokeRoundedRect(bx - BTN_W / 2, BTN_Y - BTN_H / 2, BTN_W, BTN_H, 6);
+            bg.fillStyle(0x281310, 1);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.fillStyle(0xc0392b, 0.12);
+            bg.fillRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
+            bg.lineStyle(1.5, 0x5a201a, 0.8);
+            bg.strokeRoundedRect(-hw, -hh, BTN_W, BTN_H, R);
             break;
         }
       };
@@ -1957,14 +2075,20 @@ export class BaseLevelScene extends Phaser.Scene {
       drawBtn('normal');
 
       const btnTxt = this.add.text(bx, BTN_Y, letter, {
-        fontSize: '22px', fontFamily: 'Georgia, serif',
-        color: '#f0e8d0', fontStyle: 'bold'
+        fontSize: '24px', fontFamily: 'Georgia, serif',
+        color: '#f6ecd2', fontStyle: 'bold',
+        shadow: { offsetX: 0, offsetY: 2, color: '#000', blur: 4, fill: true }
       }).setOrigin(0.5).setScrollFactor(0).setDepth(79);
 
       const hit = this.add.rectangle(bx, BTN_Y, BTN_W, BTN_H, 0, 0)
         .setScrollFactor(0).setDepth(80).setInteractive({ useHandCursor: true });
 
       toDestroy.push(bg, btnTxt, hit);
+
+      // staggered pop-in for the answer keys
+      bg.setScale(0.85); btnTxt.setScale(0.85);
+      this.tweens.add({ targets: [bg, btnTxt], scaleX: 1, scaleY: 1,
+        duration: 320, delay: 260 + i * 70, ease: 'Back.easeOut' });
 
       hit.on('pointerover', () => { if (!btnLocked) drawBtn('hover'); });
       hit.on('pointerout',  () => { if (!btnLocked) drawBtn('normal'); });

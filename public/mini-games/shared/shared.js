@@ -109,13 +109,26 @@
   /* ---------- standard game frame ----------
      buildGame({icon,title}) -> {root,body,setScore,instructions,result}
      Menu button returns to the hub (../index.html).            */
+  // True when this game is running inside another page (e.g. embedded in the
+  // Phaser game via an <iframe>). Used to report results back instead of
+  // navigating to the standalone hub.
+  const EMBEDDED = (function(){ try { return window.parent && window.parent !== window; } catch(e){ return false; } })();
+  // Tag the page so CSS can make the backdrop transparent when embedded
+  // (so the host level shows through behind the game's popup).
+  if (EMBEDDED) { try { (document.body||document.documentElement).classList.add('embedded'); } catch(e){} }
+  function postToHost(type, extra){ try { window.parent.postMessage(Object.assign({type}, extra||{}), '*'); } catch(e){} }
+
   function buildGame(cfg){
     const scorePill=el('.score-pill',null,'⭐ 0');
     const body=el('.game-body');
+    // Embedded: the host frames/closes the game, so hide the hub "Menu" button.
+    const topRight = EMBEDDED
+      ? [scorePill]
+      : [scorePill, el('button.btn.secondary',{onclick:goMenu},'🏠 Menu')];
     const root=el('.game',null,[
       el('.game-top',null,[
         el('.title',null,cfg.icon+' '+cfg.title),
-        el('.row',null,[scorePill, el('button.btn.secondary',{onclick:goMenu},'🏠 Menu')])
+        el('.row',null,topRight)
       ]),
       body
     ]);
@@ -129,14 +142,17 @@
     }
     function result(stars,onAgain){
       const s='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+      // Embedded in the main game → single "Continue" that reports the result
+      // back to the host level. Standalone → the usual Play Again / Menu.
+      const buttons = EMBEDDED
+        ? [ el('button.btn.big',{onclick:()=>postToHost('minigame-complete',{stars})},'▶ Continue') ]
+        : [ el('button.btn.big',{onclick:()=>{ov.remove();onAgain();}},'🔁 Play Again'),
+            el('button.btn.big.secondary',{onclick:goMenu},'🏠 Menu') ];
       const ov=el('.overlay',null,[
         el('.demo',null,stars===3?'🏆':'🎉'),
         el('h2',null,stars===3?'Perfect!':'Great job!'),
         el('.stars',null,s),
-        el('.row',null,[
-          el('button.btn.big',{onclick:()=>{ov.remove();onAgain();}},'🔁 Play Again'),
-          el('button.btn.big.secondary',{onclick:goMenu},'🏠 Menu')
-        ])
+        el('.row',null,buttons)
       ]); body.appendChild(ov); burstConfetti();
     }
     return {root,body,setScore,instructions,result};

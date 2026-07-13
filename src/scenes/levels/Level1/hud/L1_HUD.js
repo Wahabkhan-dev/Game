@@ -79,6 +79,8 @@ export class L1HUD {
       s._timerTxt.setColor(s._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
     if (s._timerLeft <= 0 && !s._timerFired) {
+      // Ran out mid-mini-game → close the overlay first (no reward, no bridge)
+      if (s._miniGameOpen && s._miniGameClose) s._miniGameClose();
       s._timerFired = true;
       s._isDying = true;
       s._showMessage("⏱ Time's up! -1 Life! 💀");

@@ -1,11 +1,52 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { BaseLevelScene } from '../../BaseLevelScene.js';
+import { L1HUD } from '../hud/L1_HUD.js';
+import { preloadDogSkin, applyDogSkin } from '../L1_DogSkin.js';
 
-// Bonus round — collect 5 fruits across the world, solve puzzles, then
+// Bonus round — collect 5 pieces of meat across the world, solve puzzles, then
 // return to Gemma at the start to feed her — all on one continuous map.
+// Uses Level 1's premium fantasy HUD + black-dog "shadow spirit" skin.
 export class L1_FoodScene extends BaseLevelScene {
   constructor() { super('L1_Food'); }
+
+  preload() { preloadDogSkin(this); }
+
+  // ── Premium fantasy HUD — same overrides Level1Scene uses ────────────────
+  _buildHUD(config) {
+    this._hud = new L1HUD(this, config);
+    this._hud.build();
+  }
+  _drawHPPips()          { if (this._hud) this._hud.drawHP(this._shadowHP); }
+  _setAttackBtn(visible) { if (this._hud) this._hud.setAttackVisible(visible); }
+
+  _givePoints(n) {
+    this._points = (this._points || 0) + n;
+    this.registry.set('points', this._points);
+    if (this._pointsTxt) this._pointsTxt.setText(`${this._points}`);
+    const pop = this.add.text(W / 2, H / 2 - 80, `+${n} 🪙`, {
+      fontSize: '26px', fontFamily: 'Georgia, serif', color: '#ffd24a', stroke: '#1a0f04', strokeThickness: 3
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(90);
+    this.tweens.add({ targets: pop, y: pop.y - 40, alpha: 0, duration: 1000, onComplete: () => pop.destroy() });
+  }
+  _spendPoints(n) {
+    this._points = Math.max(0, (this._points || 0) - n);
+    this.registry.set('points', this._points);
+    if (this._pointsTxt) this._pointsTxt.setText(`${this._points}`);
+  }
+  _resetTimer(seconds) {
+    if (!this._timerTxt) return;
+    this._timerLeft  = seconds;
+    this._timerFull  = seconds;
+    this._timerFired = false;
+    this._timerTxt.setText(`🕒 ${seconds}s`);
+    this._timerTxt.setColor('#ffe08a');
+  }
+  _initZoneProgressBar() {
+    if (this._progressBar) this._progressBar.setAlpha(0);
+    const WORLD_W = (this.lvlConfig && this.lvlConfig.worldWidth) || 1800;
+    if (this._hud) this._hud.buildProgressBar(WORLD_W);
+  }
 
   create() {
     const config = {
@@ -13,8 +54,8 @@ export class L1_FoodScene extends BaseLevelScene {
       startX:      260,
       startY:      360,
       timer:       60,
-      chapterName: 'Bonus — Find Food for Gemma!',
-      objective:   'Collect 5 fruits and bring them back to Gemma! 🍓',
+      chapterName: 'Bonus — Find Meat for Gemma!',
+      objective:   'Collect 5 pieces of meat and bring them back to Gemma! 🍖',
       platforms: [
         { x:  480, y: 320, w: 62, h: 14 },
         { x:  720, y: 285, w: 62, h: 14 },
@@ -29,6 +70,13 @@ export class L1_FoodScene extends BaseLevelScene {
     };
 
     this.initLevel(config);
+
+    // Level 1's black-dog "shadow spirit" skin + premium HUD.
+    applyDogSkin(this);
+    // Level 1 renders controls as Phaser wood buttons → hide the HTML footer.
+    const _htmlFooter = document.getElementById('game-footer');
+    if (_htmlFooter) _htmlFooter.style.display = 'none';
+    this._initZoneProgressBar();
 
     // ── Gemma in her cage, waiting at the left ───────────────────────────
     this._gemmaX = 55;
@@ -104,14 +152,15 @@ export class L1_FoodScene extends BaseLevelScene {
     this._act5Done   = false;
     this._readyFeed  = false;
 
-    this._fruitTxt = this.add.text(W - 20, 18, '🍓 0 / 5', {
-      fontSize: '15px', fontFamily: 'Georgia, serif',
-      color: '#f5e0b0', stroke: '#1a0802', strokeThickness: 2
+    // Sits just below the premium header (top row is health · timer · coin · menu)
+    this._fruitTxt = this.add.text(W - 16, 62, '🍖 0 / 5', {
+      fontSize: '16px', fontFamily: 'Georgia, serif',
+      color: '#f5e0b0', stroke: '#1a0802', strokeThickness: 3
     }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(35);
 
     fruitDefs.forEach((fd, idx) => {
-      const fruit = this.physics.add.staticImage(fd.x, fd.y, 'berry')
-        .setScale(1.5).setDepth(9);
+      const fruit = this.physics.add.staticImage(fd.x, fd.y, 'meat')
+        .setScale(1.0).setDepth(9);
       const glow = this.add.circle(fd.x, fd.y, 20, 0xffcc44, 0.2).setDepth(8);
       this.tweens.add({
         targets: fruit, y: fd.y - 7,
@@ -138,42 +187,42 @@ export class L1_FoodScene extends BaseLevelScene {
         this._feedGemma();
       } else if (!this._levelDone && this._collected > 0 && !this._hintedReturn) {
         this._hintedReturn = true;
-        this._showMessage('Collect all 5 fruits first! 🍓');
+        this._showMessage('Collect all 5 pieces of meat first! 🍖');
       }
     });
 
     this.time.delayedCall(900, () =>
-      this._showMessage('Run right and collect 5 fruits for Gemma! 🍓')
+      this._showMessage('Run right and collect 5 pieces of meat for Gemma! 🍖')
     );
   }
 
   _onFruitCollected(fruitNum) {
     this._collected++;
-    this._fruitTxt.setText(`🍓 ${this._collected} / 5`);
+    this._fruitTxt.setText(`🍖 ${this._collected} / 5`);
 
     const sp = this.add.image(this.shadow.x, this.shadow.y - 20, 'sparkle').setDepth(20);
     this.tweens.add({ targets: sp, scale: 2, alpha: 0, duration: 450, onComplete: () => sp.destroy() });
 
-    const pop = this.add.text(this.shadow.x, this.shadow.y - 30, '+1 🍓', {
+    const pop = this.add.text(this.shadow.x, this.shadow.y - 30, '+1 🍖', {
       fontSize: '20px', fontFamily: 'Georgia, serif',
       color: '#ffcc44', stroke: '#1a0802', strokeThickness: 3
     }).setDepth(22);
     this.tweens.add({ targets: pop, y: pop.y - 50, alpha: 0, duration: 800, onComplete: () => pop.destroy() });
     this.cameras.main.flash(160, 60, 140, 10);
 
-    // Puzzle at fruit 2
+    // Puzzle at fruit 2 — Sorting by Size (standalone mini-game)
     if (fruitNum === 2 && !this._act2Done) {
       this._act2Done = true;
       this.time.delayedCall(900, () =>
-        this._puzzleSizeCompare(() => this._showMessage('Great! Keep collecting! 🍓'))
+        this._launchMiniGame('10-sorting-by-size', () => this._showMessage('Great! Keep collecting! 🍖'))
       );
     }
 
-    // Puzzle at fruit 4
+    // Puzzle at fruit 4 — Fruit & Veg Sort (standalone mini-game)
     if (fruitNum === 4 && !this._act4Done) {
       this._act4Done = true;
       this.time.delayedCall(900, () =>
-        this._puzzlePattern(() => this._showMessage('Almost there! One more! 🍓'))
+        this._launchMiniGame('22-fruit-vegetable-sort', () => this._showMessage('Almost there! One more! 🍖'))
       );
     }
 
@@ -188,7 +237,7 @@ export class L1_FoodScene extends BaseLevelScene {
 
   _onAllCollected() {
     this._readyFeed = true;
-    this._showMessage('All fruits collected! Go back to Gemma! 💛', 3000);
+    this._showMessage('All meat collected! Go back to Gemma! 💛', 3000);
 
     // Gemma glows to guide the player back
     this.tweens.add({
@@ -233,5 +282,13 @@ export class L1_FoodScene extends BaseLevelScene {
   update() {
     this._updateBgParallax();
     this.updateMovement();
+
+    // Premium progress bar (same fields Level 1 drives)
+    if (this._zpFill && this.shadow) {
+      const pct = Math.min(this.shadow.x / this._zpWorldW, 1);
+      this._zpFill.width = Math.max(2, pct * this._zpWidth);
+      this._zpRunner.x = this._zpLeft + pct * this._zpWidth;
+      this._zpFill.setFillStyle(0x44cc44);
+    }
   }
 }

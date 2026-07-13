@@ -409,6 +409,17 @@ export function generateAssets(scene) {
   g.fillStyle(0x287020, 1); g.fillEllipse(13, 5, 9, 6);
   g.generateTexture('berry', 22, 22);
 
+  // MEAT / BEEF (juicy steak with a bone end) — for the meat-collecting round
+  g.clear();
+  g.fillStyle(0x000000, 0.16); g.fillEllipse(19, 24, 32, 6);              // ground shadow
+  g.fillStyle(0xd85a40, 1);    g.fillEllipse(17, 14, 32, 20);             // meat body
+  g.fillStyle(0xb84732, 1);    g.fillEllipse(17, 17, 29, 13);             // lower shade
+  g.lineStyle(2, 0x8a3324, 1);  g.strokeEllipse(17, 14, 32, 20);          // outline
+  g.fillStyle(0xf2e6d2, 1);    g.fillCircle(31, 9, 5); g.fillCircle(31, 17, 5);  // bone end
+  g.lineStyle(1.5, 0xd8c4a8, 1); g.strokeCircle(31, 9, 5); g.strokeCircle(31, 17, 5);
+  g.fillStyle(0xffb0a0, 0.7);  g.fillEllipse(12, 10, 11, 5);              // sheen
+  g.generateTexture('meat', 42, 28);
+
   // HEART
   g.clear();
   g.fillStyle(0xcc0822, 1);
