@@ -76,7 +76,7 @@ export class PremiumHUD {
     if (s._levelDone || s._isDying || s._puzzleActive || s._pauseMenuOpen) return;
     s._timerLeft = Math.max(0, s._timerLeft - 1);
     if (s._timerTxt) {
-      s._timerTxt.setText(`🕒 ${s._timerLeft}s`);
+      s._timerTxt.setText(`${s._timerLeft}s`);
       s._timerTxt.setColor(s._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
     if (s._timerLeft <= 0 && !s._timerFired) {
@@ -87,7 +87,7 @@ export class PremiumHUD {
       s.time.delayedCall(800, () => {
         s._timerFired = false;
         s._timerLeft  = s._timerFull;
-        if (s._timerTxt) { s._timerTxt.setText(`🕒 ${s._timerFull}s`); s._timerTxt.setColor(THEME.goldTxt); }
+        if (s._timerTxt) { s._timerTxt.setText(`${s._timerFull}s`); s._timerTxt.setColor(THEME.goldTxt); }
         s._loseLife(0.012);
       });
     }
@@ -100,7 +100,7 @@ export class PremiumHUD {
   resetTimer(seconds) {
     const s = this.scene;
     s._timerFull = seconds; s._timerLeft = seconds; s._timerFired = false;
-    if (s._timerTxt) { s._timerTxt.setText(`🕒 ${seconds}s`); s._timerTxt.setColor(THEME.goldTxt); }
+    if (s._timerTxt) { s._timerTxt.setText(`${seconds}s`); s._timerTxt.setColor(THEME.goldTxt); }
   }
   givePoints(n) {
     const s = this.scene;

@@ -104,11 +104,14 @@ export class PremiumHeader {
     if (!this.cfg.timer) return;
     this._shadow(TMR.x, TMR.y, TMR.w, TMR.h);
     this.c.add(makePanel(s, TMR.x, TMR.y, TMR.w, TMR.h, D));
-    this.timerTxt = s.add.text(TMR.x + TMR.w / 2, TMR.y + TMR.h / 2, `🕒 ${this.cfg.timer}s`, {
+    // Drawn gold clock icon (identical on every OS) instead of the 🕒 emoji.
+    const clock = s.add.image(TMR.x + 15, TMR.y + TMR.h / 2, 'shud_clock')
+      .setScale(0.46).setScrollFactor(0).setDepth(D + 2);
+    this.timerTxt = s.add.text(TMR.x + 27, TMR.y + TMR.h / 2, `${this.cfg.timer}s`, {
       fontFamily: 'Georgia, serif', fontSize: '11px', color: THEME.goldTxt,
       stroke: '#1a0f04', strokeThickness: 2
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 2);
-    this.c.add(this.timerTxt);
+    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 2);
+    this.c.add([clock, this.timerTxt]);
   }
 
   _buildCoinPanel() {

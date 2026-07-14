@@ -78,14 +78,19 @@ export class PremiumFooter {
       ring.fillStyle(color, 1); ring.fillCircle(bx, TY, 3.5);
       ring.fillStyle(0xffffff, 0.5); ring.fillCircle(bx - 1, TY - 1, 1.2);
       ring.lineStyle(1.5, THEME.GOLD, 1); ring.strokeCircle(bx, TY, 5.5);
-      const lbl = s.add.text(bx, TY - 15, z.label, {
-        fontFamily: 'Georgia, serif', fontSize: '8px', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 3);
+      // Label: the 🏁 finish emoji becomes a drawn gold flag (identical on every
+      // OS); plain 'Z1/Z2/Z3' stay as text (ASCII renders the same everywhere).
+      const lbl = (z.label === '🏁')
+        ? s.add.image(bx, TY - 15, 'shud_flag').setScale(0.4).setScrollFactor(0).setDepth(D + 3)
+        : s.add.text(bx, TY - 15, z.label, {
+            fontFamily: 'Georgia, serif', fontSize: '8px', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
+          }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 3);
       this.c.add([glow, ring, lbl]);
     });
 
-    this._runner = s.add.text(BAR_L, TY - 2, this.runnerEmoji, { fontSize: '11px' })
-      .setScrollFactor(0).setDepth(D + 4).setOrigin(0.5, 1);
+    // Runner marker — drawn gold paw print instead of the 🐾 / 👧 emoji.
+    this._runner = s.add.image(BAR_L, TY - 2, 'shud_paw')
+      .setScale(0.4).setScrollFactor(0).setDepth(D + 4).setOrigin(0.5, 1);
     this.c.add(this._runner);
   }
 

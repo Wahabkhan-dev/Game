@@ -3,10 +3,18 @@ import { W, H } from '../../../config/GameConfig.js';
 import { BaseLevelScene } from '../BaseLevelScene.js';
 import { L1HUD } from './hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
+import { buildL1Background, updateL1Parallax, buildL1Ground } from './L1_Scenery.js';
 
 // Chapter 1 — Three zones: Easy → Medium → Boss → Free Gemma
 export class Level1Scene extends BaseLevelScene {
   constructor() { super('Level1'); }
+
+  // ── Real-art scenery (jungle background + forest-floor surface) ─────────────
+  // Override the shared BaseLevelScene visuals for Level 1 only. Physics/gameplay
+  // is untouched (buildL1Ground re-creates the same invisible collision tiles).
+  _buildBackground(worldW) { buildL1Background(this, worldW); }
+  _updateBgParallax()      { updateL1Parallax(this); }
+  _buildGround(config)     { buildL1Ground(this, config); }
 
   // Load the NEW-RUN black-dog frames (visual-only swap; see L1_DogSkin.js).
   preload() {

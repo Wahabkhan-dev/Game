@@ -35,6 +35,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('key2',           'assets/images/key2.png');
     this.load.image('checkpoint_flag','assets/images/checkpoint_flag.png');
     this.load.image('l2_modal_bg',    'assets/images/Level 2/Level2_modal.png');
+    // ── Level 1 real artwork (jungle background + forest-floor surface) ──────
+    this.load.image('l1_bg',      'assets/images/level1/Level 01.jpeg');
+    this.load.image('l1_surface', 'assets/images/level1/Level 01 bottom.jpg');
     // ── Level 2 mini-game artwork ───────────────────────────────────────────
     ['l2mg_bg_catch', 'l2mg_bg_dodge', 'l2mg_bg_fireflies', 'l2mg_basket', 'l2mg_bush', 'l2mg_firefly',
      'l2cal_bg', 'l2cal_speak', 'l2cal_bark', 'l2cal_run',

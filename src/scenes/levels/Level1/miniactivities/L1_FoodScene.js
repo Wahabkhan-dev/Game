@@ -3,6 +3,7 @@ import { W, H } from '../../../../config/GameConfig.js';
 import { BaseLevelScene } from '../../BaseLevelScene.js';
 import { L1HUD } from '../hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from '../L1_DogSkin.js';
+import { buildL1Background, updateL1Parallax, buildL1Ground } from '../L1_Scenery.js';
 
 // Bonus round — collect 5 pieces of meat across the world, solve puzzles, then
 // return to Gemma at the start to feed her — all on one continuous map.
@@ -19,6 +20,11 @@ export class L1_FoodScene extends BaseLevelScene {
   }
   _drawHPPips()          { if (this._hud) this._hud.drawHP(this._shadowHP); }
   _setAttackBtn(visible) { if (this._hud) this._hud.setAttackVisible(visible); }
+
+  // ── Real-art scenery (same jungle bg + forest-floor surface as Level 1) ─────
+  _buildBackground(worldW) { buildL1Background(this, worldW); }
+  _updateBgParallax()      { updateL1Parallax(this); }
+  _buildGround(config)     { buildL1Ground(this, config); }
 
   _givePoints(n) {
     this._points = (this._points || 0) + n;

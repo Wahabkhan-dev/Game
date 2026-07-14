@@ -149,6 +149,50 @@ export function generatePremiumHudTextures(scene) {
   }
   gen('shud_key', 40, 40);
 
+  // gold clock (40×40) — timer icon (replaces the 🕒 emoji, which renders
+  // differently on every OS/browser). Drawn, so it looks identical everywhere.
+  {
+    const c = 20;
+    g.fillStyle(T.GOLD_DK, 1); g.fillCircle(c, c, 15);
+    g.fillStyle(T.GOLD, 1);    g.fillCircle(c, c, 13);
+    g.fillStyle(0x140c04, 1);  g.fillCircle(c, c, 10.5);      // dark face
+    g.lineStyle(1, T.GOLD_HI, 0.85); g.strokeCircle(c, c, 13);
+    // tick marks (12/3/6/9)
+    g.fillStyle(T.GOLD_HI, 0.9);
+    g.fillRect(c - 0.6, c - 10, 1.2, 2); g.fillRect(c - 0.6, c + 8, 1.2, 2);
+    g.fillRect(c - 10, c - 0.6, 2, 1.2); g.fillRect(c + 8, c - 0.6, 2, 1.2);
+    // hands
+    g.lineStyle(2, T.GOLD_HI, 1); g.lineBetween(c, c, c, c - 7);
+    g.lineStyle(2, T.GOLD, 1);    g.lineBetween(c, c, c + 5, c + 3);
+    g.fillStyle(T.GOLD_HI, 1); g.fillCircle(c, c, 1.6);       // center pin
+  }
+  gen('shud_clock', 40, 40);
+
+  // gold checkered finish flag (40×40) — replaces the 🏁 emoji.
+  {
+    g.fillStyle(T.GOLD_DK, 1); g.fillRect(9, 6, 3, 30);       // pole
+    g.fillStyle(T.GOLD, 1);    g.fillRect(9, 6, 1.3, 30);     // pole shine
+    const fx = 12, fy = 7, cw = 5, ch = 4, cols = 4, rows = 3;
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+      g.fillStyle((r + col) % 2 === 0 ? 0x140c04 : T.GOLD, 1);
+      g.fillRect(fx + col * cw, fy + r * ch, cw, ch);
+    }
+    g.lineStyle(1, T.GOLD_DK, 0.9); g.strokeRect(fx, fy, cols * cw, rows * ch);
+  }
+  gen('shud_flag', 40, 40);
+
+  // gold paw print (40×40) — runner / "you are here" progress marker (replaces
+  // the 🐾 / 👧 emoji).
+  {
+    const cx = 20;
+    g.fillStyle(T.GOLD_DK, 1); g.fillEllipse(cx, 27, 17, 14);  // pad shadow
+    g.fillStyle(T.GOLD, 1);    g.fillEllipse(cx, 26, 16, 13);  // main pad
+    g.fillCircle(cx - 9, 15, 4);   g.fillCircle(cx - 3, 11, 4.2);
+    g.fillCircle(cx + 3, 11, 4.2); g.fillCircle(cx + 9, 15, 4);
+    g.fillStyle(T.GOLD_HI, 0.5); g.fillEllipse(cx - 2, 23, 8, 5);  // highlight
+  }
+  gen('shud_paw', 40, 40);
+
   gen('shud_ready', 4, 4);
   g.destroy();
 }

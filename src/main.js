@@ -127,7 +127,7 @@ if (attackBtn) {
 //
 // NOTE: Phaser 3 removed the old `resolution` config option (it is a no-op now), so
 // HiDPI must be handled with `zoom` like this rather than `resolution`.
-const MAX_SUPERSAMPLE = 4;   // 800×450 → up to 3200×1800 backing buffer (tune here)
+const MAX_SUPERSAMPLE = 5;   // 800×450 → up to 4000×2250 backing buffer (tune here)
 
 function computeRenderZoom() {
   const dpr = window.devicePixelRatio || 1;
