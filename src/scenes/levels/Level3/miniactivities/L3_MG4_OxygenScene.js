@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
+import { applyL3Frame } from './L3Modal.js';
 
 // MG4 — Special Treatment: drag oxygen mask to Gamma, then watch vitals stabilise
 export class L3_MG4_OxygenScene extends Phaser.Scene {
@@ -13,6 +14,7 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35).setDepth(0);
+    applyL3Frame(this);
 
     this._done   = false;
     this._health = this.registry.get('l3_health') || 100;

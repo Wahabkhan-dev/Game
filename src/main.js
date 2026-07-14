@@ -113,27 +113,54 @@ if (attackBtn) {
   attackBtn.addEventListener('pointercancel', () => attackBtn.classList.remove('pressed'));
 }
 
+// ── Crisp HiDPI rendering ────────────────────────────────────────────────────
+// The whole game is authored in a fixed 800×450 "design" coordinate space (W/H)
+// that every scene/HUD relies on. On big monitors that 800×450 canvas was being
+// stretched up to the display size (~4.8× on 4K) → the blurry/pixelated look.
+//
+// Fix = SUPERSAMPLING through the Scale Manager's `zoom`: Phaser renders the WebGL
+// backing buffer at (design × zoom) and Scale.FIT smoothly scales it into the
+// window. `zoom` is chosen so the backing buffer ≈ the physical device pixels the
+// canvas actually occupies (accounting for window size AND devicePixelRatio), then
+// capped for performance. The game coordinate space stays 800×450, so NOT ONE
+// scene/layout coordinate has to change.
+//
+// NOTE: Phaser 3 removed the old `resolution` config option (it is a no-op now), so
+// HiDPI must be handled with `zoom` like this rather than `resolution`.
+const MAX_SUPERSAMPLE = 4;   // 800×450 → up to 3200×1800 backing buffer (tune here)
+
+function computeRenderZoom() {
+  const dpr = window.devicePixelRatio || 1;
+  // How large the FIT canvas will be shown, in CSS px per game unit …
+  const fit = Math.min(window.innerWidth / W, window.innerHeight / H);
+  // … × DPR = physical device px per game unit = the zoom that gives a 1:1 sharp image.
+  const physicalPerUnit = fit * dpr;
+  // Never below 1 (the design resolution); clamp the top end for performance.
+  return Math.max(1, Math.min(MAX_SUPERSAMPLE, physicalPerUnit));
+}
+
 // ── Phaser game config ─────────────────────────────────────────────────────
 const config = {
-  type: Phaser.AUTO,
-  width: W,
-  height: H,
+  type: Phaser.AUTO,                 // WebGL when available, Canvas fallback
   parent: 'game-container',
   backgroundColor: '#0d0806',
   antialias: true,
-  roundPixels: false,
+  roundPixels: false,                // keep sub-pixel motion smooth (we supersample instead)
   render: {
-    pixelArt: false,
+    pixelArt: false,                 // smooth LINEAR filtering, NOT nearest-neighbor
     antialias: true,
-    antialiasGL: true,
-    smoothStep: true
+    antialiasGL: true,               // MSAA-style edges for shapes / lines / HUD
+    smoothStep: true,
   },
   device: {
     videoRender: 'AUTO',
   },
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.FIT,          // preserve the 16:9 aspect (letterbox, never distort)
     autoCenter: Phaser.Scale.NO_CENTER,   // CSS flex centers the canvas (avoids double-centering offset)
+    width: W,
+    height: H,
+    zoom: computeRenderZoom(),       // ← supersample: backing buffer = (W × zoom) by (H × zoom)
   },
   physics: {
     default: 'arcade',
@@ -240,17 +267,26 @@ window.addEventListener('touchstart',  _wakeGameLoop, { capture: true, passive: 
 window.addEventListener('focus',       _wakeGameLoop);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) _wakeGameLoop(); });
 
-// Enable super-sampling for crisp high-resolution rendering
-setTimeout(() => {
-  const canvas = document.querySelector('canvas');
-  if (canvas && window._game.renderer) {
-    const superSample = 2; // 2x internal resolution
-    const webglRenderer = window._game.renderer;
-    if (webglRenderer.resize) {
-      // Use internal WebGL upsampling for crisp edges
-      canvas.style.imageRendering = 'auto';
-      canvas.style.maxWidth = '100%';
-      canvas.style.maxHeight = '100%';
-    }
-  }
-}, 50);
+// ── Keep the supersample factor matched to the window as it resizes ──────────
+// Scale.FIT already re-fits the canvas CSS on resize; we additionally recompute
+// `zoom` so the WebGL backing buffer keeps matching the (new) physical pixel count
+// — otherwise growing the window (or moving to a bigger/HiDPI monitor) would
+// re-introduce upscaling blur. Debounced so we don't reallocate the GPU buffer on
+// every intermediate resize event.
+let _zoomResizeTimer = null;
+function _refreshRenderZoom() {
+  const scale = window._game && window._game.scale;
+  if (!scale || typeof scale.setZoom !== 'function') return;
+  const z = computeRenderZoom();
+  if (Math.abs((scale.zoom || 1) - z) > 0.01) scale.setZoom(z);
+}
+window.addEventListener('resize', () => {
+  clearTimeout(_zoomResizeTimer);
+  _zoomResizeTimer = setTimeout(_refreshRenderZoom, 150);
+});
+// devicePixelRatio can change when the window moves between monitors of different
+// DPI — re-evaluate then too (best-effort; supported where matchMedia resolution works).
+try {
+  const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  if (mq && mq.addEventListener) mq.addEventListener('change', _refreshRenderZoom, { once: false });
+} catch (_) {}

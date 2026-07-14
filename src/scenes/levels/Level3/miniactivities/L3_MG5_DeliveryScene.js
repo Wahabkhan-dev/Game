@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
+import { applyL3Frame } from './L3Modal.js';
 
 // MG5 — Treatment Steps: tap the treatment icons in order within 30 seconds
 const STEP_ICONS  = ['💊', '💉', '❤️', '🩹'];
@@ -16,6 +17,7 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35).setDepth(0);
+    applyL3Frame(this);
 
     this._done     = false;
     this._next     = 1;

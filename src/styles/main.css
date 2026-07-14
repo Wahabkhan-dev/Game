@@ -25,9 +25,11 @@ html, body {
 
 canvas {
   display: block;
+  /* Smooth (bilinear) scaling — this is NOT a pixel-art game. The old
+     `crisp-edges` / nearest-neighbor rules forced blocky upscaling and are
+     removed. The canvas is now supersampled (see main.js), so the browser only
+     ever does a gentle, smooth resample to the display. */
   image-rendering: auto;
-  image-rendering: crisp-edges;
-  -ms-interpolation-mode: nearest-neighbor;
 }
 
 /* ── Footer: touch controls overlay the BOTTOM of the canvas ─────────────── */

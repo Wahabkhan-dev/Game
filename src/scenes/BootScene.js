@@ -34,6 +34,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('key1',           'assets/images/key1.png');
     this.load.image('key2',           'assets/images/key2.png');
     this.load.image('checkpoint_flag','assets/images/checkpoint_flag.png');
+    this.load.image('l2_modal_bg',    'assets/images/Level 2/Level2_modal.png');
     // ── Level 2 mini-game artwork ───────────────────────────────────────────
     ['l2mg_bg_catch', 'l2mg_bg_dodge', 'l2mg_bg_fireflies', 'l2mg_basket', 'l2mg_bush', 'l2mg_firefly',
      'l2cal_bg', 'l2cal_speak', 'l2cal_bark', 'l2cal_run',
@@ -57,6 +58,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
     this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
     this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
+    this.load.image('l3_modal_frame', 'assets/images/Level 3/l3_modal_frame.png');
     // NOTE: l3_ekg_screen & l3_vitals_bg stay PROCEDURAL — the game draws live
     // animated EKG line / vitals readouts on top, which need a blank screen.
     // ── Level 4 real artwork (society / neighbourhood) ──────────────────────
