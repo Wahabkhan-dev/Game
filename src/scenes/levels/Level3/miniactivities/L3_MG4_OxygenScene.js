@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
+<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
+=======
+import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
+import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+>>>>>>> Stashed changes
 
 // MG4 — Special Treatment: drag oxygen mask to Gamma, then watch vitals stabilise
 export class L3_MG4_OxygenScene extends Phaser.Scene {
@@ -17,12 +22,20 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     applyL3Frame(this);
 
     this._done   = false;
+    this._treatmentPhase = false;
     this._health = this.registry.get('l3_health') || 100;
     this._phase  = 0; // 0=place mask, 1=stabilise
 
     this._buildHUD(4);
-    this._buildTitle('🫁 Oxygen Treatment', 'Drag the oxygen mask to Gamma\'s face, then stabilise the vitals.');
+    this._buildTitle('🫁 Oxygen Treatment', 'First, a quick warm-up activity — then give Gamma oxygen yourself.');
 
+<<<<<<< Updated upstream
+=======
+    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
+    // once it's won does the real hands-on treatment (place the oxygen mask) unlock.
+    launchRandomMiniGame(this, 3, () => this._startTreatment());
+
+>>>>>>> Stashed changes
     // Characters
     if (this.textures.exists('gemma_idle')) {
       this._gammaImg = this.add.image(480, H - 50, 'gemma_idle').setDisplaySize(180, 100).setOrigin(0.5, 1).setDepth(8).setTint(0xffcccc);
@@ -39,30 +52,27 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     // Vitals panel
     this._buildVitals();
 
-    // Oxygen mask (draggable)
+    // Oxygen mask (interactive only once treatment phase unlocks)
     const mx = 170, my = H - 120;
-    this._mask = this.add.image(mx, my, 'l3_oxygen').setDisplaySize(62, 64).setDepth(15).setInteractive({ useHandCursor: true });
+    this._mask = this.add.image(mx, my, 'l3_oxygen').setDisplaySize(62, 64).setDepth(15).setInteractive({ useHandCursor: true }).setAlpha(0.5);
     this._mask._origX = mx; this._mask._origY = my;
-    this.input.setDraggable(this._mask);
 
     // Face target on Gamma
     const targX = 440, targY = H - 110;
     this._faceTarget = this.add.circle(targX, targY, 22, 0x44ff88, 0.2).setDepth(11).setStrokeStyle(2, 0x44ff88, 0.8);
-    this.tweens.add({ targets: this._faceTarget, scaleX: 1.25, scaleY: 1.25, alpha: 0.4, duration: 550, yoyo: true, repeat: -1 });
+    this._targX = targX; this._targY = targY;
 
-    const hint = this.add.text(mx, my - 44, '→ Drag to Gamma\'s face', {
+    this._hint = this.add.text(mx, my - 44, '→ Drag to Gamma\'s face', {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#000', strokeThickness: 2
-    }).setOrigin(0.5).setDepth(14);
-    this.tweens.add({ targets: hint, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
-    this._hint = hint;
+    }).setOrigin(0.5).setDepth(14).setAlpha(0);
 
     this.input.on('drag', (ptr, obj, dx, dy) => {
-      if (this._done || this._phase > 0) return;
+      if (!this._treatmentPhase || this._done || this._phase > 0) return;
       obj.x = dx; obj.y = dy;
     });
 
     this.input.on('dragend', (ptr, obj) => {
-      if (this._done || this._phase > 0) return;
+      if (!this._treatmentPhase || this._done || this._phase > 0) return;
       const dist = Phaser.Math.Distance.Between(obj.x, obj.y, targX, targY);
       if (dist < 50) {
         this._placeMask(targX, targY, obj);
@@ -70,6 +80,17 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
         this.tweens.add({ targets: obj, x: obj._origX, y: obj._origY, duration: 220 });
       }
     });
+  }
+
+  // Unlocks the real treatment interaction once the warm-up activity is won.
+  _startTreatment() {
+    this._treatmentPhase = true;
+    showTreatmentPrompt(this, '🫁 Now give Gamma oxygen!');
+    this._mask.setAlpha(1);
+    this.input.setDraggable(this._mask);
+    this.tweens.add({ targets: this._faceTarget, scaleX: 1.25, scaleY: 1.25, alpha: 0.4, duration: 550, yoyo: true, repeat: -1 });
+    this._hint.setAlpha(1);
+    this.tweens.add({ targets: this._hint, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
   }
 
   _buildVitals() {
@@ -131,11 +152,11 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 6; i++) {
+      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }

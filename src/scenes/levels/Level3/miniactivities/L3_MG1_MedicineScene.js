@@ -1,7 +1,13 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
+<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
+=======
+import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
+import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+import { playVideoOverlay } from '../../../../utils/VideoOverlay.js';
+>>>>>>> Stashed changes
 
 // MG1 — Select Medicines: drag 3 correct bottles into tray, avoid 2 wrong ones
 export class L3_MG1_MedicineScene extends Phaser.Scene {
@@ -22,10 +28,18 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     this._health  = this.registry.get('l3_health') || 100;
 
     this._buildHUD(1);
+<<<<<<< Updated upstream
     this._buildTitle('💊 Select the correct medicines!', 'Drag GREEN bottles to the tray. Avoid RED ones.');
     this._buildTable();
     this._buildTray();
     this._buildBottles();
+=======
+    this._buildTitle('💊 Select the correct medicines!', 'First, a quick warm-up activity — then treat Gamma yourself.');
+    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
+    // once it's won does the real hands-on treatment (drag medicine into the
+    // tray) unlock, instead of skipping straight to the next step.
+    launchRandomMiniGame(this, 3, () => this._startTreatment());
+>>>>>>> Stashed changes
 
     // Gleeda guide
     if (this.textures.exists('gleeda_idle')) {
@@ -35,6 +49,14 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     if (this.textures.exists('gemma_idle')) {
       this.add.image(620, H - 52, 'gemma_idle').setDisplaySize(130, 72).setOrigin(0.5, 1).setDepth(8).setTint(0xffdddd);
     }
+  }
+
+  // Unlocks the real treatment interaction once the warm-up activity is won.
+  _startTreatment() {
+    showTreatmentPrompt(this, '💊 Now give Gamma her medicine!');
+    this._buildTable();
+    this._buildTray();
+    this._buildBottles();
   }
 
   // Stainless-steel medical counter the bottles & tray rest on
@@ -163,13 +185,13 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
 
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
 
     // Step progress dots
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 6; i++) {
+      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
 

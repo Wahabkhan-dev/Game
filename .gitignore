@@ -2,3 +2,10 @@ node_modules/
 dist/
 .DS_Store
 *.local
+.env
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+dist.zip

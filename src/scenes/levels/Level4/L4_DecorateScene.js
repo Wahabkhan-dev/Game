@@ -295,10 +295,20 @@ export class L4_DecorateScene extends Phaser.Scene {
     try { this.registry.set('points', (this.registry.get('points') || 0) + 500); } catch (_) {}
     try { localStorage.setItem('shadowgamma_level4_done', '1'); } catch (_) {}
 
+<<<<<<< Updated upstream
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60);
     const cg = this.add.graphics().setDepth(61);
     cg.fillStyle(0xfdf0e8, 1); cg.fillRoundedRect(W / 2 - 170, H / 2 - 120, 340, 240, 18);
     cg.lineStyle(3, 0xf5c84a, 1); cg.strokeRoundedRect(W / 2 - 170, H / 2 - 120, 340, 240, 18);
+=======
+    // _finish() faded Gamma out to alpha 0 for the heart-burst beat — bring her
+    // back into view here so the "settling down to sleep" animation is visible.
+    this.tweens.killTweensOf(this._gamma);
+    this._gamma.setPosition(HX, HY).setScale(this._gammaScale).setAlpha(1);
+
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0a0820, 0).setDepth(50);
+    this.tweens.add({ targets: dim, alpha: 0.42, duration: 1200 });
+>>>>>>> Stashed changes
 
     this.add.text(W / 2, H / 2 - 92, 'LEVEL 4 COMPLETE! 🎉', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#d94060', stroke: '#fdf0e8', strokeThickness: 2 }).setOrigin(0.5).setDepth(62);
     ['⭐', '⭐', '⭐'].forEach((s, i) => {

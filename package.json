@@ -12,6 +12,8 @@
     "phaser": "^3.60.0"
   },
   "devDependencies": {
+    "cloudinary": "^2.10.0",
+    "dotenv": "^17.4.2",
     "vite": "^5.4.0"
   }
 }

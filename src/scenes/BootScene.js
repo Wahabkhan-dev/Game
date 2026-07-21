@@ -61,7 +61,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
     this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
     this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
-    this.load.image('l3_modal_frame', 'assets/images/Level 3/l3_modal_frame.png');
     // NOTE: l3_ekg_screen & l3_vitals_bg stay PROCEDURAL — the game draws live
     // animated EKG line / vitals readouts on top, which need a blank screen.
     // ── Level 4 real artwork (society / neighbourhood) ──────────────────────

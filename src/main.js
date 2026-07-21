@@ -24,6 +24,7 @@ import { L3_MG2_InjectionScene } from './scenes/levels/Level3/miniactivities/L3_
 import { L3_MG3_HeartScene }     from './scenes/levels/Level3/miniactivities/L3_MG3_HeartScene.js';
 import { L3_MG4_OxygenScene }    from './scenes/levels/Level3/miniactivities/L3_MG4_OxygenScene.js';
 import { L3_MG5_DeliveryScene }  from './scenes/levels/Level3/miniactivities/L3_MG5_DeliveryScene.js';
+import { L3_MG6_PostCareScene }  from './scenes/levels/Level3/miniactivities/L3_MG6_PostCareScene.js';
 import { L3_EndScene }           from './scenes/levels/Level3/L3_EndScene.js';
 // Level 4
 import { Level4Scene }       from './scenes/levels/Level4/Level4Scene.js';
@@ -198,6 +199,7 @@ const config = {
     L3_MG3_HeartScene,
     L3_MG4_OxygenScene,
     L3_MG5_DeliveryScene,
+    L3_MG6_PostCareScene,
     L3_EndScene,
     // Level 4
     Level4Scene,

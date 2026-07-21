@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
+<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
+=======
+import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
+import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+>>>>>>> Stashed changes
 
 // MG2 — Give Injection: drag syringe to the glowing spot on Gamma, twice
 export class L3_MG2_InjectionScene extends Phaser.Scene {
@@ -36,6 +41,17 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     g.fillStyle(0x182838, 1); g.fillRoundedRect(310, H - 65, 360, 18, 4);
     g.lineStyle(1, 0x2a4a68, 0.6); g.strokeRoundedRect(310, H - 65, 360, 18, 4);
 
+<<<<<<< Updated upstream
+=======
+    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
+    // once it's won does the real hands-on treatment (give the injection) unlock.
+    launchRandomMiniGame(this, 3, () => this._startTreatment());
+  }
+
+  // Unlocks the real treatment interaction once the warm-up activity is won.
+  _startTreatment() {
+    showTreatmentPrompt(this, '💉 Now give Gamma her injection!');
+>>>>>>> Stashed changes
     this._buildInjection();
   }
 
@@ -108,11 +124,11 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 6; i++) {
+      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
     // Health: name label on top, bar clearly below (no overlap)

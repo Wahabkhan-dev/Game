@@ -1,14 +1,24 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL3Assets } from './L3Assets.js';
+<<<<<<< Updated upstream
+=======
+import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
+import { playVideoOverlay, showStoryCard } from '../../../utils/VideoOverlay.js';
+import { preloadCarSkin, createCarSprite, playCarSkin, stopCarSkin } from './L3_CarSkin.js';
+import { drawModalPanelBg } from '../ModalFrame.js';
+>>>>>>> Stashed changes
 
 const ROAD_TOP_Y = Math.round(H * 0.72);   // ≈ 324 — yellow border / road band top
 // Car sits: carY = ROAD_TOP_Y + 4 + 65 = ROAD_TOP_Y + 69
 // Visible wheel bottom = carY - 17 (PNG transparent pad) = ROAD_TOP_Y + 52
 const DRIVE_Y    = ROAD_TOP_Y + 52;        // ≈ 376 — surface where car wheels contact
 
-const _CAR_H = 82;
-const _CAR_W = 152;
+// Real truck art (Level 3/car/frame_*.png) is 1046×410 (≈2.55:1) — sized to
+// match that aspect so it isn't stretched (old l3_car.png was ≈1.85:1).
+// +14% on top of the base 174×68 fit, per request.
+const _CAR_H = 78;
+const _CAR_W = 198;
 const CAR_Y  = ROAD_TOP_Y;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +74,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');
     this.load.audio('signal_beep',    'assets/audio/signal_beep.mp3');
     this.load.audio('gameover_sting', 'assets/audio/game_over.mp3');
+    preloadCarSkin(this);
   }
 
   create() {
@@ -71,19 +82,17 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#060a10');
     this.cameras.main.fadeIn(800, 0, 0, 0);
 
+    // QA "Zone 2" jump — starts the drive PAST the first bridge gap (instead
+    // of the old behaviour, which skipped the entire drive straight to the
+    // hospital). Hazards already behind the start point are pre-cleared below,
+    // right after _buildSpeedBreakers()/_buildHoles() create them.
     const startZone = this.registry.get('l3_startZone') || 1;
     this.registry.remove('l3_startZone');
-    if (startZone >= 2) {
-      this.registry.set('l3_health', this.registry.get('l3_health') || 100);
-      this.registry.set('l3_coins',  this.registry.get('l3_coins')  || 0);
-      this.cameras.main.fadeOut(0);
-      this.time.delayedCall(50, () => this.scene.start('L3_MG1'));
-      return;
-    }
+    const ZONE2_START_DIST = 5000;   // past hole[0]=4410, before the signal's warn zone (5690)
 
     this._health        = 100;
     this._coins         = this.registry.get('l3_coins') || 0;
-    this._distance      = 0;
+    this._distance      = startZone >= 2 ? ZONE2_START_DIST : 0;
     this._speed         = 0;
     this._done          = false;
     this._leftHeld      = false;
@@ -99,6 +108,18 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._buildCar();            // FIX 1 — grounded to ROAD_TOP_Y
     this._buildSpeedBreakers();
     this._buildHoles();
+
+    // QA "Zone 2" jump — pre-clear any hazard that's already behind the start
+    // point so it doesn't immediately (re-)trigger on the very first frame.
+    if (startZone >= 2) {
+      this._bumps.forEach(b => { if (b.dist < this._distance) b.triggered = true; });
+      const h0 = this._holes[0];
+      if (h0 && h0.dist < this._distance) {
+        h0.triggered = true; h0.solved = true;
+        h0.gfx.setVisible(false); h0.bridgeGfx.setVisible(true);
+      }
+    }
+
     this._buildTrafficSignal();
     this._buildHospitalMarker();
     this._buildRain();           // FIX 4 — full-canvas Graphics rain
@@ -133,6 +154,14 @@ export class L3_CarJourneyScene extends Phaser.Scene {
       if (gas)        this._speed = Math.min(CFG.MAX_SPEED, this._speed + CFG.ACCEL * FF);
       else if (brake) this._speed = Math.max(0,             this._speed - CFG.BRAKE_DECEL * FF);
       else            this._speed = Math.max(0,             this._speed - CFG.FRICTION * FF);
+
+      // Truck's wheel/drive animation plays while actually moving, holds the
+      // idle frame once stopped — same idle/driving split as the Car Simulator.
+      if (this._car) {
+        const moving = this._speed > 0;
+        if (moving && !this._carDriving)      { playCarSkin(this._car); this._carDriving = true; }
+        else if (!moving && this._carDriving) { stopCarSkin(this._car); this._carDriving = false; }
+      }
 
       const scroll = this._speed * FF;
       this._distance += scroll;
@@ -341,17 +370,19 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     // Yellow border is drawn at center-y = ROAD_TOP_Y + 2, height 4 px
     // Road surface = bottom of yellow border = ROAD_TOP_Y + 4
     const ROAD_SURFACE_Y = ROAD_TOP_Y + 4;
-    // Car PNG has 17 px of transparent space below the tire bottoms (measured: lowest opaque row
-    // is at 277/351 of image height → 17 px in 82 px display).
-    // carY = ROAD_SURFACE_Y + 17 + 5 puts tires 5 px into the road (naturally grounded).
     const carY = ROAD_SURFACE_Y + 65;
     console.log("ROAD_SURFACE_Y =", ROAD_SURFACE_Y, "carY =", carY);
 
     this._carGroundY = carY;
     this._carShadow  = this.add.ellipse(CFG.CAR_X, carY - 14, 110, 10, 0x000000, 0.28)
       .setDepth(4);
-    this._car = this.add.image(CFG.CAR_X, carY, 'l3_car')
-      .setOrigin(0.5, 1).setDisplaySize(CFG.CAR_W, CFG.CAR_H).setDepth(9);
+    // Real truck art (Car Simulator's frame set) — createCarSprite already
+    // compensates for the art's transparent padding so the tires land on carY.
+    // Lifted 10px above that so the truck sits a touch higher than its shadow.
+    const CAR_LIFT = 10;
+    this._car = createCarSprite(this, CFG.CAR_X, carY - CAR_LIFT, CFG.CAR_W, CFG.CAR_H)
+      .setOrigin(0.5, 1).setDepth(9);
+    this._carDriving = false;
   }
 
   // ── SPEED BREAKERS (dome shape) ───────────────────────────────────────────────
@@ -523,11 +554,17 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
       .setDepth(60).setScrollFactor(0));
 
-    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-    panel.push(pg);
+    // Shared wood/gold modal art (same panel every other level's activities use)
+    const modalImg = drawModalPanelBg(this, W/2 - 230, H/2 - 145, 460, 290, 61);
+    if (modalImg) {
+      panel.push(modalImg);
+    } else {
+      const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
+      pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
+      panel.push(pg);
+    }
 
     panel.push(this.add.text(W/2, H/2 - 120, '🌉 Build the Bridge!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3
@@ -646,15 +683,20 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.cameras.main.shake(180, 0.01);
     const panel = [];
 
-    // ── Panel chrome (matches the bridge puzzle) ──────────────────────────────
+    // ── Panel chrome — shared wood/gold modal art (matches every other level) ──
     panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
       .setDepth(60).setScrollFactor(0));
 
-    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-    panel.push(pg);
+    const modalImg = drawModalPanelBg(this, W/2 - 230, H/2 - 145, 460, 290, 61);
+    if (modalImg) {
+      panel.push(modalImg);
+    } else {
+      const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
+      pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
+      panel.push(pg);
+    }
 
     panel.push(this.add.text(W/2, H/2 - 120, '🔧 Tighten the Bolts!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3

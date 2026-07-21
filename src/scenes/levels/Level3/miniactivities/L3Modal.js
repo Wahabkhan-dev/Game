@@ -1,22 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════════
-// L3Modal — applies the premium wood/gold modal artwork as a decorative,
-// full-screen BORDER FRAME around each Level 3 mini-game.
-//
-// Unlike Level 2's popup (a smaller centered card over a dark backdrop), Level
-// 3's 6 mini-games are full-screen, immersive scenes whose game logic (drag
-// zones, tray slots, hit-test rectangles) is hand-positioned for the entire
-// W×H canvas. Recalculating every coordinate to fit a smaller card would risk
-// silently breaking drag/drop — so instead this ADDS the frame on top at a
-// high depth, non-interactive, with its center made fully TRANSPARENT so it
-// never blocks or shifts any existing gameplay.
-//
-// The source image (l3_modal_frame, copied from Level 1's modal art) is a
-// SOLID card, not a hollow frame — this module processes it once at runtime
-// (canvas: punch a transparent hole in the center, keeping only the outer
-// gold-bordered band) and caches the result as 'l3_modal_frame_hollow'.
+// L3Modal — shared chrome for Level 3's 6 hospital mini-games.
 // ════════════════════════════════════════════════════════════════════════════
 import { W, H } from '../../../../config/GameConfig.js';
 
+<<<<<<< Updated upstream
 const SRC_KEY    = 'l3_modal_frame';
 const HOLLOW_KEY = 'l3_modal_frame_hollow';
 const INSET_X_PCT = 0.115;   // fraction of width cleared from each side
@@ -50,4 +37,25 @@ export function applyL3Frame(scene, depth = 1) {
   const key = scene.textures.exists(HOLLOW_KEY) ? HOLLOW_KEY : null;
   if (!key) return null;
   return scene.add.image(W / 2, H / 2, key).setDisplaySize(W, H).setDepth(depth);
+=======
+// Sets up a Level 3 hospital scene's chrome — just the standalone menu button
+// (these mini-games have no persistent header, so this is the only way to
+// pause/exit mid-activity). Previously also drew a decorative gold-framed
+// border image around the whole screen; removed since it boxed in the actual
+// treatment interaction without adding anything functional.
+export function applyL3Frame(scene) {
+  addStandaloneMenuButton(scene);
+}
+
+// Brief transition toast — shown the moment the mini-activity finishes and the
+// real hands-on treatment step unlocks, so the shift from "quick game" to
+// "now treat Gamma" is clearly signposted rather than silent.
+export function showTreatmentPrompt(scene, text) {
+  const t = scene.add.text(W / 2, H / 2 - 150, text, {
+    fontSize: '15px', fontFamily: 'Georgia, serif', color: '#f5c87a',
+    stroke: '#000', strokeThickness: 3, align: 'center',
+  }).setOrigin(0.5).setDepth(45).setAlpha(0);
+  scene.tweens.add({ targets: t, alpha: 1, y: t.y - 10, duration: 400 });
+  scene.tweens.add({ targets: t, alpha: 0, duration: 500, delay: 1800, onComplete: () => t.destroy() });
+>>>>>>> Stashed changes
 }
