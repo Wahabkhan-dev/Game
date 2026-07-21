@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Continent Tap — ShadowGamma</title>
+<link rel="stylesheet" href="../shared/shared.css">
+<link rel="stylesheet" href="../shared/level1-frame.css">
+<style>
+/* Game-21-only: world map stage + tap zones */
+.map-stage{position:relative;width:min(90vw,720px);aspect-ratio:2/1;margin:0 auto;
+  background:#dff0ff;border:4px solid #dfe3ff;border-radius:20px;overflow:hidden;}
+.map-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+.map-emoji{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:200px;opacity:.5;}
+.map-zone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;
+  border:3px dashed rgba(91,108,255,.4);background:rgba(255,255,255,.15);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:28px;transition:background .15s;}
+.map-zone:hover{background:rgba(91,108,255,.2);}
+.map-zone.hit{background:rgba(47,191,113,.45);border-color:var(--good);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/shared.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

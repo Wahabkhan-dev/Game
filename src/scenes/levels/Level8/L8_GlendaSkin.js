@@ -1,0 +1,84 @@
+// ════════════════════════════════════════════════════════════════════════════
+// L8_GlendaSkin — swaps L8BaseScene's player VISUAL to Glenda.
+//
+// L8BaseScene.buildPlayer() is shared by every Level 8 run scene (HomeRun,
+// FoodRun). Its anim keys are named WITHOUT the '_anim' suffix used elsewhere
+// ('gleeda_walk' / 'gleeda_idle' / 'gleeda_jump') — match that exactly so
+// _setPose() picks up the new frames with no other code changes.
+//
+// L8 also has a SLIDE move that temporarily resizes the physics body
+// (120×30 → restore to 73×56, both in source/unscaled px) via hardcoded
+// numbers tied to the ORIGINAL scale (0.18). If this skin changes the
+// player's scale (it does, for crisp supersampled art), those hardcoded
+// restores would produce a different world-space hitbox than before. See the
+// patch in L8BaseScene.js (_startSlide/_endSlide now derive source-space size
+// from stored WORLD-space constants ÷ current scale) — that patch is what
+// keeps slide collision consistent regardless of the scale this skin picks.
+//
+// Frames (public/assets/images/test/glenda-run) — ALL already transparent:
+//   run   frame_001.png … frame_026.png   (720×1280)
+//   idle  gelnda-idle-frame.png            (375×666)
+//   jump  gelnda-jump-frame.png            (375×666)
+// ════════════════════════════════════════════════════════════════════════════
+
+import { processGlendaGroups } from '../GlendaSkinCore.js';
+
+const FOLDER = 'assets/images/test/glenda-run/';
+const RUN_N  = 26;
+const SS     = 3;
+
+const RUN_KEY  = (i) => `l8glenda_run_${i}`;
+const IDLE_KEY = 'l8glenda_idle';
+const JUMP_KEY = 'l8glenda_jump';
+
+export function preloadGlendaSkin(scene) {
+  scene.load.on('loaderror', (f) => {
+    if (f && f.key && String(f.key).startsWith('l8glenda_')) {
+      console.error(`[L8 GlendaSkin] ❌ frame failed: ${f.key} → ${f.url}`);
+    }
+  });
+  for (let i = 1; i <= RUN_N; i++) {
+    const key = RUN_KEY(i);
+    if (!scene.textures.exists(key)) {
+      scene.load.image(key, `${FOLDER}frame_${String(i).padStart(3, '0')}.png`);
+    }
+  }
+  if (!scene.textures.exists(IDLE_KEY)) scene.load.image(IDLE_KEY, `${FOLDER}gelnda-idle-frame.png`);
+  if (!scene.textures.exists(JUMP_KEY)) scene.load.image(JUMP_KEY, `${FOLDER}gelnda-jump-frame.png`);
+}
+
+export function applyGlendaSkin(scene) {
+  const player = scene.player;
+  if (!player) { console.warn('[L8 GlendaSkin] no player sprite (scene.player) — skipped'); return; }
+
+  const runKeys = Array.from({ length: RUN_N }, (_, i) => RUN_KEY(i + 1));
+
+  const origScale = player.scaleX;
+  const worldBW   = player.body.width  * origScale;
+  const worldBH   = player.body.height * origScale;
+  const odh       = player.displayHeight;
+
+  const groups = [{ keys: runKeys }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
+  const { scale } = processGlendaGroups(scene, groups, odh, SS);
+
+  ['gleeda_walk', 'gleeda_idle', 'gleeda_jump'].forEach(a => { if (scene.anims.exists(a)) scene.anims.remove(a); });
+  scene.anims.create({ key: 'gleeda_walk', frames: runKeys.map(key => ({ key })), frameRate: 26, repeat: -1 });
+  scene.anims.create({ key: 'gleeda_idle', frames: [{ key: IDLE_KEY }],           frameRate: 1,  repeat: -1 });
+  scene.anims.create({ key: 'gleeda_jump', frames: [{ key: JUMP_KEY }],           frameRate: 1,  repeat: -1 });
+
+  player.setTexture(IDLE_KEY);
+  player.setScale(scale);
+  player.body.setSize(worldBW / scale, worldBH / scale, true);
+  player.play('gleeda_idle', true);
+
+  // Slide's hardcoded (120,30)/(73,56) source-space restores are calibrated for
+  // the ORIGINAL scale. Recompute the world-space constants L8BaseScene's
+  // _startSlide/_endSlide now use, so the slide hitbox stays correct at the
+  // new scale too.
+  scene._normalBodyW = worldBW;
+  scene._normalBodyH = worldBH;
+  scene._slideBodyW  = 120 * origScale;
+  scene._slideBodyH  = 30  * origScale;
+
+  console.log(`[L8 GlendaSkin] applied — scale ${scale.toFixed(3)}, world body ${worldBW.toFixed(0)}×${worldBH.toFixed(0)} (gameplay preserved).`);
+}

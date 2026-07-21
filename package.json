@@ -1,0 +1,19 @@
+{
+  "name": "shadow-gamma",
+  "version": "0.1.0",
+  "description": "Gemma's Story — A Bond of Love, A Life Saved",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.60.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "cloudinary": "^2.10.0",
+    "dotenv": "^17.4.2"
+  }
+}

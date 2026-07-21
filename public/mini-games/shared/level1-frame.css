@@ -1,0 +1,44 @@
+/* =========================================================
+   LEVEL 1 — embedded mini-game skin
+   Dark jungle backdrop (transparent when embedded) + the
+   Level 1 wooden modal image (public/assets/images/level1/
+   Level1_modal.png) as the panel frame.
+   Linked by each Level-1 mini-game's index.html so the frame
+   is a single source of truth.  Scoped only to games that link
+   it — shared.css and the other games are untouched.
+   ========================================================= */
+
+/* Backdrop: transparent in-level (level shows through), soft dark standalone */
+body{ background:radial-gradient(130% 100% at 50% 0%, #0a0d09 0%, #030503 72%); }
+body.embedded{ background:transparent; }
+
+/* Centre the panel in the view */
+#app{ display:flex; align-items:center; justify-content:center; }
+
+/* Panel = the Level 1 wooden modal image (gold ornate frame + wood centre).
+   The image has transparent corners, so nothing shows outside the frame. */
+.game{
+  align-self:center;
+  width:100%; max-width:900px;
+  min-height:min(80vh,580px);
+  background:url('/assets/images/level1/Level1_modal.png') center / 100% 100% no-repeat;
+  border:none;
+  box-shadow:none;
+  /* keep content on the wood, clear of the gold frame + corner ornaments */
+  padding:58px 70px 52px;
+}
+.game-top{ border-bottom:2px solid rgba(245,215,138,.28); }
+.game-top .title{ color:#f7dd97; text-shadow:0 2px 5px rgba(0,0,0,.7); }
+.score-pill{
+  background:rgba(0,0,0,.32); color:#f7dd97;
+  border:1.5px solid rgba(245,215,138,.5);
+}
+.prompt{ color:#f2e6c8; text-shadow:0 1px 3px rgba(0,0,0,.55); }
+
+/* Drag games: slots fit the wood panel */
+.dropzone{ background:rgba(0,0,0,.20); border:5px dashed rgba(245,215,138,.5); }
+.dropzone.over{ background:rgba(245,215,138,.15); border-color:#f7dd97; }
+
+/* Start / result overlays sit inside the panel → dark to match */
+.overlay{ background:rgba(9,6,3,.95); border-radius:16px; }
+.overlay h2{ color:#f7dd97; }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sink or Float — ShadowGamma</title>
+<link rel="stylesheet" href="../shared/shared.css">
+<link rel="stylesheet" href="../shared/level1-frame.css">
+<style>
+/* Game-28-only: water tank + object animation */
+.tank{position:relative;width:280px;height:300px;margin:0 auto;border:6px solid #9fd0ff;
+  border-top:none;border-radius:0 0 20px 20px;background:linear-gradient(#eaf6ff,#eaf6ff);overflow:hidden;}
+.tank .water{position:absolute;left:0;right:0;bottom:0;height:62%;
+  background:linear-gradient(180deg,rgba(90,180,255,.55),rgba(60,140,240,.75));}
+.tank .water::before{content:"";position:absolute;top:-8px;left:0;right:0;height:16px;
+  background:rgba(255,255,255,.5);border-radius:50%;animation:wave 2.5s ease-in-out infinite;}
+@keyframes wave{0%,100%{transform:translateX(-6px)}50%{transform:translateX(6px)}}
+.tank .obj{position:absolute;left:50%;top:12px;transform:translateX(-50%);font-size:70px;
+  transition:top 1.2s ease-in;display:flex;align-items:center;justify-content:center;}
+.obj.float{top:34%;} .obj.sink{top:78%;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/shared.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
