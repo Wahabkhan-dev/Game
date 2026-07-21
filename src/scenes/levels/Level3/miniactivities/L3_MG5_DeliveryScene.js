@@ -1,12 +1,9 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
-<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
-=======
-import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
->>>>>>> Stashed changes
+import { playVideoOverlay } from '../../../../utils/VideoOverlay.js';
 
 // MG5 — Treatment Steps: tap the treatment icons in order within 30 seconds
 const STEP_ICONS  = ['💊', '💉', '❤️', '🩹'];
@@ -25,21 +22,17 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     applyL3Frame(this);
 
     this._done     = false;
-    this._treatmentPhase = false;
     this._next     = 1;
     this._timeLeft = 30;
     this._health   = this.registry.get('l3_health') || 100;
 
     this._buildHUD(5);
-    this._buildTitle('💊 Treatment Steps', 'First, a quick warm-up activity — then complete the steps yourself.');
+    this._buildTitle('💊 Treatment Steps', 'Tap the steps in order:  💊 → 💉 → ❤️ → 🩹');
 
-<<<<<<< Updated upstream
-=======
-    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
-    // once it's won does the real tap-in-order treatment (with its 30s timer) unlock.
-    launchRandomMiniGame(this, 3, () => this._startTreatment());
+    // Random mini-game from Level 3's slice of the 40 games overlays on top —
+    // no intro/ending screen; drives progression instead of the tap-order puzzle below.
+    launchRandomMiniGame(this, 3, () => this._complete());
 
->>>>>>> Stashed changes
     // Gamma on table
     if (this.textures.exists('gemma_idle')) {
       this.add.image(W / 2, H - 48, 'gemma_idle').setDisplaySize(200, 110).setOrigin(0.5, 1).setDepth(8).setTint(0xffddcc);
@@ -48,8 +41,9 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
       this.add.image(108, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
     }
 
-<<<<<<< Updated upstream
-    // Timer countdown
+    // Timer countdown — neutralized immediately: the random mini-game overlay
+    // above has no time limit, so this must never reach 0 and call _fail().
+    // Left as a (stopped) TimerEvent object so _complete()'s .remove() stays safe.
     this._timerEvent = this.time.addEvent({
       delay: 1000, loop: true, callback: () => {
         if (this._done) return;
@@ -59,9 +53,8 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
         if (this._timeLeft <= 0) this._fail();
       }
     });
+    this._timerEvent.remove();
 
-=======
->>>>>>> Stashed changes
     // Progress arrow display
     this._buildArrows();
 
@@ -81,22 +74,6 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     this._timerTxt = this.add.text(W / 2, H - 28, '⏱ 30s', {
       fontSize: '16px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 2
     }).setOrigin(0.5).setDepth(20);
-  }
-
-  // Unlocks the real treatment interaction (tap-in-order, timed) once the
-  // warm-up activity is won.
-  _startTreatment() {
-    this._treatmentPhase = true;
-    showTreatmentPrompt(this, '💊 Now complete the steps in order!');
-    this._timerEvent = this.time.addEvent({
-      delay: 1000, loop: true, callback: () => {
-        if (this._done) return;
-        this._timeLeft = Math.max(0, this._timeLeft - 1);
-        this._timerTxt.setText(`⏱ ${this._timeLeft}s`);
-        if (this._timeLeft <= 10) this._timerTxt.setColor('#ff4466');
-        if (this._timeLeft <= 0) this._fail();
-      }
-    });
   }
 
   _buildArrows() {
@@ -144,7 +121,7 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
   }
 
   _onTap(n, btn, txt, glow, x, y) {
-    if (!this._treatmentPhase || this._done) return;
+    if (this._done) return;
     if (n === this._next) {
       // Correct
       this._next++;
@@ -208,11 +185,11 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 6; i++) {
-      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 5; i++) {
+      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }
@@ -238,12 +215,11 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
       stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-<<<<<<< Updated upstream
-      this.time.delayedCall(650, () => this.scene.start('L3_End'));
-=======
-      this.time.delayedCall(650, () => this.scene.start('L3_MG6'));
->>>>>>> Stashed changes
+      // All treatment done → play the recovery cinematic, THEN the end scene.
+      playVideoOverlay(this, 'l3_recovery_video', () => {
+        this.cameras.main.fadeOut(600, 0, 0, 0);
+        this.time.delayedCall(650, () => this.scene.start('L3_End'));
+      });
     });
   }
 }

@@ -1,12 +1,8 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
-<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
-=======
-import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
->>>>>>> Stashed changes
 
 // MG3 — Heart Monitor: tap SPACE or heart button when EKG cursor enters the green zone, 4 times
 export class L3_MG3_HeartScene extends Phaser.Scene {
@@ -24,21 +20,17 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     this._hits   = 0;
     this._onBeat = false;
     this._done   = false;
-    this._treatmentPhase = false;
     this._health = this.registry.get('l3_health') || 100;
     this._bpm    = 110;
-    this._BEAT   = 900;
+    const BEAT   = 900;
 
     this._buildHUD(3);
-    this._buildTitle('💚 Heart Monitor', 'First, a quick warm-up activity — then read Gamma\'s heartbeat yourself.');
+    this._buildTitle('💚 Heart Monitor', 'Tap SPACE or the ❤️ button when the cursor enters the GREEN zone  (4 times)');
 
-<<<<<<< Updated upstream
-=======
-    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
-    // once it's won does the real tap-the-beat treatment unlock.
-    launchRandomMiniGame(this, 3, () => this._startTreatment());
+    // Random mini-game from Level 3's slice of the 40 games overlays on top —
+    // no intro/ending screen; drives progression instead of the tap puzzle below.
+    launchRandomMiniGame(this, 3, () => this._complete());
 
->>>>>>> Stashed changes
     // Characters
     if (this.textures.exists('gemma_idle'))  this.add.image(560, H - 50, 'gemma_idle').setDisplaySize(150, 82).setOrigin(0.5, 1).setDepth(8).setTint(0xffcccc);
     if (this.textures.exists('gleeda_idle')) this.add.image(110, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
@@ -87,6 +79,19 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
       this._dots.push(d);
     }
 
+    // Beat timer
+    this._beatTimer = this.time.addEvent({
+      delay: BEAT, loop: true, callback: () => {
+        if (this._done) return;
+        this._onBeat = true;
+        this._cursor.setFillStyle(0xffffff, 1);
+        this.time.delayedCall(320, () => {
+          this._onBeat = false;
+          this._cursor.setFillStyle(0x44ff88, 0.9);
+        });
+      }
+    });
+
     // Heart button
     const hBtn = this.add.text(W / 2, H - 50, '❤️', { fontSize: '44px' })
       .setOrigin(0.5).setDepth(20).setInteractive({ useHandCursor: true });
@@ -101,25 +106,8 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20);
   }
 
-  // Unlocks the real treatment interaction once the warm-up activity is won.
-  _startTreatment() {
-    this._treatmentPhase = true;
-    showTreatmentPrompt(this, '💚 Now watch for the beat!');
-    this._beatTimer = this.time.addEvent({
-      delay: this._BEAT, loop: true, callback: () => {
-        if (this._done) return;
-        this._onBeat = true;
-        this._cursor.setFillStyle(0xffffff, 1);
-        this.time.delayedCall(320, () => {
-          this._onBeat = false;
-          this._cursor.setFillStyle(0x44ff88, 0.9);
-        });
-      }
-    });
-  }
-
   update(time, delta) {
-    if (this._done || !this._treatmentPhase) return;
+    if (this._done) return;
     const dt = delta / 1000;
     // Advance cursor
     this._waveOffset += dt * 80;
@@ -148,7 +136,7 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
   }
 
   _doTap() {
-    if (!this._treatmentPhase || this._done || this._hits >= 4) return;
+    if (this._done || this._hits >= 4) return;
     const inGreen = this._cursorX >= this._greenZoneLeft && this._cursorX <= this._greenZoneRight;
     if (inGreen || this._onBeat) {
       this._hits++;
@@ -178,11 +166,11 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 6; i++) {
-      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 5; i++) {
+      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }

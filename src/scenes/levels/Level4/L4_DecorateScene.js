@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL4Assets, generateL4StreetAssets } from './L4Assets.js';
+import { addStandaloneMenuButton } from '../../../hud/premium/PremiumTheme.js';
 
 // ── Level 4 — Build Scene: the player SELECTS each collected material from a
 // tray to raise Gamma's real dog house, in the home garage. Nothing builds by
@@ -37,8 +38,11 @@ export class L4_DecorateScene extends Phaser.Scene {
     this._coins = (data && data.coins) || 0;
 
     // ── Home garage background (real image if added, vector fallback otherwise) ──
-    this.add.image(W / 2, H / 2, 'l4_garage_bg').setDisplaySize(W, H).setDepth(-20);
+    const garageKey = this.textures.exists('l4_garage_bg_new') ? 'l4_garage_bg_new' : 'l4_garage_bg';
+    this.add.image(W / 2, H / 2, garageKey).setDisplaySize(W, H).setDepth(-20);
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.10).setDepth(-9);
+    // Standalone menu button — this build activity has no persistent header
+    addStandaloneMenuButton(this);
 
     // Title + progress bar
     this.add.text(W / 2, 22, '🔨 Build Gamma\'s House!', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ffe0b0', stroke: '#3a1e08', strokeThickness: 3 }).setOrigin(0.5).setDepth(40);
@@ -290,41 +294,40 @@ export class L4_DecorateScene extends Phaser.Scene {
     this.cameras.main.flash(500, 255, 180, 200);
   }
 
-  // ── REWARD SCREEN ───────────────────────────────────────────────────────────
+  // ── ENDING — no popup modal. Gamma settles into her new home and falls
+  // asleep; once that beat plays out, we quietly fade back to the main menu.
   _reward() {
     try { this.registry.set('points', (this.registry.get('points') || 0) + 500); } catch (_) {}
     try { localStorage.setItem('shadowgamma_level4_done', '1'); } catch (_) {}
 
-<<<<<<< Updated upstream
-    this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60);
-    const cg = this.add.graphics().setDepth(61);
-    cg.fillStyle(0xfdf0e8, 1); cg.fillRoundedRect(W / 2 - 170, H / 2 - 120, 340, 240, 18);
-    cg.lineStyle(3, 0xf5c84a, 1); cg.strokeRoundedRect(W / 2 - 170, H / 2 - 120, 340, 240, 18);
-=======
-    // _finish() faded Gamma out to alpha 0 for the heart-burst beat — bring her
-    // back into view here so the "settling down to sleep" animation is visible.
-    this.tweens.killTweensOf(this._gamma);
-    this._gamma.setPosition(HX, HY).setScale(this._gammaScale).setAlpha(1);
-
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0a0820, 0).setDepth(50);
     this.tweens.add({ targets: dim, alpha: 0.42, duration: 1200 });
->>>>>>> Stashed changes
 
-    this.add.text(W / 2, H / 2 - 92, 'LEVEL 4 COMPLETE! 🎉', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#d94060', stroke: '#fdf0e8', strokeThickness: 2 }).setOrigin(0.5).setDepth(62);
-    ['⭐', '⭐', '⭐'].forEach((s, i) => {
-      const st = this.add.text(W / 2 - 34 + i * 34, H / 2 - 50, s, { fontSize: '30px' }).setOrigin(0.5).setDepth(62).setScale(0.2);
-      this.tweens.add({ targets: st, scale: 1, duration: 350, delay: 250 + i * 160, ease: 'Back.easeOut' });
+    // Gamma lies down to rest.
+    this.time.delayedCall(500, () => {
+      this.tweens.add({ targets: this._gamma, y: this._gamma.y + 6, scaleY: this._gammaScale * 0.72, duration: 500, ease: 'Sine.easeOut' });
     });
-    if (this.textures.exists('l4_coin')) this.add.image(W / 2 - 56, H / 2 - 2, 'l4_coin').setDisplaySize(26, 26).setDepth(62);
-    this.add.text(W / 2 - 38, H / 2 - 2, '+500', { fontSize: '22px', fontFamily: 'Georgia, serif', color: '#d4a020' }).setOrigin(0, 0.5).setDepth(62);
-    this.add.text(W / 2 + 36, H / 2 - 2, '⭐ +1', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#e0a020' }).setOrigin(0, 0.5).setDepth(62);
 
-    const next = this.add.text(W / 2 - 70, H / 2 + 64, 'Next', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 20, y: 10 } }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true });
-    const replay = this.add.text(W / 2 + 70, H / 2 + 64, 'Replay', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#884422', padding: { x: 16, y: 10 } }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true });
-    next.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); });
-    replay.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Level4')); });
+    // Gentle "sleeping" Zzz above her.
+    this.time.delayedCall(900, () => {
+      const zzz = this.add.text(this._gamma.x + 24, this._gamma.y - this._gamma.displayHeight - 4, '💤', { fontSize: '22px' }).setDepth(51).setAlpha(0);
+      this.tweens.add({ targets: zzz, alpha: 1, y: zzz.y - 14, duration: 900, yoyo: true, repeat: 2 });
+    });
 
-    this.time.addEvent({ delay: 200, repeat: 20, callback: () => this._sparkle(W / 2 - 130 + Math.random() * 260, H / 2 - 100 + Math.random() * 220) });
+    // Closing caption.
+    this.time.delayedCall(1300, () => {
+      const txt = this.add.text(W / 2, 60, "Gamma's new home is ready —\nshe's fast asleep, safe and warm. 💛", {
+        fontSize: '15px', fontFamily: 'Georgia, serif', color: '#ffe0c0', stroke: '#1a0e02', strokeThickness: 3,
+        align: 'center', lineSpacing: 6,
+      }).setOrigin(0.5).setDepth(52).setAlpha(0);
+      this.tweens.add({ targets: txt, alpha: 1, duration: 700 });
+    });
+
+    // Quiet auto-return to the main menu — no buttons to tap.
+    this.time.delayedCall(4200, () => {
+      this.cameras.main.fadeOut(900, 0, 0, 0);
+      this.time.delayedCall(950, () => this.scene.start('Menu'));
+    });
   }
 
   _sparkle(x, y) {

@@ -1,24 +1,18 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL3Assets } from './L3Assets.js';
-<<<<<<< Updated upstream
-=======
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { playVideoOverlay, showStoryCard } from '../../../utils/VideoOverlay.js';
-import { preloadCarSkin, createCarSprite, playCarSkin, stopCarSkin } from './L3_CarSkin.js';
-import { drawModalPanelBg } from '../ModalFrame.js';
->>>>>>> Stashed changes
 
-const ROAD_TOP_Y = Math.round(H * 0.72);   // ≈ 324 — yellow border / road band top
+// 0.72 + 0.10 push-down so the road (and everything anchored to it — car,
+// obstacles, bump/hole/zebra hazards) lines up with the lowered background art.
+const ROAD_TOP_Y = Math.round(H * 0.82);   // ≈ 369 — yellow border / road band top
 // Car sits: carY = ROAD_TOP_Y + 4 + 65 = ROAD_TOP_Y + 69
 // Visible wheel bottom = carY - 17 (PNG transparent pad) = ROAD_TOP_Y + 52
 const DRIVE_Y    = ROAD_TOP_Y + 52;        // ≈ 376 — surface where car wheels contact
 
-// Real truck art (Level 3/car/frame_*.png) is 1046×410 (≈2.55:1) — sized to
-// match that aspect so it isn't stretched (old l3_car.png was ≈1.85:1).
-// +14% on top of the base 174×68 fit, per request.
-const _CAR_H = 78;
-const _CAR_W = 198;
+const _CAR_H = 82;
+const _CAR_W = 152;
 const CAR_Y  = ROAD_TOP_Y;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,7 +68,6 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');
     this.load.audio('signal_beep',    'assets/audio/signal_beep.mp3');
     this.load.audio('gameover_sting', 'assets/audio/game_over.mp3');
-    preloadCarSkin(this);
   }
 
   create() {
@@ -82,19 +75,24 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#060a10');
     this.cameras.main.fadeIn(800, 0, 0, 0);
 
-    // QA "Zone 2" jump — starts the drive PAST the first bridge gap (instead
-    // of the old behaviour, which skipped the entire drive straight to the
-    // hospital). Hazards already behind the start point are pre-cleared below,
-    // right after _buildSpeedBreakers()/_buildHoles() create them.
     const startZone = this.registry.get('l3_startZone') || 1;
     this.registry.remove('l3_startZone');
-    const ZONE2_START_DIST = 5000;   // past hole[0]=4410, before the signal's warn zone (5690)
+    if (startZone >= 2) {
+      this.registry.set('l3_health', this.registry.get('l3_health') || 100);
+      this.registry.set('l3_coins',  this.registry.get('l3_coins')  || 0);
+      this.cameras.main.fadeOut(0);
+      this.time.delayedCall(50, () => this.scene.start('L3_MG1'));
+      return;
+    }
 
+    this._lives         = 3;
+    this._hp            = 3;
     this._health        = 100;
     this._coins         = this.registry.get('l3_coins') || 0;
-    this._distance      = startZone >= 2 ? ZONE2_START_DIST : 0;
+    this._distance      = 0;
     this._speed         = 0;
     this._done          = false;
+    this._paused        = false;
     this._leftHeld      = false;
     this._rightHeld     = false;
     this._signalState   = 'red';
@@ -108,23 +106,10 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._buildCar();            // FIX 1 — grounded to ROAD_TOP_Y
     this._buildSpeedBreakers();
     this._buildHoles();
-
-    // QA "Zone 2" jump — pre-clear any hazard that's already behind the start
-    // point so it doesn't immediately (re-)trigger on the very first frame.
-    if (startZone >= 2) {
-      this._bumps.forEach(b => { if (b.dist < this._distance) b.triggered = true; });
-      const h0 = this._holes[0];
-      if (h0 && h0.dist < this._distance) {
-        h0.triggered = true; h0.solved = true;
-        h0.gfx.setVisible(false); h0.bridgeGfx.setVisible(true);
-      }
-    }
-
     this._buildTrafficSignal();
     this._buildHospitalMarker();
     this._buildRain();           // FIX 4 — full-canvas Graphics rain
     this._buildHUD();
-    this._buildControls();
     this._buildProgressBar();
 
     this._cursors = this.input.keyboard.createCursorKeys();
@@ -143,7 +128,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
 
   // ── UPDATE ────────────────────────────────────────────────────────────────────
   update(time, delta) {
-    if (this._done) return;
+    if (this._done || this._paused) return;
     const FF = delta / (1000 / 60);   // frame factor — 1.0 at 60 fps
 
     // ── Movement (only when not blocked by hole puzzle) ───────────────────────
@@ -155,23 +140,13 @@ export class L3_CarJourneyScene extends Phaser.Scene {
       else if (brake) this._speed = Math.max(0,             this._speed - CFG.BRAKE_DECEL * FF);
       else            this._speed = Math.max(0,             this._speed - CFG.FRICTION * FF);
 
-      // Truck's wheel/drive animation plays while actually moving, holds the
-      // idle frame once stopped — same idle/driving split as the Car Simulator.
-      if (this._car) {
-        const moving = this._speed > 0;
-        if (moving && !this._carDriving)      { playCarSkin(this._car); this._carDriving = true; }
-        else if (!moving && this._carDriving) { stopCarSkin(this._car); this._carDriving = false; }
-      }
-
       const scroll = this._speed * FF;
       this._distance += scroll;
 
-      if (this._bgCity) this._bgCity.tilePositionX += scroll * 0.12;
-      if (this._fog)    this._fog.tilePositionX    += scroll * 0.14;
+      if (this._bgCity)  this._bgCity.tilePositionX  += scroll * 0.12;
+      if (this._fog)     this._fog.tilePositionX     += scroll * 0.14;
+      if (this._roadTile) this._roadTile.tilePositionX += scroll / (this._roadTile.tileScaleX || 1);
     }
-
-    this._drawCentreLines();
-    this._drawRoadJoints();
 
     // ── FIX 4: rain every frame regardless of hole state ─────────────────────
     this._updateRain(delta);
@@ -251,10 +226,22 @@ export class L3_CarJourneyScene extends Phaser.Scene {
   _buildBackground() {
     this.add.rectangle(W / 2, H / 2, W, H, 0x060a10, 1).setDepth(-10);
 
-    const cityKey = this.textures.exists('l3_bg_city') ? 'l3_bg_city'
+    const cityKey = this.textures.exists('l3_bg_main') ? 'l3_bg_main'
+                  : this.textures.exists('l3_bg_city') ? 'l3_bg_city'
                   : this.textures.exists('jungle_bg')  ? 'jungle_bg' : null;
     if (cityKey) {
-      this._bgCity = this.add.tileSprite(W / 2, H / 2, W, H, cityKey).setDepth(-8);
+      // Scale + anchor the image so its OWN bottom edge (street level, baked
+      // into the art) lands exactly at the top of the game's road (ROAD_TOP_Y,
+      // which already includes the 10% push-down), filling upward from there —
+      // not the full canvas height. Filling the full height (tried previously)
+      // made the image's own street-level imagery spill out BELOW the actual
+      // road, reading as a second, impossible street floating under the first.
+      const src   = this.textures.get(cityKey).getSourceImage();
+      const srcH  = src.naturalHeight || src.height || ROAD_TOP_Y;
+      const dispH = ROAD_TOP_Y;
+      const scale = dispH / srcH;
+      this._bgCity = this.add.tileSprite(W / 2, dispH / 2, W, dispH, cityKey).setDepth(-8);
+      this._bgCity.tileScaleX = this._bgCity.tileScaleY = scale;
       if (cityKey === 'jungle_bg') this._bgCity.setTint(0x0c1428).setAlpha(0.28);
     }
     if (this.textures.exists('fog')) {
@@ -271,98 +258,32 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     }});
   }
 
-  // ── FIX 2: LAYERED ASPHALT ROAD ──────────────────────────────────────────────
+  // ── Road deck — real art (Level 03 bottom.png), tiled + scrolled horizontally.
+  // Starts exactly where _buildBackground's image ends (ROAD_TOP_Y) so the two
+  // touch with no gap, and runs all the way down to the bottom of the screen.
+  // Extending the same road art (which already has a curb edge baked in) reads
+  // as "the road continues toward the viewer," instead of a flat filler colour
+  // or the background's own street level impossibly re-appearing under it.
+  // Car / obstacles / hazards are all anchored to this same ROAD_TOP_Y (see
+  // DRIVE_Y, CAR_Y, CFG.ROAD_TOP_Y), so they move together with the road —
+  // nothing floats above or below it.
   _buildRoad() {
     const RS    = ROAD_TOP_Y;
-    const roadH = 80;               // narrower road band
+    const roadH = H - RS;            // road art fills all the way to the bottom
 
-    // ── Road deck (asphalt) ──────────────────────────────────────────────────
-    const roadG = this.add.graphics().setDepth(1).setScrollFactor(0);
-    roadG.fillStyle(0x28293a, 1);
-    roadG.fillRect(0, RS, W, roadH);
-    roadG.fillStyle(0x32344a, 1);
-    roadG.fillRect(0, RS + 8, W, roadH - 8);
-
-    // ── Bridge understructure ─────────────────────────────────────────────────
-    const bridgeG = this.add.graphics().setDepth(0).setScrollFactor(0);
-    const deckBot = RS + roadH;           // bottom of road deck
-    const underH  = H - deckBot;         // height of underside area
-
-    // Underside fill
-    bridgeG.fillStyle(0x14162a, 1);
-    bridgeG.fillRect(0, deckBot, W, underH);
-
-    // Deck bottom edge beam (thick, visible)
-    bridgeG.fillStyle(0x383a54, 1);
-    bridgeG.fillRect(0, deckBot, W, 8);
-    bridgeG.fillStyle(0x44465e, 1);
-    bridgeG.fillRect(0, deckBot, W, 3);   // top highlight of beam
-
-    // Thick support pillars
-    for (let px = 40; px < W + 60; px += 180) {
-      bridgeG.fillStyle(0x1e2038, 1);
-      bridgeG.fillRect(px, deckBot + 7, 26, underH - 7);
-      bridgeG.fillStyle(0x2a2c44, 0.9);
-      bridgeG.fillRect(px + 3, deckBot + 7, 8, underH - 7);
-      // Pillar cap
-      bridgeG.fillStyle(0x303250, 1);
-      bridgeG.fillRect(px - 3, deckBot + 6, 32, 5);
-    }
-
-    // Horizontal cross-beam halfway down
-    const beamY = deckBot + Math.round(underH * 0.55);
-    bridgeG.fillStyle(0x22243c, 1);
-    bridgeG.fillRect(0, beamY, W, 5);
-    bridgeG.fillStyle(0x2e3048, 0.6);
-    bridgeG.fillRect(0, beamY, W, 2);
-
-    // Bottom edge of entire structure
-    bridgeG.fillStyle(0x20223a, 1);
-    bridgeG.fillRect(0, H - 6, W, 6);
-
-    // ── Yellow top kerb ───────────────────────────────────────────────────────
-    this.add.rectangle(W / 2, RS + 2, W, 4, 0xf0c040, 1)
-      .setDepth(3).setScrollFactor(0);
-
-    // ── Scrolling centre dashes at wheel level ────────────────────────────────
-    this._dashGfx = this.add.graphics().setDepth(3).setScrollFactor(0);
-    this._dashY   = DRIVE_Y - 4;
-
-    // ── Faint lane lines ──────────────────────────────────────────────────────
-    this.add.rectangle(W / 2, DRIVE_Y - 22, W, 2, 0xffffff, 0.14)
-      .setDepth(3).setScrollFactor(0);
-    this.add.rectangle(W / 2, DRIVE_Y + 16, W, 2, 0xffffff, 0.14)
-      .setDepth(3).setScrollFactor(0);
-
-    // ── Scrolling tile joint lines ────────────────────────────────────────────
-    this._jointGfx = this.add.graphics().setDepth(2).setScrollFactor(0);
-    this._roadRS   = RS;
-    this._roadH    = roadH;
-
-    // ── Road deck edge / kerb ─────────────────────────────────────────────────
-    this.add.rectangle(W / 2, RS + roadH - 3, W, 6, 0x555555, 1)
-      .setDepth(3).setScrollFactor(0);
-  }
-
-  _drawCentreLines() {
-    if (!this._dashGfx) return;
-    // Offset = distance scrolled mod dash period (60 px)
-    const offset = Math.floor(this._distance) % 60;
-    this._dashGfx.clear();
-    this._dashGfx.fillStyle(0xffffff, 0.85);
-    for (let dx = -(offset + 60); dx < W + 60; dx += 60) {
-      this._dashGfx.fillRect(dx, this._dashY - 1, 40, 3);
-    }
-  }
-
-  _drawRoadJoints() {
-    if (!this._jointGfx) return;
-    const PERIOD = 120;
-    const offset = Math.floor(this._distance) % PERIOD;
-    this._jointGfx.clear();
-    this._jointGfx.lineStyle(1, 0x3c3e52, 1);
-    for (let dx = -(offset + PERIOD); dx < W + PERIOD; dx += PERIOD) {
-      this._jointGfx.lineBetween(dx, this._roadRS + 4, dx, this._roadRS + this._roadH - 4);
+    if (this.textures.exists('l3_road_bottom')) {
+      const src   = this.textures.get('l3_road_bottom').getSourceImage();
+      const srcH  = src.naturalHeight || src.height || 81;
+      this._roadTile = this.add.tileSprite(W / 2, RS + roadH / 2, W, roadH, 'l3_road_bottom')
+        .setDepth(1).setScrollFactor(0);
+      this._roadTile.tileScaleX = this._roadTile.tileScaleY = roadH / srcH;
+    } else {
+      // Fallback asphalt if the art fails to load
+      const roadG = this.add.graphics().setDepth(1).setScrollFactor(0);
+      roadG.fillStyle(0x28293a, 1);
+      roadG.fillRect(0, RS, W, roadH);
+      roadG.fillStyle(0x32344a, 1);
+      roadG.fillRect(0, RS + 8, W, roadH - 8);
     }
   }
 
@@ -370,19 +291,17 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     // Yellow border is drawn at center-y = ROAD_TOP_Y + 2, height 4 px
     // Road surface = bottom of yellow border = ROAD_TOP_Y + 4
     const ROAD_SURFACE_Y = ROAD_TOP_Y + 4;
+    // Car PNG has 17 px of transparent space below the tire bottoms (measured: lowest opaque row
+    // is at 277/351 of image height → 17 px in 82 px display).
+    // carY = ROAD_SURFACE_Y + 17 + 5 puts tires 5 px into the road (naturally grounded).
     const carY = ROAD_SURFACE_Y + 65;
     console.log("ROAD_SURFACE_Y =", ROAD_SURFACE_Y, "carY =", carY);
 
     this._carGroundY = carY;
     this._carShadow  = this.add.ellipse(CFG.CAR_X, carY - 14, 110, 10, 0x000000, 0.28)
       .setDepth(4);
-    // Real truck art (Car Simulator's frame set) — createCarSprite already
-    // compensates for the art's transparent padding so the tires land on carY.
-    // Lifted 10px above that so the truck sits a touch higher than its shadow.
-    const CAR_LIFT = 10;
-    this._car = createCarSprite(this, CFG.CAR_X, carY - CAR_LIFT, CFG.CAR_W, CFG.CAR_H)
-      .setOrigin(0.5, 1).setDepth(9);
-    this._carDriving = false;
+    this._car = this.add.image(CFG.CAR_X, carY, 'l3_car')
+      .setOrigin(0.5, 1).setDisplaySize(CFG.CAR_W, CFG.CAR_H).setDepth(9);
   }
 
   // ── SPEED BREAKERS (dome shape) ───────────────────────────────────────────────
@@ -554,17 +473,11 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
       .setDepth(60).setScrollFactor(0));
 
-    // Shared wood/gold modal art (same panel every other level's activities use)
-    const modalImg = drawModalPanelBg(this, W/2 - 230, H/2 - 145, 460, 290, 61);
-    if (modalImg) {
-      panel.push(modalImg);
-    } else {
-      const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-      pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-      pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-      pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-      panel.push(pg);
-    }
+    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
+    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
+    panel.push(pg);
 
     panel.push(this.add.text(W/2, H/2 - 120, '🌉 Build the Bridge!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3
@@ -683,20 +596,15 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.cameras.main.shake(180, 0.01);
     const panel = [];
 
-    // ── Panel chrome — shared wood/gold modal art (matches every other level) ──
+    // ── Panel chrome (matches the bridge puzzle) ──────────────────────────────
     panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
       .setDepth(60).setScrollFactor(0));
 
-    const modalImg = drawModalPanelBg(this, W/2 - 230, H/2 - 145, 460, 290, 61);
-    if (modalImg) {
-      panel.push(modalImg);
-    } else {
-      const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-      pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-      pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-      pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-      panel.push(pg);
-    }
+    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
+    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
+    panel.push(pg);
 
     panel.push(this.add.text(W/2, H/2 - 120, '🔧 Tighten the Bolts!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3
@@ -1060,54 +968,99 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._rainGfx.strokePath();
   }
 
-  // ── HUD ───────────────────────────────────────────────────────────────────────
+  // ── HUD — unified Level-2 header (health · banner · timer · coin · menu) ──────
   _buildHUD() {
-    const hg = this.add.graphics().setDepth(20).setScrollFactor(0);
+    this._hdr = buildStandardHeader(this, {
+      chapterLabel: 'CHAPTER 3', title: 'Drive to the Hospital',
+      timer: 90, coinValue: this._coins,
+      lives: this._lives, hp: this._hp,
+      onMenu: () => this._togglePause(), depth: 48,
+    });
+    this._hearts   = this._hdr.hearts;
+    this._hpBars   = this._hdr.hpBars;
+    this._coinTxt  = this._hdr.coinTxt;
+    this._timerTxt = this._hdr.timerTxt;
+    this._hdr.setLives(this._lives);
+    this._hdr.setHP(this._hp);
 
-    hg.fillStyle(0x080410, 0.9); hg.fillRoundedRect(6, 6, 218, 40, 6);
-    hg.lineStyle(1.5, 0xff4466, 0.55); hg.strokeRoundedRect(6, 6, 218, 40, 6);
-    this.add.text(16, 13, '❤️ GAMMA', {
-      fontSize: '11px', fontFamily: 'Georgia, serif', color: '#ff8899'
-    }).setDepth(21).setScrollFactor(0);
-    this.add.rectangle(150, 26, 64, 12, 0x330011, 1).setDepth(21).setScrollFactor(0);
-    this._healthBar = this.add.rectangle(118, 26, 64, 12, 0xff3355, 1)
-      .setOrigin(0, 0.5).setDepth(22).setScrollFactor(0);
-    this._healthTxt = this.add.text(186, 20, '100%', {
-      fontSize: '10px', fontFamily: 'Georgia, serif', color: '#ffaabb'
-    }).setDepth(23).setScrollFactor(0);
+    this._timerFull = 90; this._timeLeft = 90;
+    this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
 
-    hg.fillStyle(0x080410, 0.9); hg.fillRoundedRect(W / 2 - 62, 6, 124, 40, 6);
-    hg.lineStyle(1.5, 0xf5c87a, 0.55); hg.strokeRoundedRect(W / 2 - 62, 6, 124, 40, 6);
-    this.add.text(W / 2 - 46, 14, '🏥', { fontSize: '12px' }).setDepth(21).setScrollFactor(0);
-    this._distTxt = this.add.text(W / 2 + 8, 26, '16.2 km', {
-      fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a',
-      stroke: '#000', strokeThickness: 2
-    }).setOrigin(0.5).setDepth(21).setScrollFactor(0);
+    // Trip readout (distance + speed) — the checkpoint-module slot, just below the banner
+    const ry = this._hdr.bottom + 8, rw = 300, rx = W / 2 - rw / 2, rh = 30;
+    const rg = this.add.graphics().setScrollFactor(0).setDepth(48);
+    rg.fillStyle(0x0a0f1a, 0.75); rg.fillRoundedRect(rx, ry, rw, rh, 8);
+    rg.lineStyle(1, THEME.GOLD_DK, 0.6); rg.strokeRoundedRect(rx, ry, rw, rh, 8);
+    this.add.text(rx + 16, ry + rh / 2, '🏥', { fontSize: '13px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
+    this._distTxt = this.add.text(rx + 40, ry + rh / 2, '16.2 km', {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
+    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
+    this.add.text(rx + rw - 66, ry + rh / 2, '🚗', { fontSize: '13px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
+    this._speedTxt = this.add.text(rx + rw - 16, ry + rh / 2, '0.0', {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#1a0f04', strokeThickness: 2
+    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(49);
 
-    hg.fillStyle(0x080410, 0.85); hg.fillRoundedRect(W - 100, 6, 94, 40, 6);
-    hg.lineStyle(1.5, 0x4488cc, 0.45); hg.strokeRoundedRect(W - 100, 6, 94, 40, 6);
-    this.add.text(W - 92, 13, '🚗 SPD', {
-      fontSize: '10px', fontFamily: 'Georgia, serif', color: '#88aacc'
-    }).setDepth(21).setScrollFactor(0);
-    this._speedTxt = this.add.text(W - 52, 26, '0.0', {
-      fontSize: '14px', fontFamily: 'Georgia, serif', color: '#88ccff',
-      stroke: '#000', strokeThickness: 2
-    }).setOrigin(0.5).setDepth(21).setScrollFactor(0);
+    this._escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this._escKey.on('down', () => this._togglePause());
   }
 
-  // ── CONTROLS ─────────────────────────────────────────────────────────────────
-  _buildControls() {
-    const bY = H - 34;
-    const mk = (x, label, down, up) => {
-      const bg = this.add.rectangle(x, bY, 74, 36, 0x1a0e06, 0.70)
-        .setDepth(30).setStrokeStyle(1.5, 0xf5c87a, 0.55)
-        .setScrollFactor(0).setInteractive({ useHandCursor: true });
-      this.add.text(x, bY, label, { fontSize: '13px', color: '#f5c87a' })
-        .setOrigin(0.5).setDepth(31).setScrollFactor(0);
-      bg.on('pointerdown', down); bg.on('pointerup', up); bg.on('pointerout', up);
-    };
-    mk(44,  '⬅ Brake', () => { this._leftHeld  = true;  }, () => { this._leftHeld  = false; });
-    mk(128, '⚡ Gas',   () => { this._rightHeld = true;  }, () => { this._rightHeld = false; });
+  // Countdown tick — at 0, lose a full life and refill (matches every other runner)
+  _tickHudTimer() {
+    if (this._done || this._paused) return;
+    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    if (this._timerTxt) {
+      this._timerTxt.setText(`${this._timeLeft}s`);
+      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+    }
+    if (this._timeLeft <= 0) {
+      this._timeLeft = this._timerFull;
+      if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
+      this._loseLifeFull();
+    }
+  }
+
+  // ── HEALTH MODEL — 3 lives × 3 HP pips (same model as every other level).
+  // `_health` is kept in sync as a 0-100 percentage for backward compatibility
+  // with the hospital mini-games (L3_MG1-6), which read `l3_health` as a %.
+  _healthPct() {
+    return Math.max(0, Math.round(((this._lives - 1) * 3 + this._hp) / 9 * 100));
+  }
+
+  _loseHP(n = 1) {
+    this._hp = Math.max(0, this._hp - n);
+    this._hdr?.setHP(this._hp);
+    this._health = this._healthPct();
+    if (this._hp <= 0) this._loseLifeFull();
+  }
+
+  _loseLifeFull() {
+    this._lives = Math.max(0, this._lives - 1);
+    this._hdr?.setLives(this._lives);
+    if (this._lives <= 0) {
+      this._hp = 0; this._hdr?.setHP(0);
+      this._health = 0;
+      this._gameOver("Gamma didn't make it...\nDrive slower next time!");
+      return;
+    }
+    this._hp = 3;
+    this._hdr?.setHP(3);
+    this._health = this._healthPct();
+  }
+
+  // Finalized wood/gold Game-Menu modal (approved via Theme Design)
+  _togglePause() {
+    if (this._done) return;
+    if (this._paused) {
+      this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} });
+      this._pauseObjs = null; this._paused = false; this.tweens.resumeAll();
+      return;
+    }
+    this._paused = true; this.tweens.pauseAll();
+    this._pauseObjs = openGameMenuModal(this, {
+      onResume:  () => this._togglePause(),
+      onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.tweens.resumeAll(); this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
+      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => this.scene.start('Menu')); },
+    });
   }
 
   // ── PROGRESS BAR ──────────────────────────────────────────────────────────────
@@ -1161,23 +1114,16 @@ export class L3_CarJourneyScene extends Phaser.Scene {
 
   // ── BUMP EVENTS ───────────────────────────────────────────────────────────────
   _hitBumpFast(bump) {
-    this._health = Math.max(0, this._health - CFG.HEALTH_PENALTY);
-    this._updateHealthBar();
+    this._loseHP(1);
     this._playSound('bump_fast');
     this.cameras.main.shake(260, 0.014);
     this.cameras.main.flash(300, 140, 0, 0);
     this.tweens.add({ targets: this._car, y: this._carGroundY - 10, duration: 160, ease: 'Sine.easeIn', yoyo: true });
 
-    const dmg = this.add.text(W / 2, H / 2 - 50, `-${CFG.HEALTH_PENALTY}% 🐾`, {
+    const dmg = this.add.text(W / 2, H / 2 - 50, `-1 ❤`, {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ff3355', stroke: '#000', strokeThickness: 3
     }).setOrigin(0.5).setDepth(45).setScrollFactor(0);
     this.tweens.add({ targets: dmg, y: dmg.y - 36, alpha: 0, duration: 1500, onComplete: () => dmg.destroy() });
-
-    this.tweens.add({
-      targets: this._healthBar, alpha: 0.12, duration: 100,
-      yoyo: true, repeat: 2, onComplete: () => this._healthBar.setAlpha(1)
-    });
-    if (this._health <= 0) this._gameOver("Gamma didn't make it...\nDrive slower next time!");
   }
 
   _hitBumpSlow(bump) {
@@ -1189,14 +1135,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.tweens.add({ targets: ok, y: ok.y - 26, alpha: 0, duration: 800, onComplete: () => ok.destroy() });
   }
 
-  _updateHealthBar() {
-    const pct = Math.max(0, this._health) / 100;
-    this._healthBar.setDisplaySize(64 * pct, 12);
-    this._healthTxt.setText(`${Math.round(Math.max(0, this._health))}%`);
-    this._healthBar.setFillStyle(pct > 0.5 ? 0xff3355 : pct > 0.25 ? 0xff8800 : 0xff2200);
-  }
-
-  // ── RED LIGHT ─────────────────────────────────────────────────────────────────
+  // ── RED LIGHT — instant total fail (same severity as before) ─────────────────
   _runRedLight() {
     if (this._done) return;
     this.cameras.main.flash(600, 255, 0, 0);
@@ -1204,83 +1143,48 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     const border = this.add.graphics().setDepth(55).setScrollFactor(0);
     border.lineStyle(10, 0xff0000, 0.92); border.strokeRect(5, 5, W - 10, H - 10);
     this.tweens.add({ targets: border, alpha: 0.14, duration: 150, yoyo: true, repeat: 8, onComplete: () => border.destroy() });
+    this._lives = 0; this._hp = 0;
+    this._hdr?.setLives(0); this._hdr?.setHP(0);
     this._health = 0;
-    this._updateHealthBar();
     this._gameOver('🚦 You ran a red light!\n"Gamma didn\'t survive…"', true);
   }
 
   // ── GAME OVER ─────────────────────────────────────────────────────────────────
+  // The "exception" case — reached by running a red light, losing all HP/lives,
+  // or the timer expiring (all funnel through here). Plays the exception
+  // cinematic, then restarts the drive.
   _gameOver(message, skipFlash = false) {
     if (this._done) return;
     this._done  = true;
     this._speed = 0;
+    this._timerEvt?.remove();
     this._playSound('gameover_sting');
     if (!skipFlash) this.cameras.main.flash(400, 140, 0, 0);
 
-    this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.76).setDepth(50).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 - 60, '💔', { fontSize: '54px' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 + 4, message, {
-      fontSize: '19px', fontFamily: 'Georgia, serif', color: '#ff4466',
-      stroke: '#000', strokeThickness: 3, align: 'center', lineSpacing: 6
-    }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
-
-    this.time.delayedCall(2800, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L3_Drive'));
+    // Story beat first, then the exception cinematic, then restart the drive.
+    showStoryCard(this, '💔  Gamma didn\'t survive.\nShe couldn\'t reach the hospital in time…', () => {
+      playVideoOverlay(this, 'l3_exception_video', () => {
+        this.cameras.main.fadeOut(600, 0, 0, 0);
+        this.time.delayedCall(650, () => this.scene.start('L3_Drive'));
+      });
     });
   }
 
   // ── PHASE COMPLETE ────────────────────────────────────────────────────────────
+  // Reached the hospital — save the run state the hospital mini-games read, then
+  // play the "reaching hospital" cinematic and move on to the treatment (L3_MG1).
   _reachHospital() {
     if (this._done) return;
     this._done  = true;
     this._speed = 0;
+    this._timerEvt?.remove();
     this.registry.set('l3_health',      this._health);
     this.registry.set('l3_coins',       this._coins);
     this.registry.set('l3_safe_driver', this._health === 100);
 
-    // Hospital exterior backdrop — fades in as Gamma arrives
-    if (this.textures.exists('l3_hospital_exterior')) {
-      const ext = this.add.image(W / 2, H / 2, 'l3_hospital_exterior')
-        .setDisplaySize(W, H).setDepth(48).setScrollFactor(0).setAlpha(0);
-      this.tweens.add({ targets: ext, alpha: 1, duration: 800 });
-    }
-
-    const ov = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0).setDepth(50).setScrollFactor(0);
-    this.tweens.add({ targets: ov, alpha: 0.42, duration: 700 });
-    const amb = this.add.rectangle(W / 2, H / 2, W, H, 0xff2222, 0).setDepth(49).setScrollFactor(0);
-    this.tweens.add({ targets: amb, alpha: 0.06, duration: 220, yoyo: true, repeat: 5 });
-
-    this.time.delayedCall(500, () => {
-      const icon = this.add.text(W / 2, H / 2 - 88, '🏥', { fontSize: '56px' })
-        .setOrigin(0.5).setDepth(51).setScrollFactor(0).setAlpha(0);
-      this.tweens.add({ targets: icon, alpha: 1, y: H / 2 - 100, duration: 500 });
-      this.time.delayedCall(400, () => {
-        this.add.text(W / 2, H / 2 - 12, 'You made it! 🏥', {
-          fontSize: '28px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3
-        }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
-
-        if (this._health === 100) {
-          const bdg = this.add.graphics().setDepth(52).setScrollFactor(0);
-          bdg.fillStyle(0x0a3a14, 0.95); bdg.fillRoundedRect(W / 2 - 130, H / 2 + 22, 260, 38, 8);
-          bdg.lineStyle(2, 0x44ff88, 0.9); bdg.strokeRoundedRect(W / 2 - 130, H / 2 + 22, 260, 38, 8);
-          this.add.text(W / 2, H / 2 + 41, '🏆  Safe Driver Bonus!  🏆', {
-            fontSize: '14px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 2
-          }).setOrigin(0.5).setDepth(53).setScrollFactor(0);
-        }
-
-        const yOff = this._health === 100 ? 72 : 28;
-        this.time.delayedCall(400, () => {
-          this.add.text(W / 2, H / 2 + yOff,
-            `Gamma's health: ${Math.round(this._health)}%  ❤️`, {
-              fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5e0b0'
-            }).setOrigin(0.5).setDepth(52).setScrollFactor(0);
-          this.time.delayedCall(2200, () => {
-            this.cameras.main.fadeOut(800, 0, 0, 0);
-            this.time.delayedCall(850, () => this.scene.start('L3_MG1'));
-          });
-        });
-      });
+    playVideoOverlay(this, 'l3_reaching_video', () => {
+      this.cameras.main.fadeOut(800, 0, 0, 0);
+      this.time.delayedCall(850, () => this.scene.start('L3_MG1'));
     });
   }
 

@@ -1,13 +1,8 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
-<<<<<<< Updated upstream
 import { applyL3Frame } from './L3Modal.js';
-=======
-import { applyL3Frame, showTreatmentPrompt } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
-import { playVideoOverlay } from '../../../../utils/VideoOverlay.js';
->>>>>>> Stashed changes
 
 // MG6 — Post Care: drag food bowl and medicine to Gamma to complete treatment
 export class L3_MG6_PostCareScene extends Phaser.Scene {
@@ -23,21 +18,17 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     applyL3Frame(this);
 
     this._done    = false;
-    this._treatmentPhase = false;
     this._fed     = false;
     this._medGiven = false;
     this._health  = this.registry.get('l3_health') || 100;
 
     this._buildHUD(6);
-    this._buildTitle('🍲 Post Care', 'First, a quick warm-up activity — then feed Gamma and give her medicine yourself.');
+    this._buildTitle('🍲 Post Care', 'Feed Gamma and give her medicine to complete the treatment!');
 
-<<<<<<< Updated upstream
-=======
-    // Random mini-game from Level 3's slice of the 40 games plays FIRST — only
-    // once it's won does the real hands-on treatment (feed + medicine) unlock.
-    launchRandomMiniGame(this, 3, () => this._startTreatment());
+    // Random mini-game from Level 3's slice of the 40 games overlays on top —
+    // no intro/ending screen; drives progression instead of the feed/med drag puzzle below.
+    launchRandomMiniGame(this, 3, () => this._complete());
 
->>>>>>> Stashed changes
     // Gamma on bed, happy
     if (this.textures.exists('gemma_happy')) {
       this._gammaImg = this.add.image(490, H - 48, 'gemma_happy').setDisplaySize(200, 110).setOrigin(0.5, 1).setDepth(8);
@@ -77,12 +68,8 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     this._medTxt  = this.add.text(W - 160, 148, '☐ Give Medicine', {
       fontSize: '14px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
     }).setDepth(12);
-  }
 
-  // Unlocks the real treatment interaction once the warm-up activity is won.
-  _startTreatment() {
-    this._treatmentPhase = true;
-    showTreatmentPrompt(this, '🍲 Now feed Gamma and give her medicine!');
+    // Draggable items
     this._buildItems();
   }
 
@@ -203,11 +190,8 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(40);
 
     this.time.delayedCall(2400, () => {
-      // All treatment done → play the recovery cinematic, THEN the end scene.
-      playVideoOverlay(this, 'l3_recovery_video', () => {
-        this.cameras.main.fadeOut(700, 0, 0, 0);
-        this.time.delayedCall(750, () => this.scene.start('L3_End'));
-      });
+      this.cameras.main.fadeOut(700, 0, 0, 0);
+      this.time.delayedCall(750, () => this.scene.start('L3_End'));
     });
   }
 }
