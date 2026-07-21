@@ -19,7 +19,7 @@ async function loadGameMap() {
     return {
       Level1: ['09-pattern-sequence', '03-shape-sorter', '10-sorting-by-size', '22-fruit-vegetable-sort'],
       Level2: ['01-alphabet-catch', '02-number-match', '04-color-mixing-lab', '05-word-builder', '06-animal-sound-match'],
-      Level3: ['07-addition-bubbles', '08-memory-flip-cards', '11-missing-letter-fill', '12-coin-counting', '13-days-of-week-order'],
+      Level3: ['25-opposites-match', '08-memory-flip-cards', '11-missing-letter-fill', '12-coin-counting', '13-days-of-week-order'],
       Level4: ['14-emotion-matching', '15-rhyme-time', '16-plant-growth-sequence', '17-traffic-light-rules'],
       Level5: ['18-body-parts-labeling', '19-weather-dress-up', '20-musical-instrument-match', '21-continent-country-tap'],
       Level6: ['23-shadow-matching', '24-time-telling-clock', '25-opposites-match', '26-space-objects-match'],

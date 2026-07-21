@@ -12,9 +12,9 @@
 
   const prompt = el('.prompt');
   const numeral = el('.big-target');
-  const basket = el('.dropzone', {style:'width:340px;min-height:150px;flex-wrap:wrap;gap:8px;padding:12px;font-size:44px;'});
+  const basket = el('.dropzone', {style:'width:420px;height:150px;flex-wrap:wrap;align-content:flex-start;gap:6px;padding:10px;font-size:44px;overflow:hidden;'});
   const basketWrap = el('div', null, [el('div',{style:'font-size:22px;margin-bottom:6px'},'🧺 Basket'), basket]);
-  const tray = el('.row', {style:'flex-wrap:wrap;max-width:520px;'});
+  const tray = el('.row', {style:'flex-wrap:wrap;max-width:420px;'});
   const checkBtn = el('button.btn.big', {onclick:check}, '✓ Check');
 
   G.body.appendChild(prompt);
@@ -26,7 +26,7 @@
   G.body.appendChild(checkBtn);
 
   function makeApple(){
-    const a = el('.tile', {style:'width:70px;height:70px;font-size:40px;border-radius:50%;'}, '🍎');
+    const a = el('.tile', {style:'width:56px;height:56px;font-size:32px;border-radius:50%;'}, '🍎');
     enableDrag(a, {onDrop:(under)=>{
       if(under && (under===basket || basket.contains(under))){
         basket.appendChild(a); resetPos(a); a.style.cursor='default'; a.dataset.in='1'; recount();

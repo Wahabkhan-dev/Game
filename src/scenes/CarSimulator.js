@@ -11,14 +11,16 @@ import { W, H } from '../config/GameConfig.js';
 // car art/animation before wiring it into the real Level 3 car-journey scene.
 // ════════════════════════════════════════════════════════════════════════════
 
-const FOLDER = 'assets/images/Level 3/car/';
+// Exported so the real Level 3 driving scene (L3_CarJourneyScene) can load and
+// animate the exact same frame set/keys/rate tuned here instead of duplicating them.
+export const FOLDER = 'assets/images/Level 3/car/';
 const FRAME_N = 9;
-const FRAME_FILES = Array.from({ length: FRAME_N }, (_, i) => `frame_${String(i + 1).padStart(3, '0')}.png`);
-const FRAME_KEYS = FRAME_FILES.map((_, i) => `carsim_frame_${i + 1}`);
+export const FRAME_FILES = Array.from({ length: FRAME_N }, (_, i) => `frame_${String(i + 1).padStart(3, '0')}.png`);
+export const FRAME_KEYS = FRAME_FILES.map((_, i) => `carsim_frame_${i + 1}`);
 
 const MOVE_SPEED = 260;
-const RUN_FPS = 14;
-const TARGET_HEIGHT = 90;   // frames are 1046×410 (≈2.55:1) → width ≈ 230 at this height
+export const RUN_FPS = 14;
+export const TARGET_HEIGHT = 90;   // frames are 1046×410 (≈2.55:1) → width ≈ 230 at this height
 
 export class CarSimulator extends Phaser.Scene {
   constructor() { super('CarSimulator'); }

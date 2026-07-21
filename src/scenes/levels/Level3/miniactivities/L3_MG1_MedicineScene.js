@@ -15,7 +15,6 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35).setDepth(0);
     applyL3Frame(this);
 
     this._correct = 0;

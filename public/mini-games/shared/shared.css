@@ -11,13 +11,13 @@
   --card:#ffffff; --shadow:0 8px 24px rgba(40,50,120,.15);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;}
+html,body{height:100%;overflow:hidden;}
 body{
   font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
   background:linear-gradient(160deg,#eef2ff,#f7f0ff);
-  color:var(--ink); font-size:20px; min-height:100%;
+  color:var(--ink); font-size:20px; height:100%;
 }
-#app{max-width:1100px;margin:0 auto;padding:20px;min-height:100vh;}
+#app{max-width:1100px;margin:0 auto;padding:20px;height:100vh;display:flex;flex-direction:column;}
 
 /* ---------- Buttons (min 60px tap targets) ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
@@ -49,14 +49,14 @@ body{
 
 /* ---------- Game frame ---------- */
 .game{background:var(--card);border-radius:24px;box-shadow:var(--shadow);
-  padding:20px;min-height:80vh;display:flex;flex-direction:column;}
-.game-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:20px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+.game-top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
   border-bottom:3px solid #eef0fb;padding-bottom:14px;margin-bottom:14px;}
 .game-top .title{font-size:28px;font-weight:bold;display:flex;align-items:center;gap:12px;}
 .score-pill{background:#eef0ff;color:var(--brand);font-weight:bold;font-size:20px;
   padding:8px 16px;border-radius:999px;min-height:44px;display:flex;align-items:center;}
-.game-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  position:relative;gap:18px;text-align:center;}
+.game-body{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;gap:14px;text-align:center;overflow:auto;}
 .prompt{font-size:26px;font-weight:bold;color:#4a4e73;}
 .big-target{font-size:120px;font-weight:bold;line-height:1;
   background:linear-gradient(135deg,var(--brand),var(--brand2));

@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL3Assets } from './L3Assets.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { playVideoOverlay, showStoryCard } from '../../../utils/VideoOverlay.js';
+import { FOLDER as CAR_FOLDER, FRAME_FILES as CAR_FRAME_FILES, FRAME_KEYS as CAR_FRAME_KEYS, RUN_FPS as CAR_RUN_FPS, TARGET_HEIGHT as CAR_TARGET_HEIGHT } from '../../CarSimulator.js';
 
 // 0.72 + 0.10 push-down so the road (and everything anchored to it — car,
 // obstacles, bump/hole/zebra hazards) lines up with the lowered background art.
@@ -68,6 +69,13 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');
     this.load.audio('signal_beep',    'assets/audio/signal_beep.mp3');
     this.load.audio('gameover_sting', 'assets/audio/game_over.mp3');
+
+    // Car-simulator art — same frames/keys tuned in CarSimulator.js, guarded so
+    // it's a no-op if CarSimulator (or a prior visit here) already loaded them.
+    CAR_FRAME_FILES.forEach((file, i) => {
+      const key = CAR_FRAME_KEYS[i];
+      if (!this.textures.exists(key)) this.load.image(key, `${CAR_FOLDER}${file}`);
+    });
   }
 
   create() {
@@ -150,6 +158,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
 
     // ── FIX 4: rain every frame regardless of hole state ─────────────────────
     this._updateRain(delta);
+    this._updateCarAnim(delta);
 
     // ── Reposition world objects ──────────────────────────────────────────────
     const sX = (wx) => CFG.CAR_X + (wx - this._distance);
@@ -295,13 +304,44 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     // is at 277/351 of image height → 17 px in 82 px display).
     // carY = ROAD_SURFACE_Y + 17 + 5 puts tires 5 px into the road (naturally grounded).
     const carY = ROAD_SURFACE_Y + 65;
-    console.log("ROAD_SURFACE_Y =", ROAD_SURFACE_Y, "carY =", carY);
 
     this._carGroundY = carY;
     this._carShadow  = this.add.ellipse(CFG.CAR_X, carY - 14, 110, 10, 0x000000, 0.28)
       .setDepth(4);
-    this._car = this.add.image(CFG.CAR_X, carY, 'l3_car')
-      .setOrigin(0.5, 1).setDisplaySize(CFG.CAR_W, CFG.CAR_H).setDepth(9);
+
+    // Animated car-simulator sprite (9-frame sequence) — uniformly scaled to
+    // CAR_H like CarSimulator.js does (TARGET_HEIGHT/srcHeight), not squashed
+    // to a fixed W×H, so its real ~2.55:1 aspect ratio is preserved.
+    const firstKey = this.textures.exists(CAR_FRAME_KEYS[0]) ? CAR_FRAME_KEYS[0] : 'l3_car';
+    this._car = this.add.image(CFG.CAR_X, carY, firstKey).setOrigin(0.5, 1).setDepth(9);
+    if (firstKey === CAR_FRAME_KEYS[0]) {
+      const src = this.textures.get(firstKey).getSourceImage();
+      this._car.setScale((src?.height ? CFG.CAR_H / src.height : 1));
+      this._carFrameIdx   = 0;
+      this._carFrameTimer = 0;
+      this._carAnimated   = true;
+    } else {
+      this._car.setDisplaySize(CFG.CAR_W, CFG.CAR_H);
+    }
+  }
+
+  // Advances the car-simulator frame sequence while driving, holds frame 0 when
+  // stopped/braked — same RUN_FPS pacing as the CarSimulator preview scene.
+  _updateCarAnim(delta) {
+    if (!this._carAnimated) return;
+    if (this._speed > 0.05) {
+      this._carFrameTimer += delta;
+      const msPerFrame = 1000 / CAR_RUN_FPS;
+      while (this._carFrameTimer >= msPerFrame) {
+        this._carFrameTimer -= msPerFrame;
+        this._carFrameIdx = (this._carFrameIdx + 1) % CAR_FRAME_KEYS.length;
+      }
+      this._car.setTexture(CAR_FRAME_KEYS[this._carFrameIdx]);
+    } else {
+      this._carFrameTimer = 0;
+      this._carFrameIdx   = 0;
+      this._car.setTexture(CAR_FRAME_KEYS[0]);
+    }
   }
 
   // ── SPEED BREAKERS (dome shape) ───────────────────────────────────────────────

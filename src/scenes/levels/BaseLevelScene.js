@@ -733,6 +733,10 @@ export class BaseLevelScene extends Phaser.Scene {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.registry.set('lives', 3);
       this.registry.set('shadowHP', 3);
+      // Guaranteed reset — the death tween's own cleanup may not have run yet
+      // (or may get cut short) by the time the level restarts.
+      this.shadow.clearTint();
+      this.shadow.setAlpha(1);
       this.time.delayedCall(550, () => this.scene.restart());
     });
   }
@@ -793,7 +797,10 @@ export class BaseLevelScene extends Phaser.Scene {
 
     this.cameras.main.shake(400, 0.018);
     this.shadow.setTint(0xff3300);
-    this.tweens.add({ targets: this.shadow, alpha: 0, duration: 400 });
+    this.tweens.add({
+      targets: this.shadow, alpha: 0, duration: 400,
+      onComplete: () => { this.shadow.clearTint(); this.shadow.setAlpha(0); },
+    });
 
     this._loseLife(0.018);
   }

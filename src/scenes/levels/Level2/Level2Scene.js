@@ -30,6 +30,10 @@ export class Level2Scene extends BaseLevelScene {
     this._playVideoOverlay('l2_gameover_video', () => {
       this.registry.set('lives', 3);
       this.registry.set('shadowHP', 3);
+      // Guaranteed reset — the death tween's own cleanup may not have run
+      // yet (or may get cut short) by the time the level restarts.
+      this.shadow.clearTint();
+      this.shadow.setAlpha(1);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(550, () => this.scene.restart());
     });
