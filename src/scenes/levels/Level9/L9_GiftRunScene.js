@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L9BaseScene, L9 } from './L9BaseScene.js';
+import { resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { generateL9Assets } from './L9Assets.js';
 import { preloadGlendaSkin } from './L9_GlendaSkin.js';
 
@@ -88,6 +89,11 @@ export class L9_GiftRunScene extends L9BaseScene {
   }
 
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown, so this level's trigger points
+    // (spread across GiftRun/BowRun/BowTie/Unwrap) can't repeat one.
+    resetGameHistory(9);
+
     generateL9Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 220);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);

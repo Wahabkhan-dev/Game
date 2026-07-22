@@ -39,6 +39,8 @@ body.embedded{ background:transparent; }
 .dropzone{ background:rgba(0,0,0,.20); border:5px dashed rgba(245,215,138,.5); }
 .dropzone.over{ background:rgba(245,215,138,.15); border-color:#f7dd97; }
 
-/* Start / result overlays sit inside the panel → dark to match */
-.overlay{ background:rgba(9,6,3,.95); border-radius:16px; }
+/* Start / result overlays sit inside the panel — a solid wood-toned fill
+   (not transparent) so the activity's tiles/tray/dropzones underneath are
+   fully hidden until Start is pressed, instead of showing through. */
+.overlay{ background:#241206; border-radius:16px; }
 .overlay h2{ color:#f7dd97; }

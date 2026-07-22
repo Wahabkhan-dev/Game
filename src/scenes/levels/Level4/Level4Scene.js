@@ -3,7 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL4Assets, generateL4StreetAssets } from './L4Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L4_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
-import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 
 // ── Level 4 — Build Gamma's New Home: 3 checkpoints to collect 6 materials ──
@@ -50,6 +50,11 @@ export class Level4Scene extends Phaser.Scene {
   }
 
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown so this level's trigger points
+    // can't repeat one.
+    resetGameHistory(4);
+
     generateL4Assets(this);
     generateL4StreetAssets(this);
 

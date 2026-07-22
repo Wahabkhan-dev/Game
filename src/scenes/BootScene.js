@@ -32,6 +32,10 @@ export class BootScene extends Phaser.Scene {
     // ── Level 1 story videos (game-over + food-collected feeding scene) ──────
     this.load.video('l1_gameover_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658150/shadow-gamma/video/Level%2001/exceptional.mp4');
     this.load.video('l1_food_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658183/shadow-gamma/video/Level%2001/food.mp4');
+    // Source file is HEVC (hvc1) — most browsers can't play that; vc_h264
+    // asks Cloudinary to transcode on-the-fly to H.264 (avc1) for playback,
+    // matching every other video's codec.
+    this.load.video('l1_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784685880/shadow-gamma/video/Level%2001/conclusion-l1.mp4');
     // ── Level 2 story videos ────────────────────────────────────────────────
     this.load.video('l2_intro_video',          'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658537/shadow-gamma/video/level%2002/intro-level2.mp4');
     this.load.video('l2_gameover_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658322/shadow-gamma/video/level%2002/exceptional.mp4');

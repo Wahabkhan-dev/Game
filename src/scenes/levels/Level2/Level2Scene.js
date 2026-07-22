@@ -5,7 +5,7 @@ import { preloadGlendaSkin, applyGlendaSkin } from './L2_GlendaSkin.js';
 import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVisuals, transitionToL1Visuals } from './L2_Scenery.js';
 import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
-import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
@@ -26,8 +26,21 @@ export class Level2Scene extends BaseLevelScene {
   _updateBgParallax()      { updateL2Parallax(this); }
   _buildGround(config)     { buildL2Ground(this, config); }
 
+  // Wraps _playVideoOverlay so the touch-control footer (left/right/jump/bark)
+  // is never shown over ANY Level 2 cinematic — hidden for the video's whole
+  // duration, restored once it ends (matches the same hide/show _launchCheckpoint
+  // already does around mini-games).
+  _playL2Video(key, onDone) {
+    const footer = document.getElementById('game-footer');
+    if (footer) footer.style.display = 'none';
+    this._playVideoOverlay(key, () => {
+      if (footer) footer.style.display = 'flex';
+      if (onDone) onDone();
+    });
+  }
+
   _handleGameOver() {
-    this._playVideoOverlay('l2_gameover_video', () => {
+    this._playL2Video('l2_gameover_video', () => {
       this.registry.set('lives', 3);
       this.registry.set('shadowHP', 3);
       // Guaranteed reset — the death tween's own cleanup may not have run
@@ -48,9 +61,11 @@ export class Level2Scene extends BaseLevelScene {
     this.time.delayedCall(800, () => {
       this._timerFired = false;
       const sx = this.shadow?.x ?? this._checkpointX ?? 80;
+      let zoneTimer = 75;
       if (sx > 12000) {
         this._checkpointX = 12020;
         this._checkpointY = 360;
+        zoneTimer = 95;   // Zone 3 keeps its +20s allowance on respawn too
       } else if (sx > 6000) {
         this._checkpointX = 6020;
         this._checkpointY = 360;
@@ -58,17 +73,24 @@ export class Level2Scene extends BaseLevelScene {
         this._checkpointX = 80;
         this._checkpointY = 370;
       }
-      this._resetTimer(75);
+      this._resetTimer(zoneTimer);
       this._loseLife(0.012);
     });
   }
 
   _loseLife(shake = 0.012) {
     super._loseLife(shake);
-    this._resetTimer(75);
+    // Respawn checkpoint (just set above/by the caller) decides the zone —
+    // Zone 3 keeps its +20s allowance instead of always resetting to 75.
+    this._resetTimer(this._checkpointX > 12000 ? 95 : 75);
   }
 
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown so this level's trigger points
+    // (Dodge the Hazards on Key 2, plus any others) can't repeat one.
+    resetGameHistory(2);
+
     const config = {
       worldWidth: 18500,
       startX: 80, startY: 370,
@@ -118,7 +140,7 @@ export class Level2Scene extends BaseLevelScene {
 
     if (!this._introVideoPlayed) {
       this._introVideoPlayed = true;
-      this._playVideoOverlay('l2_intro_video', () => {});
+      this._playL2Video('l2_intro_video', () => {});
     }
     // The premium HUD (header + checkpoint footer) is built by _buildHUD() during
     // initLevel above; nothing else to init here.
@@ -342,11 +364,17 @@ export class Level2Scene extends BaseLevelScene {
       { x: 10900, y: 295, range: 75, speed: 0.85 },
       { x: 11800, y: 305, range: 70, speed: 0.70 },
     ].forEach((mp, i) => {
-      const img = this.physics.add.image(mp.x, mp.y, 'platform')
+      // Spawn at the SAME offset the update loop's sine formula expects for
+      // this starting t — otherwise the platform snaps there on the first
+      // update() tick after Zone 2 activates, and that one-frame jump reads
+      // as a sudden burst of speed.
+      const t0 = i * 1.4;
+      const startX = mp.x + Math.sin(t0) * mp.range;
+      const img = this.physics.add.image(startX, mp.y, 'platform')
         .setDisplaySize(88, 16).setImmovable(true).setDepth(8);
       img.body.setAllowGravity(false);
       this.physics.add.collider(this.shadow, img);
-      this._movingPlats.push({ img, baseX: mp.x, y: mp.y, range: mp.range, speed: mp.speed, t: i * 1.4 });
+      this._movingPlats.push({ img, baseX: mp.x, y: mp.y, range: mp.range, speed: mp.speed, t: t0 });
     });
 
     // ── Spikes (Zone 3) ────────────────────────────────────────────────────
@@ -509,44 +537,41 @@ export class Level2Scene extends BaseLevelScene {
       this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
       this.cameras.main.flash(300, 20, 140, 80);
       this._showMessage('🗝️ Key 2 found! Find Gemma\'s cage! 🐾');
+
+      // Checkpoint 2 ("Dodge the Hazards") now fires right on Key 2 pickup,
+      // instead of waiting until the player is nearly at Zone 3's entrance.
+      if (!this._cp2Done) {
+        this._cp2Done = true;
+        this._launchCheckpoint('L2_Dodge',
+          { emoji: '🐍', title: 'Dodge the Hazards', desc: 'Tap each creature before it bites you!' },
+          () => {
+            this._saveCheckpoint(K2_X + 20, 360);
+            this._showMessage('✅ Path cleared! The dark jungle awaits! 🌑');
+          });
+      }
     });
 
     // ── Reach cage overlap ────────────────────────────────────────────────
     this.physics.add.overlap(this.shadow, this.gemmaInCage, () => {
       if (this._levelDone || this._unlocking) return;
       if (this._hasKey1 && this._hasKey2) {
-        if (!this._cageVideoPlayed) {
-          this._cageVideoPlayed = true;
-          this._playVideoOverlay('l2_cage_video', () => {
-            this._unlocking = true;
-            this._movementLocked = true;
-            this.shadow.setVelocity(0, 0);
-            if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
-            this._cp3Done = true;
-            this._launchCheckpoint('L2_Fireflies',
-              { emoji: '✨', title: 'Light the Fireflies', desc: 'Light the fireflies to unlock Gemma\'s cage!' },
-              () => {
-                this._levelDone = true;
-                this._showMessage('✨ The cage glows… it\'s unlocking! 🔓');
-                this._unlockCage();
-              });
-          });
-          return;
-        }
-        // Freeze the player, then play the Fireflies ritual to light up the
-        // cage — only after winning it does the cage actually unlock.
         this._unlocking = true;
         this._movementLocked = true;
         this.shadow.setVelocity(0, 0);
         if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
-        this._cp3Done = true;
-        this._launchCheckpoint('L2_Fireflies',
-          { emoji: '✨', title: 'Light the Fireflies', desc: 'Light the fireflies to unlock Gemma\'s cage!' },
-          () => {
-            this._levelDone = true;
-            this._showMessage('✨ The cage glows… it\'s unlocking! 🔓');
-            this._unlockCage();
-          });
+
+        const openCage = () => {
+          this._levelDone = true;
+          this._showMessage('✨ The cage glows… it\'s unlocking! 🔓');
+          this._unlockCage();
+        };
+
+        if (!this._cageVideoPlayed) {
+          this._cageVideoPlayed = true;
+          this._playL2Video('l2_cage_video', openCage);
+        } else {
+          openCage();
+        }
       } else if (!this._hintedCage) {
         this._hintedCage = true;
         const missing = !this._hasKey1 ? 'Key 1' : 'Key 2';
@@ -560,10 +585,9 @@ export class Level2Scene extends BaseLevelScene {
     this._gemmaHPDecaying = false;
     this._movementLocked  = false;
     this._hintedCage      = false;
-    this._unlocking       = false;   // guards the cage Fireflies ritual
+    this._unlocking       = false;   // guards the cage-reach handler
     this._cp1Done         = false;   // checkpoint-1 game (Road → Jungle)
-    this._cp2Done         = false;   // checkpoint-2 game (Jungle → Dark Jungle)
-    this._cp3Done         = false;   // checkpoint-3 game (cage unlock — Light the Fireflies)
+    this._cp2Done         = false;   // checkpoint-2 game (Dodge the Hazards, now on Key 2 pickup)
 
     this.time.delayedCall(800, () => this._showMessage('Stage 1 — Road! Find Key 1 at the end! 🔑'));
 
@@ -773,38 +797,34 @@ export class Level2Scene extends BaseLevelScene {
         });
     }
 
-    // ── Zone 2 entry ──────────────────────────────────────────────────────
-    if (!this._zone2Entered && sx > 6000) {
+    // ── Zone 2 entry — triggers exactly at the checkpoint flag (x=5900) ────
+    if (!this._zone2Entered && sx >= 5900) {
       this._zone2Entered = true;
+      // Stop the character exactly at the flag before the cinematic plays.
+      this.shadow.setX(5900);
+      if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
       if (!this._bgTransitionTriggered) {
         this._bgTransitionTriggered = true;
-        // Smooth in-place crossfade to Level 1's bg + ground (no video interrupt).
+        // Swap the bg/ground WHILE the video's own opaque backdrop still fully
+        // covers the screen (depth 200+, well above the bg's depth -12), so by
+        // the time the video ends OR gets skipped the jungle art is already
+        // in place — no crossfade visible after the cinematic closes.
         transitionToL1Visuals(this, 1100);
+        if (this._roadBgTile) this.tweens.add({ targets: this._roadBgTile, alpha: 0, duration: 800 });
+        this._playL2Video('l2_transition_video', () => {});
       }
       this._saveCheckpoint(6020, 360);
       this._resetTimer(75);
-      if (this._roadBgTile) this.tweens.add({ targets: this._roadBgTile, alpha: 0, duration: 800 });
       this._showMessage('🌿 Stage 2 — Jungle! Dodge porcupines & find Key 2! 🗝️');
     }
 
-    // ── Checkpoint 2 (at the flag, Jungle → Dark Jungle) — Dodge the Hazards ─
-    if (!this._cp2Done && sx > 11900) {
-      this._cp2Done = true;
-      this._launchCheckpoint('L2_Dodge',
-        { emoji: '🐍', title: 'Dodge the Hazards', desc: 'Tap each creature before it bites you!' },
-        () => {
-          this._saveCheckpoint(11920, 360);
-          this._showMessage('✅ Path cleared! The dark jungle awaits! 🌑');
-        });
-    }
-
-    // (Checkpoint 3 — Light the Fireflies — now plays at the cage, see cage overlap below)
+    // (Checkpoint 2 — Dodge the Hazards — now fires on Key 2 pickup, see key2Obj overlap above)
 
     // ── Zone 3 entry ──────────────────────────────────────────────────────
     if (!this._zone3Entered && sx > 12000) {
       this._zone3Entered = true;
       this._saveCheckpoint(12020, 360);
-      this._resetTimer(75);
+      this._resetTimer(95);   // Zone 3 gets +20s over the usual 75s — more hazards to clear
       this._gemmaHPDecaying = true;
       this._gemmaHPBar.setVisible(true);
       this._gemmaHPLabel.setVisible(true);
@@ -901,7 +921,9 @@ export class Level2Scene extends BaseLevelScene {
       p.x += p.dir * p.speed;
       if (p.x >= p.max) { p.x = p.max; p.dir = -1; }
       if (p.x <= p.min) { p.x = p.min; p.dir =  1; }
-      p.img.setX(p.x).setFlipX(p.dir < 0);
+      // Source art (porcupine/01-06.png) faces LEFT natively, so it needs
+      // flipping when walking RIGHT (dir>0) to actually face its walk direction.
+      p.img.setX(p.x).setFlipX(p.dir > 0);
       if (Math.abs(p.x - sx) < 48 && Math.abs((H - 46) - py) < 50 && !p.hitCD) {
         p.hitCD = true; this._onHazardHit();
         this.time.delayedCall(1200, () => { p.hitCD = false; });
@@ -914,7 +936,9 @@ export class Level2Scene extends BaseLevelScene {
       p.x += p.dir * p.speed;
       if (p.x >= p.max) { p.x = p.max; p.dir = -1; }
       if (p.x <= p.min) { p.x = p.min; p.dir =  1; }
-      p.img.setX(p.x).setFlipX(p.dir < 0);
+      // Source art (porcupine/01-06.png) faces LEFT natively, so it needs
+      // flipping when walking RIGHT (dir>0) to actually face its walk direction.
+      p.img.setX(p.x).setFlipX(p.dir > 0);
       if (Math.abs(p.x - sx) < 44 && Math.abs((H - 46) - py) < 50 && !p.hitCD) {
         p.hitCD = true; this._onHazardHit();
         this.time.delayedCall(1200, () => { p.hitCD = false; });

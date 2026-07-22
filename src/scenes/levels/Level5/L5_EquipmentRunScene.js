@@ -3,7 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL5Assets, generateL5StreetAssets } from './L5Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L5_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
-import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 
 // ── Level 5 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
@@ -56,6 +56,11 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   }
 
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown so this level's trigger points
+    // can't repeat one.
+    resetGameHistory(5);
+
     generateL5Assets(this);
     generateL5StreetAssets(this);
 

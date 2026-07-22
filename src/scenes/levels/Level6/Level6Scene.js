@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generatePremiumHudTextures, buildStandardHeader, buildCheckpointBoard, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L6_GlendaSkin.js';
-import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 
 // ── Level 6 · Part 1 — Puppy Garden Runner ────────────────────────────────
 // Player runs through a garden collecting 7 puppy name tokens.
@@ -83,6 +83,11 @@ export class Level6Scene extends Phaser.Scene {
   }
 
   create(data) {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown so this level's trigger points
+    // can't repeat one.
+    resetGameHistory(6);
+
     this._collected  = [];
     this._lives      = 3;
     this._hp         = 3;

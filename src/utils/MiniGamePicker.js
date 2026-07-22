@@ -95,16 +95,21 @@ async function getGameSequence(levelNum) {
  */
 async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
   if (scene._miniGameOpen) return;
-  const folder = await pickRandomGame(levelNum);
-  if (!folder) { if (onComplete) onComplete(0); return; }
-
   scene._miniGameOpen = true;
-  // Freeze gameplay if this scene has physics.
+  // Freeze gameplay INSTANTLY, synchronously, before the (async) game pick
+  // below — pickRandomGame awaits a fetch() on its very first call, and
+  // without this the character could keep moving/falling for however long
+  // that network request takes before the overlay actually appears.
   try { scene.physics?.pause?.(); } catch (_) {}
-  // Freeze the character EXACTLY where the activity triggered — zero its velocity
-  // so it can't drift forward (physics is paused, but this also kills any residual
-  // velocity so there's no lurch when the level resumes afterwards).
   try { (scene.player || scene.shadow)?.setVelocity?.(0, 0); } catch (_) {}
+
+  const folder = await pickRandomGame(levelNum);
+  if (!folder) {
+    scene._miniGameOpen = false;
+    try { scene.physics?.resume?.(); } catch (_) {}
+    if (onComplete) onComplete(0);
+    return;
+  }
 
   const host = document.getElementById('game-wrapper') || document.body;
   const overlay = document.createElement('div');

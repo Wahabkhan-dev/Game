@@ -9,7 +9,7 @@
   const MIX = {
     'blue+yellow':{name:'GREEN', css:'#2fbf71'},
     'red+yellow':{name:'ORANGE', css:'#ff8c33'},
-    'red+blue':{name:'PURPLE', css:'#9b59b6'}
+    'blue+red':{name:'PURPLE', css:'#9b59b6'}
   };
   function key(a,b){ return [a,b].sort().join('+'); }
 

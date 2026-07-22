@@ -544,7 +544,9 @@ export class Level1Scene extends BaseLevelScene {
       ).setDepth(60);
       this.tweens.add({ targets: sp, x: sp.x + (Math.random() - 0.5) * 160, y: sp.y - 70, alpha: 0, scale: 2, duration: 950, onComplete: () => sp.destroy() });
     }
-    this.time.delayedCall(1400, () => this._unlockCage());
+    this.time.delayedCall(1400, () => {
+      this._playVideoOverlay('l1_conclusion_video', () => this._unlockCage());
+    });
   }
 
   _unlockCage() {

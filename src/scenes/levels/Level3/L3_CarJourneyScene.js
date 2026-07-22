@@ -151,8 +151,14 @@ export class L3_CarJourneyScene extends Phaser.Scene {
       const scroll = this._speed * FF;
       this._distance += scroll;
 
-      if (this._bgCity)  this._bgCity.tilePositionX  += scroll * 0.12;
-      if (this._fog)     this._fog.tilePositionX     += scroll * 0.14;
+      // City + fog now scroll at the SAME real-world rate as the road (converted
+      // through each layer's own tileScale, same formula the road already used)
+      // instead of a slow 0.12/0.14 parallax fraction — previously the road blew
+      // past 8x faster than the city behind it, so the background barely seemed
+      // to move while the car appeared to slip on the road. Matching rates makes
+      // the whole scene read as one consistent world moving together.
+      if (this._bgCity)  this._bgCity.tilePositionX  += scroll / (this._bgCity.tileScaleX || 1);
+      if (this._fog)     this._fog.tilePositionX     += scroll / (this._fog.tileScaleX || 1);
       if (this._roadTile) this._roadTile.tilePositionX += scroll / (this._roadTile.tileScaleX || 1);
     }
 

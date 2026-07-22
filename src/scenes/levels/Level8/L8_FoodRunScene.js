@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
+import { resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { generateL8Assets } from './L8Assets.js';
 import { preloadGlendaSkin } from './L8_GlendaSkin.js';
 
@@ -115,6 +116,11 @@ export class L8_FoodRunScene extends L8BaseScene {
 
   // ── create ──────────────────────────────────────────────────────────────────
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown, so this level's trigger points
+    // (spread across FoodRun/HomeRun/Feeding/Decorate) can't repeat one.
+    resetGameHistory(8);
+
     generateL8Assets(this);  // procedural fallbacks for any missing textures
 
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);

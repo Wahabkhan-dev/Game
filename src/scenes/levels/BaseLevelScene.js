@@ -704,6 +704,13 @@ export class BaseLevelScene extends Phaser.Scene {
 
   // ── Shared "lost a life" handler — decrements heart and respawns or restarts
   _loseLife(shake = 0.012) {
+    // Stop the character INSTANTLY at the point it died — updateMovement()
+    // already ignores input once _isDying is set, but any velocity it already
+    // had (mid-jump, mid-run) would otherwise keep carrying it forward/down
+    // for the ~1.5s until _respawnAtCheckpoint()/_handleGameOver() finally
+    // zero it, which looked like the character sliding past the death.
+    if (this.shadow?.body) this.shadow.setVelocity(0, 0);
+
     this._lives--;
     this.registry.set('lives', this._lives);
     this._shadowHP = 3;
