@@ -22,7 +22,10 @@
       else node.setAttribute(k,attrs[k]);
     }
     if(kids!=null)(Array.isArray(kids)?kids:[kids]).forEach(c=>{
-      if(c==null)return; node.appendChild(typeof c==='string'?document.createTextNode(c):c);
+      if(c==null)return;
+      // Coerce any non-Node primitive (number, boolean…) to a text node so a
+      // stray `el('.tile',{...}, 7)` renders "7" instead of throwing.
+      node.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
     });
     return node;
   }
@@ -86,25 +89,102 @@
     }catch(e){}
   }
 
-  /* ---------- drag helper (mouse + touch) ---------- */
+  /* ---------- drag helper (mouse + touch) ----------
+     The whole game is rendered inside a `transform:scale(s)` stage (see setupFit)
+     so it fits any screen. That makes in-stage coordinate math for a dragged tile
+     fragile (the tile would drift away from the finger as scale ≠ 1). Instead,
+     while dragging we FLOAT the tile in a top-level, un-transformed overlay layer
+     in pure viewport pixels — counter-scaled so it looks identical — so it tracks
+     the cursor EXACTLY at every scale, and is never clipped by the panel edge.
+     On drop we restore it to its original DOM position, then run the game's
+     onDrop (which may re-home it, e.g. into a basket/slot). */
+  function _dragLayer(){
+    let l=document.getElementById('mg-drag-layer');
+    if(!l){ l=el('#mg-drag-layer'); l.style.cssText=
+      'position:fixed;inset:0;pointer-events:none;z-index:3000;overflow:visible;'; document.body.appendChild(l); }
+    return l;
+  }
   function enableDrag(node, opts){
     opts=opts||{}; node.style.touchAction='none';
     node.addEventListener('pointerdown', e=>{
+      if(node.dataset.locked==='1') return;    // games can lock a placed tile
       e.preventDefault();
-      const rect=node.getBoundingClientRect();
-      const offX=e.clientX-rect.left, offY=e.clientY-rect.top;
-      const w=rect.width,h=rect.height;
-      node.setPointerCapture(e.pointerId); node.classList.add('dragging');
-      const move=ev=>{ node.style.position='fixed'; node.style.width=w+'px'; node.style.height=h+'px';
-        node.style.left=(ev.clientX-offX)+'px'; node.style.top=(ev.clientY-offY)+'px'; node.style.zIndex=2000; };
-      const up=ev=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
-        node.classList.remove('dragging'); node.style.pointerEvents='none';
-        const under=document.elementFromPoint(ev.clientX,ev.clientY); node.style.pointerEvents='';
-        opts.onDrop&&opts.onDrop(under,ev); };
+      const s   = window.__miniScale || 1;
+      const r0  = node.getBoundingClientRect();             // on-screen (scaled) box
+      const offX= e.clientX-r0.left, offY = e.clientY-r0.top;   // grab point, screen px
+      const origParent = node.parentNode, origNext = node.nextSibling;
+      const layer = _dragLayer();
+      try{ node.setPointerCapture(e.pointerId); }catch(_){}
+      node.classList.add('dragging');
+      // Float in un-transformed viewport space; scale(s)+origin 0 0 keeps the visual
+      // top-left exactly at (left,top), so the grabbed point stays under the cursor.
+      node.style.position='fixed'; node.style.margin='0';
+      node.style.transformOrigin='0 0'; node.style.transform='scale('+s+')';
+      node.style.width=(r0.width/s)+'px'; node.style.height=(r0.height/s)+'px';
+      node.style.zIndex='3001';
+      const place=(cx,cy)=>{ node.style.left=(cx-offX)+'px'; node.style.top=(cy-offY)+'px'; };
+      layer.appendChild(node); place(e.clientX,e.clientY);
+      const move=ev=>place(ev.clientX,ev.clientY);
+      const up=ev=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        node.classList.remove('dragging');
+        node.style.pointerEvents='none';
+        const under=document.elementFromPoint(ev.clientX,ev.clientY);
+        node.style.pointerEvents='';
+        // Restore to home + strip drag styling BEFORE the game's onDrop runs.
+        resetPos(node);
+        if(origParent) origParent.insertBefore(node, origNext);
+        opts.onDrop&&opts.onDrop(under,ev);
+      };
       document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
     });
   }
-  function resetPos(n){ n.style.position=''; n.style.left=''; n.style.top=''; n.style.zIndex=''; n.style.width=''; n.style.height=''; }
+  function resetPos(n){ n.style.position=''; n.style.left=''; n.style.top=''; n.style.zIndex='';
+    n.style.width=''; n.style.height=''; n.style.margin=''; n.style.pointerEvents='';
+    n.style.transform=''; n.style.transformOrigin=''; }
+
+  /* ---------- responsive scale-to-fit stage ----------
+     Every activity is authored at its own natural size. Instead of reflowing or
+     restacking (which would move gameplay elements), we measure the game panel's
+     natural size ONCE laid out, then uniformly `transform:scale()` it to fit the
+     viewport — letterboxed, centered, never distorted, never scrolled. Left/right
+     layouts stay left/right on every screen; only the scale changes.
+     Idempotent + observes the panel so it re-fits on rounds / window resize. */
+  const FIT_MIN_H = 520;     // keep the wood panel a panel even when content is short
+  const FIT_DESIGN_W = 900;  // panels are authored at this width (level1-frame max-width)
+  function setupFit(){
+    const app = document.getElementById('app');
+    if(!app || app.dataset.fit==='1') return;
+    const game = app.querySelector('.game');
+    if(!game) return;                        // hub menu or not built yet → skip
+    app.dataset.fit='1';
+    // #app → full-viewport, centering letterbox host (backdrop stays from CSS).
+    Object.assign(app.style,{ position:'fixed', inset:'0', display:'flex',
+      alignItems:'center', justifyContent:'center', overflow:'hidden',
+      margin:'0', padding:'0', maxWidth:'none', width:'100%', height:'100%' });
+    // .game → the scaled design stage. Pin it to its authored DESIGN width so the
+    // internal layout (e.g. apples LEFT / basket RIGHT) never reflows or stacks on
+    // narrow screens — the whole panel is simply scaled down to fit. Neutralize the
+    // vh-based min-height so the measured natural size is stable at any window size.
+    Object.assign(game.style,{ position:'relative', flex:'none',
+      width:FIT_DESIGN_W+'px', maxWidth:'none',
+      transformOrigin:'center center', minHeight:FIT_MIN_H+'px' });
+    window.__miniStage = game;
+    let raf=null;
+    const fit=()=>{
+      raf=null;
+      game.style.transform='none';                       // measure at 1:1
+      const natW=game.offsetWidth, natH=game.offsetHeight;
+      if(!natW || !natH){ return; }
+      const s=Math.min(app.clientWidth/natW, app.clientHeight/natH);
+      window.__miniScale=s;
+      game.style.transform='scale('+s+')';
+    };
+    const schedule=()=>{ if(!raf) raf=requestAnimationFrame(fit); };
+    window.addEventListener('resize', schedule);
+    try{ new ResizeObserver(schedule).observe(game); }catch(e){}
+    fit();
+  }
 
   /* ---------- standard game frame ----------
      buildGame({icon,title}) -> {root,body,setScore,instructions,result}
@@ -155,6 +235,8 @@
         el('.row',null,buttons)
       ]); body.appendChild(ov); burstConfetti();
     }
+    // Once game.js has appended this panel + built its layout, fit it to screen.
+    requestAnimationFrame(setupFit);
     return {root,body,setScore,instructions,result};
   }
   // Convenience: build frame + attach to #app in one call.
@@ -164,6 +246,6 @@
   Object.assign(window,{
     el,clear,rand,shuffle,pick,goMenu,imgOrEmoji,
     burstConfetti,checkBurst,flashGood,gentleRetry,speak,tone,
-    enableDrag,resetPos,buildGame,mountGame
+    enableDrag,resetPos,buildGame,mountGame,setupFit
   });
 })();

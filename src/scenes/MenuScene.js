@@ -324,6 +324,7 @@ export class MenuScene extends Phaser.Scene {
       ['🐾  L2 Trust QA',         () => this._go('L2_Calmer')],
       ['1️⃣  L3 Zone 1',          () => this._go('L3_Drive', { l3_health: 100, l3_coins: 0, l3_startZone: 1 })],
       ['2️⃣  L3 Zone 2',          () => this._go('L3_Drive', { l3_health: 80,  l3_coins: 0, l3_startZone: 2 })],
+      ['🏥  L3 Treatment (Hospital)', () => this._go('L3_MG1', { l3_health: 100, l3_coins: 0 })],
       ['🏠  L4 Run',              () => this._go('Level4')],
       ['🔨  L4 Build',            () => this._go('L4_Decorate', { points: 0 })],
       ['🐶  L5 Garage',           () => this._go('Level5', { lives: 3, points: 0, l5_stars: 0 })],

@@ -18,7 +18,7 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    applyL3Frame(this);
+    const l3Frame = applyL3Frame(this);
 
     this._done     = false;
     this._next     = 1;
@@ -29,8 +29,11 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     this._buildTitle('💊 Treatment Steps', 'Tap the steps in order:  💊 → 💉 → ❤️ → 🩹');
 
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
-    // no intro/ending screen; drives progression instead of the tap-order puzzle below.
-    launchRandomMiniGame(this, 3, () => this._complete());
+    // no intro/ending screen. It must finish before the tap-order puzzle
+    // below is reachable (the iframe overlay blocks pointer input on it
+    // while open); on close it just steps aside into that real care step,
+    // and the decorative gold frame goes with it — only the arcade activity gets it.
+    launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
 
     // Gamma on table
     if (this.textures.exists('gemma_idle')) {

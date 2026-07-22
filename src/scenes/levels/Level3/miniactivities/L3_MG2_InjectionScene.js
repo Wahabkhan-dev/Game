@@ -14,7 +14,7 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    applyL3Frame(this);
+    const l3Frame = applyL3Frame(this);
 
     this._hits  = 0;
     this._done  = false;
@@ -36,9 +36,13 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     g.fillStyle(0x182838, 1); g.fillRoundedRect(310, H - 65, 360, 18, 4);
     g.lineStyle(1, 0x2a4a68, 0.6); g.strokeRoundedRect(310, H - 65, 360, 18, 4);
 
-    // Random mini-game from Level 3's slice of the 40 games — no intro/ending
-    // screen; hospital background/HUD stay visible, game overlays on top.
-    launchRandomMiniGame(this, 3, () => this._complete());
+    this._buildInjection();
+    // Random mini-game from Level 3's slice of the 40 games overlays on top —
+    // no intro/ending screen. It must finish before the syringe puzzle built
+    // above is reachable (the iframe overlay blocks pointer input on it while
+    // open); on close it just steps aside into that real care step, and the
+    // decorative gold frame goes with it — only the arcade activity gets it.
+    launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
   }
 
   _buildInjection() {

@@ -114,7 +114,10 @@ export function applyGlendaSkin(scene) {
   const origScale = player.scaleX;
   const worldBW   = player.body.width  * origScale;
   const worldBH   = player.body.height * origScale;
-  const odh       = player.displayHeight;
+  const SIZE_BOOST = 1.22;               // visual-only enlargement — matches L2/L4 GlendaSkin so
+                                          // Glenda renders at the SAME on-screen size in every level.
+  const odh0      = player.displayHeight;
+  const odh       = odh0 * SIZE_BOOST;
 
   const outH  = Math.max(1, Math.round(odh * SS));
   let outW = 1;
@@ -151,6 +154,10 @@ export function applyGlendaSkin(scene) {
   player.setTexture(IDLE_KEY);
   player.setScale(scale);
   player.body.setSize(worldBW / scale, worldBH / scale, true);
+  // Keep the ORIGINAL foot line: centred, the boosted sprite would sink by half
+  // the added height — push the body down within the frame so the extra height
+  // all goes UP instead (feet stay planted on the ground). Same as L2/L4.
+  player.body.setOffset(player.body.offset.x, player.body.offset.y + (odh - odh0) / 2 / scale);
   player.play('gleeda_idle_anim', true);
 
   console.log(`[L5 GlendaSkin] applied — out ${outW}×${outH}, scale ${scale.toFixed(3)}, world body ${worldBW.toFixed(0)}×${worldBH.toFixed(0)} (gameplay preserved).`);

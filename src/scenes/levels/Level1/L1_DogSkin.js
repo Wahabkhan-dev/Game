@@ -26,6 +26,17 @@ const RUN_KEY  = (i) => `l1dog_run_${i}`;
 const JUMP_KEY = (i) => `l1dog_jump_${i}`;
 const IDLE_KEY = 'l1dog_idle';
 
+// Phaser's texture manager is global to the GAME instance, not per-scene — so
+// on a level restart (scene.restart(), e.g. after losing all lives) the
+// l1dog_* textures are already the small, background-removed, cropped canvases
+// from the FIRST run. Re-running the chroma-key/bbox/redraw pipeline on those
+// (instead of the original raw frames) double-processes already-processed
+// pixels and visibly corrupts the sprite. This flag makes that pipeline run
+// exactly once per page load; every later call just re-applies the cached
+// scale to the (new) sprite instance.
+let _skinProcessed = false;
+let _cachedScale   = null;
+
 export function preloadDogSkin(scene) {
   // Report ONLY dog-frame failures by name (unrelated game 404s are ignored).
   scene.load.on('loaderror', (f) => {
@@ -47,6 +58,31 @@ export function applyDogSkin(scene) {
 
   const runKeys  = Array.from({ length: RUN_N },  (_, i) => RUN_KEY(i + 1));
   const jumpKeys = Array.from({ length: JUMP_N }, (_, i) => JUMP_KEY(i + 1));
+
+  // ── Capture the ORIGINAL gameplay dims (preserve them exactly). ──
+  // NOTE: Arcade body.width/height are SOURCE (unscaled) texture px, so the real
+  // world collision size = body.width * sprite.scale. We preserve that world size.
+  const origScale = scene.shadow.scaleX;                     // e.g. 0.18
+  const worldBW   = scene.shadow.body.width  * origScale;    // real world collision W (~73)
+  const worldBH   = scene.shadow.body.height * origScale;    // real world collision H (~56)
+
+  if (_skinProcessed) {
+    // Already processed once this page load — the l1dog_* textures are the
+    // small, final canvases from that run. Just re-apply the cached scale to
+    // this (new, post-restart) sprite instance without touching pixels again.
+    ['l1dog_walk', 'l1dog_idle_anim', 'l1dog_jump_anim'].forEach(a => { if (scene.anims.exists(a)) scene.anims.remove(a); });
+    scene.anims.create({ key: 'l1dog_walk',      frames: runKeys.map(key => ({ key })),  frameRate: 14, repeat: -1 });
+    scene.anims.create({ key: 'l1dog_idle_anim', frames: [{ key: IDLE_KEY }],            frameRate: 1,  repeat: -1 });
+    scene.anims.create({ key: 'l1dog_jump_anim', frames: jumpKeys.map(key => ({ key })), frameRate: 10, repeat: -1 });
+    scene._walkAnim = 'l1dog_walk';
+    scene._idleAnim = 'l1dog_idle_anim';
+    scene._jumpAnim = 'l1dog_jump_anim';
+    scene.shadow.setTexture(IDLE_KEY);
+    scene.shadow.setScale(_cachedScale);
+    scene.shadow.body.setSize(worldBW / _cachedScale, worldBH / _cachedScale, true);
+    scene.shadow.play('l1dog_idle_anim', true);
+    return;
+  }
 
   // ── Remove a flat backdrop (gray/white) by corner-sampling → alpha. ──
   const toCanvas = (src, chroma) => {
@@ -114,13 +150,7 @@ export function applyDogSkin(scene) {
     g.box = isFinite(gX) ? { x: gX, y: gY, w: gMaxX - gX + 1, h: gMaxY - gY + 1 } : { x: 0, y: 0, w: 1, h: 1 };
   }
 
-  // ── Capture the ORIGINAL gameplay dims (preserve them exactly). ──
-  // NOTE: Arcade body.width/height are SOURCE (unscaled) texture px, so the real
-  // world collision size = body.width * sprite.scale. We preserve that world size.
-  const origScale = scene.shadow.scaleX;                     // e.g. 0.18
-  const worldBW   = scene.shadow.body.width  * origScale;    // real world collision W (~73)
-  const worldBH   = scene.shadow.body.height * origScale;    // real world collision H (~56)
-  const odh       = scene.shadow.displayHeight;              // match the on-screen height
+  const odh = scene.shadow.displayHeight;              // match the on-screen height
 
   // Every group is scaled so its content is `outH` tall → uniform on-screen size.
   const outH  = Math.max(1, Math.round(odh * SS));
@@ -161,6 +191,9 @@ export function applyDogSkin(scene) {
   scene.shadow.setScale(scale);
   scene.shadow.body.setSize(worldBW / scale, worldBH / scale, true); // world stays worldBW×worldBH
   scene.shadow.play('l1dog_idle_anim', true);
+
+  _cachedScale   = scale;
+  _skinProcessed = true;
 
   console.log(`[L1 DogSkin] applied — out ${outW}×${outH}, scale ${scale.toFixed(3)}, world body ${worldBW.toFixed(0)}×${worldBH.toFixed(0)} (gameplay preserved).`);
 }

@@ -4,7 +4,7 @@ import { BaseLevelScene } from '../BaseLevelScene.js';
 import { L1HUD } from './hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from './L1_Scenery.js';
-import { pickRandomGame } from '../../../utils/MiniGamePicker.js';
+import { pickRandomGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { showStoryCard } from '../../../utils/VideoOverlay.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
@@ -89,6 +89,11 @@ export class Level1Scene extends BaseLevelScene {
   }
 
   create() {
+    // Fresh playthrough (including a restart after game over) — clear which
+    // mini-games have already been shown so none of Level 1's four trigger
+    // points (2 levers here + 2 in the food bonus round) can repeat one.
+    resetGameHistory(1);
+
     const config = {
       worldWidth: 17000,
       startX: 80, startY: 370,
@@ -284,19 +289,6 @@ export class Level1Scene extends BaseLevelScene {
       this.physics.add.collider(this.shadow, blocker);
     });
 
-    // ── Fountain obstacles — jump over the stone base ──────────────────────
-    [{ x: 500 }, { x: 3500 }].forEach(fo => {
-      const fx = fo.x;
-      this.add.image(fx, H - 48, 'fountain').setDisplaySize(44, 60).setDepth(9);
-      const fbase = this.physics.add.staticImage(fx, H - 43, '__DEFAULT').setAlpha(0);
-      fbase.setDisplaySize(36, 50).refreshBody();
-      this.physics.add.collider(this.shadow, fbase);
-      for (let i = 0; i < 3; i++) {
-        const drop = this.add.ellipse(fx + (i - 1) * 9, H - 74, 7, 11, 0x4ab4ff, 0.88).setDepth(10);
-        this.tweens.add({ targets: drop, y: H - 110, alpha: 0, duration: 580 + i * 130, delay: i * 210, repeat: -1 });
-      }
-    });
-
     // ── Boulder gauntlet (Zone 1) ─────────────────────────────────────────
     this._boulderGroup = this.physics.add.group();
     this.physics.add.overlap(this.shadow, this._boulderGroup, (s, boulder) => {
@@ -402,7 +394,7 @@ export class Level1Scene extends BaseLevelScene {
     this.physics.add.collider(this.snake, this.groundGroup);
 
     this.time.delayedCall(1200, () =>
-      this._showMessage('Dodge porcupines, jump fountains & logs! Reach the lever! 🐾')
+      this._showMessage('Dodge porcupines, jump logs! Reach the lever! 🐾')
     );
 
     // ── Test-phase zone skip (set from menu test buttons) ─────────────────

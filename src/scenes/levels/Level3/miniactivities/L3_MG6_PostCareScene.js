@@ -14,7 +14,7 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    applyL3Frame(this);
+    const l3Frame = applyL3Frame(this);
 
     this._done    = false;
     this._fed     = false;
@@ -29,7 +29,7 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     // below is reachable (the iframe overlay sits above the canvas and blocks
     // pointer input on the drag zones while it's open); on close it just steps
     // aside into the care step instead of completing the scene outright.
-    launchRandomMiniGame(this, 3, () => { this._miniGameDone = true; });
+    launchRandomMiniGame(this, 3, () => { this._miniGameDone = true; l3Frame?.setVisible(false); });
 
     // Gamma on bed, happy
     if (this.textures.exists('gemma_happy')) {

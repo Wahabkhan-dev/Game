@@ -14,7 +14,7 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    applyL3Frame(this);
+    const l3Frame = applyL3Frame(this);
 
     this._hits   = 0;
     this._onBeat = false;
@@ -27,8 +27,11 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     this._buildTitle('💚 Heart Monitor', 'Tap SPACE or the ❤️ button when the cursor enters the GREEN zone  (4 times)');
 
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
-    // no intro/ending screen; drives progression instead of the tap puzzle below.
-    launchRandomMiniGame(this, 3, () => this._complete());
+    // no intro/ending screen. It must finish before the EKG tap puzzle below
+    // is reachable (the iframe overlay blocks pointer/keyboard input on it
+    // while open); on close it just steps aside into that real care step, and
+    // the decorative gold frame goes with it — only the arcade activity gets it.
+    launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
 
     // Characters
     if (this.textures.exists('gemma_idle'))  this.add.image(560, H - 50, 'gemma_idle').setDisplaySize(150, 82).setOrigin(0.5, 1).setDepth(8).setTint(0xffcccc);

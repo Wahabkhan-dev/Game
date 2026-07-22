@@ -15,7 +15,7 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
-    applyL3Frame(this);
+    const l3Frame = applyL3Frame(this);
 
     this._correct = 0;
     this._wrong   = 0;
@@ -24,9 +24,15 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
 
     this._buildHUD(1);
     this._buildTitle('💊 Select the correct medicines!', 'Drag GREEN bottles to the tray. Avoid RED ones.');
-    // Random mini-game from Level 3's slice of the 40 games — no intro/ending
-    // screen; hospital background/HUD stay visible, game overlays on top.
-    launchRandomMiniGame(this, 3, () => this._complete());
+    this._buildTable();
+    this._buildTray();
+    this._buildBottles();
+    // Random mini-game from Level 3's slice of the 40 games overlays on top —
+    // no intro/ending screen. It must finish before the medicine-tray puzzle
+    // built above is reachable (the iframe overlay blocks pointer input on it
+    // while open); on close it just steps aside into that real care step, and
+    // the decorative gold frame goes with it — only the arcade activity gets it.
+    launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
 
     // Gleeda guide
     if (this.textures.exists('gleeda_idle')) {

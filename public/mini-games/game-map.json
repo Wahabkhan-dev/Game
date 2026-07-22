@@ -13,12 +13,18 @@
     "05-word-builder",
     "06-animal-sound-match"
   ],
+  "_removed_from_rotation": [
+    "07-addition-bubbles",
+    "21-continent-country-tap",
+    "18-body-parts-labeling"
+  ],
   "Level3": [
     "25-opposites-match",
     "08-memory-flip-cards",
     "11-missing-letter-fill",
     "12-coin-counting",
-    "13-days-of-week-order"
+    "13-days-of-week-order",
+    "30-counting-by-groups"
   ],
   "Level4": [
     "14-emotion-matching",
@@ -27,10 +33,9 @@
     "17-traffic-light-rules"
   ],
   "Level5": [
-    "18-body-parts-labeling",
+    "10-sorting-by-size",
     "19-weather-dress-up",
-    "20-musical-instrument-match",
-    "21-continent-country-tap"
+    "20-musical-instrument-match"
   ],
   "Level6": [
     "23-shadow-matching",

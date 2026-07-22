@@ -379,9 +379,8 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
         .setScrollFactor(0).setDepth(60).setOrigin(0.5, 0);
       this._rainDrops.push({ obj: drop, speed });
     }
-    // dark rain overlay
-    this._rainOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0x101828, 0.22)
-      .setScrollFactor(0).setDepth(59);
+    // Rain drops only (no dark overlay) — keeps Level 5 the same overall
+    // brightness as Level 4 instead of a permanent 22%-dark tint over everything.
   }
 
   _updateRain() {

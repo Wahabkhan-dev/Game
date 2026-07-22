@@ -505,19 +505,34 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     });
   }
 
+  // ── Shared modal chrome for the two in-car puzzles ──────────────────────────
+  // Uses the SAME wood/gold modal artwork (l3_modal_frame, loaded in BootScene)
+  // that every other Level-3 mini-activity shows via applyL3Frame() — so the car
+  // journey's Bridge and Bolt puzzles read as the same kind of activity, not a
+  // plain brown card. Content is drawn on top at depth 62+ and is untouched.
+  _carPuzzleFrame(panel) {
+    panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
+      .setDepth(60).setScrollFactor(0));
+    if (this.textures.exists('l3_modal_frame')) {
+      // Sized so the content (≈460×290) sits on the wood centre, inside the gold border.
+      panel.push(this.add.image(W / 2, H / 2, 'l3_modal_frame')
+        .setDisplaySize(600, 380).setDepth(61).setScrollFactor(0));
+    } else {
+      // Fallback: the original brown card if the art ever fails to load.
+      const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
+      pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
+      pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
+      panel.push(pg);
+    }
+  }
+
   // ── BRIDGE PUZZLE ─────────────────────────────────────────────────────────────
   _showBridgePuzzle(hole) {
     this.cameras.main.shake(180, 0.01);
     const panel = [];
 
-    panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
-      .setDepth(60).setScrollFactor(0));
-
-    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-    panel.push(pg);
+    this._carPuzzleFrame(panel);
 
     panel.push(this.add.text(W/2, H/2 - 120, '🌉 Build the Bridge!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3
@@ -636,15 +651,8 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.cameras.main.shake(180, 0.01);
     const panel = [];
 
-    // ── Panel chrome (matches the bridge puzzle) ──────────────────────────────
-    panel.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
-      .setDepth(60).setScrollFactor(0));
-
-    const pg = this.add.graphics().setDepth(61).setScrollFactor(0);
-    pg.fillStyle(0x2a1608, 0.97); pg.fillRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.lineStyle(3, 0xa0602a, 0.9); pg.strokeRoundedRect(W/2 - 230, H/2 - 145, 460, 290, 14);
-    pg.fillStyle(0x5a3010, 0.6);   pg.fillRect(W/2 - 230, H/2 - 125, 460, 8);
-    panel.push(pg);
+    // ── Panel chrome (same wood/gold modal as the other Level-3 activities) ────
+    this._carPuzzleFrame(panel);
 
     panel.push(this.add.text(W/2, H/2 - 120, '🔧 Tighten the Bolts!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3

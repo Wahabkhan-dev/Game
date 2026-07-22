@@ -19,9 +19,9 @@ async function loadGameMap() {
     return {
       Level1: ['09-pattern-sequence', '03-shape-sorter', '10-sorting-by-size', '22-fruit-vegetable-sort'],
       Level2: ['01-alphabet-catch', '02-number-match', '04-color-mixing-lab', '05-word-builder', '06-animal-sound-match'],
-      Level3: ['25-opposites-match', '08-memory-flip-cards', '11-missing-letter-fill', '12-coin-counting', '13-days-of-week-order'],
+      Level3: ['25-opposites-match', '08-memory-flip-cards', '11-missing-letter-fill', '12-coin-counting', '13-days-of-week-order', '30-counting-by-groups'],
       Level4: ['14-emotion-matching', '15-rhyme-time', '16-plant-growth-sequence', '17-traffic-light-rules'],
-      Level5: ['18-body-parts-labeling', '19-weather-dress-up', '20-musical-instrument-match', '21-continent-country-tap'],
+      Level5: ['10-sorting-by-size', '19-weather-dress-up', '20-musical-instrument-match'],
       Level6: ['23-shadow-matching', '24-time-telling-clock', '25-opposites-match', '26-space-objects-match'],
       Level7: ['27-community-helpers-match', '28-sink-or-float', '29-odd-one-out', '30-counting-by-groups'],
       Level8: ['31-vowel-consonant-sort', '32-multiplication-groups', '33-seasons-sort', '34-feelings-story-choice', '35-compound-word-builder'],
@@ -37,18 +37,43 @@ async function getGamesForLevel(levelNum) {
   return gameMap[levelKey] || [];
 }
 
-// Remember the last game shown per level so we don't repeat back-to-back.
+// Every game already shown this level PLAYTHROUGH, per level — so a level
+// with several trigger points (e.g. Level 1's two levers + its food bonus
+// round) never shows the same activity twice in one run, not just avoids an
+// immediate back-to-back repeat. Call resetGameHistory(levelNum) whenever a
+// level starts a fresh playthrough (including on restart after game over).
+const _usedThisSession = {};
 const _lastPick = {};
 
-// Pick a random game from a level's game list (avoids immediate repeat)
+// Clears the used-game history for a level — call at the start of a fresh
+// playthrough (e.g. the top of that level's Scene.create()).
+function resetGameHistory(levelNum) {
+  _usedThisSession[levelNum] = new Set();
+  delete _lastPick[levelNum];
+}
+
+// Pick a random game from a level's game list, avoiding every game already
+// shown this playthrough. Once the whole pool has been used, it reopens
+// (so long levels don't run out) but still skips an immediate repeat.
 async function pickRandomGame(levelNum) {
   const games = await getGamesForLevel(levelNum);
   if (games.length === 0) return null;
   if (games.length === 1) return games[0];
-  let pick;
-  do {
-    pick = games[Math.floor(Math.random() * games.length)];
-  } while (pick === _lastPick[levelNum]);
+
+  if (!_usedThisSession[levelNum]) _usedThisSession[levelNum] = new Set();
+  const used = _usedThisSession[levelNum];
+
+  let pool = games.filter(g => !used.has(g));
+  if (pool.length === 0) {
+    // Whole pool used this playthrough — reopen it, but still avoid
+    // an immediate repeat of whatever was just shown.
+    used.clear();
+    pool = games.filter(g => g !== _lastPick[levelNum]);
+    if (pool.length === 0) pool = games;
+  }
+
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  used.add(pick);
   _lastPick[levelNum] = pick;
   return pick;
 }
@@ -160,5 +185,5 @@ async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
 }
 
 export {
-  loadGameMap, getGamesForLevel, pickRandomGame, getGameSequence, launchRandomMiniGame
+  loadGameMap, getGamesForLevel, pickRandomGame, resetGameHistory, getGameSequence, launchRandomMiniGame
 };

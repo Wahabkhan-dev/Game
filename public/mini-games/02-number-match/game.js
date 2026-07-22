@@ -28,9 +28,14 @@
   function makeApple(){
     const a = el('.tile', {style:'width:56px;height:56px;font-size:32px;border-radius:50%;'}, '🍎');
     enableDrag(a, {onDrop:(under)=>{
+      // Two-way drag: drop ON the basket → into the basket; drop ANYWHERE else →
+      // return the apple to the tray (its old home), so a wrong count is fixable.
       if(under && (under===basket || basket.contains(under))){
-        basket.appendChild(a); resetPos(a); a.style.cursor='default'; a.dataset.in='1'; recount();
-      } else resetPos(a);
+        basket.appendChild(a); a.dataset.in='1';
+      } else {
+        tray.appendChild(a);   a.dataset.in='';
+      }
+      resetPos(a); recount();
     }});
     return a;
   }
