@@ -1498,7 +1498,7 @@ export class Level5Scene extends Phaser.Scene {
           // (skip the extra nursery-decorating mini-game).
           playVideoOverlay(this, 'l5_conclusion', () => {
             this.cameras.main.fadeOut(800, 0, 0, 0);
-            this.time.delayedCall(850, () => this.scene.start('L5_Nursery', { stars, skipDecorate: true }));
+            this.time.delayedCall(850, () => this.scene.start('L5_Nursery', { stars, skipFinale: true }));
           });
         });
       });

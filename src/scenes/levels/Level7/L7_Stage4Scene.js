@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL7Assets } from './L7Assets.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
+import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 4 — DRIVE TO HOSPITAL  (rainy city highway)
@@ -38,12 +39,26 @@ const CFG = {
 const CAR_TEX = (scene) => scene.textures.exists('l7_jeep_fixed') ? 'l7_jeep_fixed'
                          : scene.textures.exists('l3_car') ? 'l3_car' : 'l7_jeep_side';
 
+// Level-3 animated car frame keys + playback rate (matches Level 3's car journey)
+const CAR_FRAMES = Array.from({ length: 9 }, (_, i) => `l7s4_car_${i + 1}`);
+const CAR_FPS = 14;
+
 export class L7_Stage4Scene extends Phaser.Scene {
   constructor() { super('L7_Stage4'); }
 
   preload() {
     if (!this.textures.exists('l7_jeep_fixed')) this.load.image('l7_jeep_fixed', 'assets/images/Level7/Stage2/l7_jeep_fixed.png');
     if (!this.textures.exists('l3_car')) this.load.image('l3_car', 'assets/images/Level 3/l3_car.png');
+    // Level-3-matched driving art (copied into Level 7/Stage4): city background,
+    // road-bottom deck, and the 9-frame animated car — so Stage 4 looks/drives
+    // exactly like Level 3's car journey.
+    const S4 = 'assets/images/Level 7/Stage4/';
+    if (!this.textures.exists('l7s4_bg'))   this.load.image('l7s4_bg',   `${S4}city-bg.png`);
+    if (!this.textures.exists('l7s4_road')) this.load.image('l7s4_road', `${S4}road-bottom.png`);
+    for (let i = 1; i <= 9; i++) {
+      const key = `l7s4_car_${i}`;
+      if (!this.textures.exists(key)) this.load.image(key, `${S4}car/frame_${String(i).padStart(3, '0')}.png`);
+    }
   }
 
   create() {
@@ -74,80 +89,95 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._buildObjectives();
     this._buildControls();
 
-    this.time.delayedCall(600, () => this._toast('🚗 ▶/D = accelerate · ◀/A = brake.  Slow for 🛑 breakers & 🚦 red lights!', 4000));
+    // V6 plays at the start of Stage 4, before the drive begins. Freeze the
+    // driving loop (update() early-returns while _paused) until it finishes.
+    this._paused = true;
+    playVideoSequence(this, ['l7_v6'], () => {
+      this._paused = false;
+      this.time.delayedCall(300, () => this._toast('🚗 ▶/D = accelerate · ◀/A = brake.  Slow for 🛑 breakers & 🚦 red lights!', 4000));
+    });
   }
 
-  // ── BACKGROUND ───────────────────────────────────────────────────────────────
+  // ── BACKGROUND — Level 3's city art, anchored so its baked-in street level
+  // lands exactly at ROAD_TOP (same technique as Level 3's car journey). ───────
   _buildBackground() {
     this.add.rectangle(W / 2, H / 2, W, H, 0x0c1322, 1).setDepth(-20);
-    this._sky = this.add.tileSprite(W / 2, H / 2 - 30, W, H, 'l7_s4_sky').setDepth(-15);
+    if (this.textures.exists('l7s4_bg')) {
+      const src   = this.textures.get('l7s4_bg').getSourceImage();
+      const srcH  = src.naturalHeight || src.height || ROAD_TOP;
+      const dispH = ROAD_TOP;
+      this._bgCity = this.add.tileSprite(W / 2, dispH / 2, W, dispH, 'l7s4_bg').setDepth(-15);
+      this._bgCity.tileScaleX = this._bgCity.tileScaleY = dispH / srcH;
+    } else {
+      this._sky = this.add.tileSprite(W / 2, H / 2 - 30, W, H, 'l7_s4_sky').setDepth(-15);
+    }
     this._fog = this.add.tileSprite(W / 2, ROAD_TOP - 50, W, 110, 'l7_fog').setDepth(-6).setAlpha(0.4);
     const fl = this.add.rectangle(W / 2, H / 2, W, H, 0xbcd0f0, 0).setDepth(-4);
     this.time.addEvent({ delay: 7000, loop: true, callback: () => { if (!this._done) this.tweens.add({ targets: fl, alpha: 0.18, duration: 110, yoyo: true }); } });
   }
 
-  // ── LAYERED ASPHALT ROAD ────────────────────────────────────────────────────
+  // ── ROAD DECK — Level 3's road-bottom art, tiled + scrolled horizontally.
+  // Fills from ROAD_TOP down to the screen bottom, just like Level 3. Motion
+  // comes from scrolling the tile in update(), so no procedural lane dashes. ──
   _buildRoad() {
-    const RS = ROAD_TOP;
-    const roadG = this.add.graphics().setDepth(1).setScrollFactor(0);
-    roadG.fillStyle(0x242636, 1); roadG.fillRect(0, RS, W, ROAD_H);
-    roadG.fillStyle(0x2e3044, 1); roadG.fillRect(0, RS + 8, W, ROAD_H - 8);
-    roadG.fillStyle(0x3a4a66, 0.12); roadG.fillRect(0, RS + 8, W, 16);
-
-    const bg = this.add.graphics().setDepth(0).setScrollFactor(0);
-    const deckBot = RS + ROAD_H, underH = H - deckBot;
-    bg.fillStyle(0x12152a, 1); bg.fillRect(0, deckBot, W, underH);
-    bg.fillStyle(0x363a54, 1); bg.fillRect(0, deckBot, W, 8);
-    bg.fillStyle(0x44485e, 1); bg.fillRect(0, deckBot, W, 3);
-    for (let px = 40; px < W + 60; px += 180) {
-      bg.fillStyle(0x1c1f38, 1); bg.fillRect(px, deckBot + 7, 26, underH - 7);
-      bg.fillStyle(0x282c44, 0.9); bg.fillRect(px + 3, deckBot + 7, 8, underH - 7);
-      bg.fillStyle(0x303250, 1); bg.fillRect(px - 3, deckBot + 6, 32, 5);
+    const RS = ROAD_TOP, roadH = H - RS;
+    if (this.textures.exists('l7s4_road')) {
+      const src  = this.textures.get('l7s4_road').getSourceImage();
+      const srcH = src.naturalHeight || src.height || 81;
+      this._roadTile = this.add.tileSprite(W / 2, RS + roadH / 2, W, roadH, 'l7s4_road')
+        .setDepth(1).setScrollFactor(0);
+      this._roadTile.tileScaleX = this._roadTile.tileScaleY = roadH / srcH;
+    } else {
+      const roadG = this.add.graphics().setDepth(1).setScrollFactor(0);
+      roadG.fillStyle(0x28293a, 1); roadG.fillRect(0, RS, W, roadH);
+      roadG.fillStyle(0x32344a, 1); roadG.fillRect(0, RS + 8, W, roadH - 8);
     }
-    bg.fillStyle(0x20223a, 1); bg.fillRect(0, H - 6, W, 6);
-
-    this.add.rectangle(W / 2, RS + 2, W, 4, 0xf0c040, 1).setDepth(3).setScrollFactor(0);
-    this.add.rectangle(W / 2, DRIVE_Y - 24, W, 2, 0xffffff, 0.12).setDepth(3).setScrollFactor(0);
-    this.add.rectangle(W / 2, DRIVE_Y + 18, W, 2, 0xffffff, 0.12).setDepth(3).setScrollFactor(0);
-    this.add.rectangle(W / 2, RS + ROAD_H - 3, W, 6, 0x4a4a55, 1).setDepth(3).setScrollFactor(0);
-
-    this._dashGfx  = this.add.graphics().setDepth(3).setScrollFactor(0);
-    this._jointGfx = this.add.graphics().setDepth(2).setScrollFactor(0);
   }
 
-  _drawDashes() {
-    const off = Math.floor(this._distance) % 60;
-    this._dashGfx.clear(); this._dashGfx.fillStyle(0xffffff, 0.8);
-    for (let dx = -(off + 60); dx < W + 60; dx += 60) this._dashGfx.fillRect(dx, DRIVE_Y - 5, 40, 3);
-  }
-  _drawJoints() {
-    const P = 120, off = Math.floor(this._distance) % P;
-    this._jointGfx.clear(); this._jointGfx.lineStyle(1, 0x3a3c50, 1);
-    for (let dx = -(off + P); dx < W + P; dx += P) this._jointGfx.lineBetween(dx, ROAD_TOP + 4, dx, ROAD_TOP + ROAD_H - 4);
-  }
-
-  // ── PLAYER CAR (repaired jeep from the puncture stage) with spinning wheels ──
+  // ── PLAYER CAR — Level 3's 9-frame animated car (same sprite/spirit). Kept
+  // inside a container so the existing bob / shake / beam code still targets
+  // this._carC exactly as before. Frames advance while moving (see _updateCarAnim). ──
   _buildCar() {
-    const tex = CAR_TEX(this);
-    const isJeep = (tex === 'l7_jeep_fixed' || tex === 'l7_jeep_side');
-    const src = this.textures.get(tex).getSourceImage();
-    const bh = isJeep ? 104 : 82;                 // body display height
-    const bw = bh * src.width / src.height;       // preserve aspect
-    const carY = DRIVE_Y + (isJeep ? 8 : 17);     // sit wheels on the road
+    const hasFrames = this.textures.exists(CAR_FRAMES[0]);
+    const bh = 82;                                // body display height (matches L3 CAR_H)
+    const carY = DRIVE_Y + 17;                    // sit wheels on the road
     this._carGroundY = carY;
-    this._carShadow = this.add.ellipse(CAR_X, DRIVE_Y + 2, bw * 0.78, 12, 0x000000, 0.3).setDepth(4);
-    // body + two spinning wheels in one container (bob/tilt/swerve together)
-    const body = this.add.image(0, 0, tex).setOrigin(0.5, 1).setDisplaySize(bw, bh);
-    // wheel placement + look depends on which vehicle
-    const wTex = isJeep ? 'l7_jeepwheel' : 'l7_carwheel';
-    const wSize = isJeep ? 42 : 28;
-    const wx = isJeep ? bw * 0.305 : 39;
-    const wy = isJeep ? -bh * 0.16 : -15;
-    const wr = this.add.image(-wx, wy, wTex).setDisplaySize(wSize, wSize);   // rear (left)
-    const wf = this.add.image(wx, wy, wTex).setDisplaySize(wSize, wSize);    // front (right)
-    this._wheels = [wr, wf];
-    this._carC = this.add.container(CAR_X, carY, [body, wr, wf]).setDepth(9);
+
+    let bw = bh * 2.5;
+    if (hasFrames) {
+      const src = this.textures.get(CAR_FRAMES[0]).getSourceImage();
+      bw = bh * (src.width / src.height);         // preserve the frame's real aspect
+    }
+    this._carShadow = this.add.ellipse(CAR_X, DRIVE_Y + 2, bw * 0.72, 12, 0x000000, 0.3).setDepth(4);
+
+    const firstTex = hasFrames ? CAR_FRAMES[0] : CAR_TEX(this);
+    const body = this.add.image(0, 0, firstTex).setOrigin(0.5, 1).setDisplaySize(bw, bh);
+    this._carBody = body;
+    this._wheels  = null;                          // no separate wheels — frames animate the whole car
+    this._carAnimated   = hasFrames;
+    this._carFrameIdx   = 0;
+    this._carFrameTimer = 0;
+    this._carC = this.add.container(CAR_X, carY, [body]).setDepth(9);
     this._beam = this.add.graphics().setDepth(8);
+  }
+
+  // Advance the car frame sequence while moving; hold frame 0 when stopped —
+  // same RUN_FPS pacing as Level 3's car journey.
+  _updateCarAnim(delta) {
+    if (!this._carAnimated) return;
+    if (this._speed > 0.05) {
+      this._carFrameTimer += delta;
+      const msPerFrame = 1000 / CAR_FPS;
+      while (this._carFrameTimer >= msPerFrame) {
+        this._carFrameTimer -= msPerFrame;
+        this._carFrameIdx = (this._carFrameIdx + 1) % CAR_FRAMES.length;
+      }
+      this._carBody.setTexture(CAR_FRAMES[this._carFrameIdx]);
+    } else {
+      this._carFrameTimer = 0;
+      this._carFrameIdx = 0;
+      this._carBody.setTexture(CAR_FRAMES[0]);
+    }
   }
 
   // ── HURDLE: SPEED BREAKERS (brake or take damage) ──────────────────────────
@@ -378,11 +408,16 @@ export class L7_Stage4Scene extends Phaser.Scene {
       else if (brake) this._speed = Math.max(0, this._speed - CFG.BRAKE * FF);
       else            this._speed = Math.max(0, this._speed - CFG.FRICTION * FF);
       this._distance += this._speed * FF;
-      if (this._sky) this._sky.tilePositionX += this._speed * FF * 0.18;
-      if (this._fog) this._fog.tilePositionX += this._speed * FF * 0.25;
+      const scroll = this._speed * FF;
+      // City bg drifts slowly for depth; the road deck scrolls at full speed
+      // (converted through its own tileScale, same as Level 3's car journey).
+      if (this._bgCity)  this._bgCity.tilePositionX  += scroll * 0.12 / (this._bgCity.tileScaleX || 1);
+      if (this._roadTile) this._roadTile.tilePositionX += scroll / (this._roadTile.tileScaleX || 1);
+      if (this._sky) this._sky.tilePositionX += scroll * 0.18;
+      if (this._fog) this._fog.tilePositionX += scroll * 0.25;
     }
 
-    this._drawDashes(); this._drawJoints();
+    this._updateCarAnim(delta);
     this._positionObjects(FF);
     this._checkBreakers();
     this._checkSignals();
@@ -390,7 +425,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._checkQTEs();
     this._checkClimb();
 
-    // car bob + spinning wheels
+    // car bob (the frame animation handles the wheels now)
     const bob = Math.sin(time * 0.02) * (this._speed > 0.4 ? 1.4 : 0.4);
     this._carC.y = this._carGroundY + bob;
     const spin = this._speed * 0.10 * FF;
@@ -538,10 +573,12 @@ export class L7_Stage4Scene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 + 14, 'Hospital Reached!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 48, `Puppies' safety: ${this._lives}/3 ❤️`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.time.delayedCall(2000, () => {
-        this.cameras.main.fadeOut(700, 0, 0, 0);
-        this.time.delayedCall(740, () => {
-          this._wakeLoop();
-          this.scene.start('L7_Stage5');
+        // V7 plays after reaching the hospital, then on to Stage 5.
+        playVideoSequence(this, ['l7_v7'], () => {
+          this.cameras.main.fadeOut(700, 0, 0, 0);
+          this.time.delayedCall(740, () => {
+            this._forceSceneStart('L7_Stage5');
+          });
         });
       });
     });
@@ -556,16 +593,42 @@ export class L7_Stage4Scene extends Phaser.Scene {
     } catch (_) {}
   }
 
+  // Same retry-polling safety net as L7BaseScene._forceSceneStart — a single
+  // _wakeLoop() call isn't enough since scene.start() only gets PROCESSED on
+  // the next loop tick, and if that tick never comes (RAF stalled from a
+  // webview focus loss) the game silently stays on this scene forever.
+  _forceSceneStart(nextScene, nextData = {}) {
+    this._wakeLoop();
+    this.scene.start(nextScene, nextData);
+    let tries = 0;
+    const iv = setInterval(() => {
+      const sceneObj = this.game.scene.getScene(nextScene);
+      const status = sceneObj ? sceneObj.sys.settings.status : -1;
+      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
+      if (status === 8 || status === 9) { clearInterval(iv); return; }
+      this._wakeLoop();
+      try {
+        const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        this.game.step(t, 16);
+      } catch (_) {}
+      if (++tries >= 300) clearInterval(iv);
+    }, 50);
+  }
+
   _gameOver(msg) {
     if (this._done) return;
     this._done = true; this._speed = 0;
     this._timerEvt?.remove();
     this.registry.set('lives', 3);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 - 50, '💔', { fontSize: '50px' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 + 6, msg, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ff6677', align: 'center', stroke: '#000', strokeThickness: 3, lineSpacing: 6 }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 + 64, '↺ Tap to try again', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-    this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this.scene.restart()); });
+    // V8 = the "exceptional" cinematic — plays when the player runs out of lives
+    // before reaching the hospital — then shows the try-again screen.
+    playVideoSequence(this, ['l7_v8'], () => {
+      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60).setScrollFactor(0);
+      this.add.text(W / 2, H / 2 - 50, '💔', { fontSize: '50px' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
+      this.add.text(W / 2, H / 2 + 6, msg, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ff6677', align: 'center', stroke: '#000', strokeThickness: 3, lineSpacing: 6 }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
+      this.add.text(W / 2, H / 2 + 64, '↺ Tap to try again', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
+      this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this.scene.restart()); });
+    });
   }
 
   _updateHUD() {

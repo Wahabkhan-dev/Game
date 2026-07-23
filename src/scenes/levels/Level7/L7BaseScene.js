@@ -3,6 +3,8 @@ import { W, H } from '../../../config/GameConfig.js';
 import { applyGlendaSkin } from './L7_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L7BaseScene — shared scaffolding for every Level 7 stage:
@@ -220,6 +222,21 @@ export class L7BaseScene extends Phaser.Scene {
     this.panelButton(td, W / 2, py + ph - 38, '▶  Play', 0x7dff88, () => { close(true); onPlay(); }, 150, 42);
   }
 
+  // ── Level 7 cinematics ──────────────────────────────────────────────────────
+  // Play one or more story videos back-to-back over this stage, with gameplay
+  // frozen (_busy) the whole time, then run onDone. Used both for start-of-stage
+  // intros (call in create, onDone omitted) and end-of-stage bridges (onDone
+  // advances to the next scene).
+  playStoryVideos(keys, onDone) {
+    this._busy = true;
+    if (this.physics?.world) this.physics.pause();
+    playVideoSequence(this, keys, () => {
+      this._busy = false;
+      if (this.physics?.world) this.physics.resume();
+      if (onDone) onDone();
+    });
+  }
+
   // ── Toast / message ─────────────────────────────────────────────────────────
   toast(msg, ms = 2200) {
     if (this._toastObj) { try { this._toastObj.destroy(); } catch (_) {} }
@@ -259,13 +276,12 @@ export class L7BaseScene extends Phaser.Scene {
     if (this._lives <= 0) {
       this._busy = true;
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setScrollFactor(0).setDepth(110);
-      this.add.text(W / 2, H / 2 - 10, '💔 Out of lives — try again', {
-        fontSize: '22px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 3
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
-      this.time.delayedCall(1700, () => {
+      this.time.delayedCall(400, () => {
         this.registry.set('lives', 3);
-        this.cameras.main.fadeOut(450, 0, 0, 0);
-        this.time.delayedCall(480, () => this.scene.restart());
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(450, 0, 0, 0);
+          this.time.delayedCall(480, () => this.scene.restart());
+        });
       });
     } else {
       this.toast(`💔 Life lost — ${this._lives} left`);
@@ -320,6 +336,31 @@ export class L7BaseScene extends Phaser.Scene {
       if (l.hasFocus === false) l.hasFocus = true;
       if (l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
     } catch (_) {}
+  }
+
+  // Force a scene transition to actually take effect even if the RAF loop
+  // stalled right as it fired — a single _wakeLoop() call isn't enough,
+  // because scene.start() only gets PROCESSED on the next loop tick, and if
+  // that tick never comes the game silently stays on the old scene forever
+  // (this is what made stage-to-stage progress randomly get stuck). Retries
+  // game.step() until the target scene is confirmed active, or gives up
+  // after ~15s.
+  _forceSceneStart(nextScene, nextData = {}) {
+    this._wakeLoop();
+    this.scene.start(nextScene, nextData);
+    let tries = 0;
+    const iv = setInterval(() => {
+      const sceneObj = this.game.scene.getScene(nextScene);
+      const status = sceneObj ? sceneObj.sys.settings.status : -1;
+      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
+      if (status === 8 || status === 9) { clearInterval(iv); return; }
+      this._wakeLoop();
+      try {
+        const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        this.game.step(t, 16);
+      } catch (_) {}
+      if (++tries >= 300) clearInterval(iv);
+    }, 50);
   }
 
   // ── Pause menu — finalized wood/gold Game-Menu modal (approved via Theme Design)

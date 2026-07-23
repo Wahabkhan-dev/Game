@@ -6,6 +6,7 @@ import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from './L1_Scenery.js';
 import { pickRandomGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { showStoryCard } from '../../../utils/VideoOverlay.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 1 — Three zones: Easy → Medium → Boss → Free Gemma
@@ -48,15 +49,19 @@ export class Level1Scene extends BaseLevelScene {
   // the exceptional.mp4 cinematic, then restart the level.
   _handleGameOver() {
     showStoryCard(this, '🐍  Gemma was bitten by a snake…', () => {
-      this._playVideoOverlay('l1_gameover_video', () => {
-        this.registry.set('lives', 3);
-        this.registry.set('shadowHP', 3);
-        // Guaranteed reset — the death tween's own cleanup may not have run
-        // yet (or may get cut short) by the time the level restarts.
-        this.shadow.clearTint();
-        this.shadow.setAlpha(1);
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(550, () => this.scene.restart());
+      showStoryCard(this, '💔  You couldn\'t save Gemma in time…', () => {
+        this._playVideoOverlay('l1_gameover_video', () => {
+          this.registry.set('lives', 3);
+          this.registry.set('shadowHP', 3);
+          // Guaranteed reset — the death tween's own cleanup may not have run
+          // yet (or may get cut short) by the time the level restarts.
+          this.shadow.clearTint();
+          this.shadow.setAlpha(1);
+          showTryAgainModal(this, () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(550, () => this.scene.restart());
+          });
+        });
       });
     });
   }
@@ -255,14 +260,11 @@ export class Level1Scene extends BaseLevelScene {
       this._thorns.push({ x: tx - 12, y: 370, w: 30, h: 30 });
     });
 
-    // ── Water gap visuals (Zone 1 short gaps) ─────────────────────────────
+    // ── Gap visuals (Zone 1 short gaps) — plain dark pit, no water ────────
     [{ x: 700, w: 110 }, { x: 1900, w: 110 }, { x: 3200, w: 110 }].forEach(gap => {
       const cx = gap.x + gap.w / 2;
-      this.add.rectangle(cx, H - 18, gap.w + 4, 36, 0x1a4fa0, 1).setDepth(3);
-      this.add.rectangle(cx, H - 26, gap.w, 10, 0x4a90dd, 0.6).setDepth(4);
-      const ripple = this.add.rectangle(cx, H - 30, gap.w - 8, 3, 0x7abfff, 0.7).setDepth(4);
-      this.tweens.add({ targets: ripple, alpha: { from: 0.25, to: 0.9 }, scaleX: { from: 0.85, to: 1 }, duration: 720, yoyo: true, repeat: -1 });
-      this.add.text(cx, H - 56, '💧', { fontSize: '13px' }).setOrigin(0.5).setDepth(5);
+      this.add.rectangle(cx, H - 18, gap.w + 4, 36, 0x0a0806, 1).setDepth(3);
+      this.add.rectangle(cx, H - 26, gap.w, 10, 0x1a1410, 0.6).setDepth(4);
     });
 
     // ── Dark swamp water for Zone 3 gaps ──────────────────────────────────
@@ -767,7 +769,10 @@ export class Level1Scene extends BaseLevelScene {
   }
 
   update() {
-    if (this._pauseMenuOpen) return;
+    // While a mini-game overlay is open, freeze EVERYTHING in the level —
+    // hurdles/hazards must not be able to cost a life while the player is
+    // stuck inside the puzzle with no way to dodge.
+    if (this._pauseMenuOpen || this._miniGameOpen) return;
     this._updateBgParallax();
     this.updateMovement();
     if (!this.shadow) return;

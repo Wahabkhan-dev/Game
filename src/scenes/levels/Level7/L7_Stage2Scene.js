@@ -44,7 +44,10 @@ export class L7_Stage2Scene extends L7BaseScene {
     this.buildStageHUD(2, 'Fix the Puncture',
       ['Find the tools', 'Lift the jeep', 'Remove the tyre', 'Repair the puncture', 'Inflate & refit']);
 
-    this.time.delayedCall(500, () => this._beginStep(1));
+    // V3 plays at the start of Stage 2, before the tyre-repair steps begin.
+    this.playStoryVideos(['l7_v3'], () => {
+      this.time.delayedCall(300, () => this._beginStep(1));
+    });
   }
 
   _beginStep(n) {
@@ -83,11 +86,13 @@ export class L7_Stage2Scene extends L7BaseScene {
     this.cameras.main.flash(300, 120, 220, 140);
     this.registry.set('lives', this._lives);
     this.registry.set('l7_checkpoint', 'L7_Stage3');
+    // End-of-Stage-2 bridge cinematic (V4+V5 merged) → then Stage 3 (fuel part).
     this.time.delayedCall(600, () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => {
-        this._wakeLoop();
-        this.scene.start('L7_Stage3');
+      this.playStoryVideos(['l7_v4', 'l7_v5'], () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.time.delayedCall(520, () => {
+          this._forceSceneStart('L7_Stage3');
+        });
       });
     });
   }

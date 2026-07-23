@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL5Assets } from './L5Assets.js';
 import { applyModalFrame } from '../ModalFrame.js';
 import { addStandaloneMenuButton } from '../../../hud/premium/PremiumTheme.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 // ── Level 5 · Scene 4 — NURSERY SETUP → FINAL CUTSCENE ───────────────────────
 // Drag 5 nursery items into place; the room grows warmer & prettier as it fills.
@@ -23,6 +24,15 @@ export class L5_NurseryScene extends Phaser.Scene {
     generateL5Assets(this);
     this._stars = (data && data.stars) || 0;
     this.cameras.main.fadeIn(800, 0, 0, 0);
+
+    // The conclusion video already told the "puppies arrive" story — skip
+    // straight to the reward modal, no extra decorating and no separate
+    // celebration cutscene after the video.
+    if (data && data.skipFinale) {
+      this.cameras.main.setBackgroundColor('#0a1020');
+      this._reward(true);
+      return;
+    }
 
     // The conclusion cinematic already tells the "puppies arrive" story —
     // skip straight to the finale + reward (no extra decorating busywork).
@@ -139,15 +149,17 @@ export class L5_NurseryScene extends Phaser.Scene {
 
   // No popup modal — the finale cutscene above (puppies gathering, "A New
   // Family Is Born") is the ending. Just settle, then quietly fade to the menu.
-  _reward() {
+  _reward(immediate = false) {
     try { this.registry.set('points', (this.registry.get('points') || 0) + 1000); } catch (_) {}
     try { localStorage.setItem('shadowgamma_level5_done', '1'); } catch (_) {}
     this.cameras.main.zoomTo(1, 600);
 
-    this.time.delayedCall(1400, () => {
-      this.cameras.main.fadeOut(900, 0, 0, 0);
-      this.time.delayedCall(950, () => this.scene.start('Menu'));
-    });
+    const show = () => {
+      const points = this.registry.get('points') || 0;
+      showLevelCompleteModal(this, points, { nextLevelKey: 'Level6' });
+    };
+    if (immediate) show();
+    else this.time.delayedCall(1400, show);
   }
 
   _sparkle(x, y) { for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22; const s = this.add.text(x, y, '✨', { fontSize: '15px' }).setDepth(30); this.tweens.add({ targets: s, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0, duration: 600, onComplete: () => s.destroy() }); } }

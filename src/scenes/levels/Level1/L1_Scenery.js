@@ -7,7 +7,7 @@ import { W, H } from '../../../config/GameConfig.js';
 // tiled ground. Level 1 (and its bonus "fruit" scene) override those to use the
 // hand-painted art instead:
 //   • l1_bg      (Level 01.jpg)        → background, above the ground line
-//   • l1_surface (Level 01 bottom.png) → the walkable ground strip
+//   • l1_surface (Level 01 bottom.jpg) → the walkable ground strip
 //
 // The ground strip is fit FIRST (scaled to its natural aspect, anchored to the
 // screen bottom), which fixes GROUND_TOP — the background is then sized to end

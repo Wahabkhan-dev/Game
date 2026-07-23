@@ -120,7 +120,7 @@ export class L9_GiftRunScene extends L9BaseScene {
 
     this._buildGates();
 
-    this.buildTopBanner('CHAPTER 9', 'GIFT RUN', null, { timer: 90 });
+    this.buildTopBanner('LEVEL 9', 'GIFT RUN', null, { timer: 90 });
     this._giftHud = this.buildCounterPill('🎁', 'GIFTS', GIFTS.length);   // below banner
     this._updateDist = this.buildDistanceBar(WORLD_W, CP_XS);   // bottom
 
@@ -218,7 +218,7 @@ export class L9_GiftRunScene extends L9BaseScene {
   }
 
   update(time) {
-    if (this._done || this._paused || this._busy) return;
+    if (this._done || this._paused || this._busy || this._miniGameOpen) return;
     const onG = this.runMovement();
     this.updateParallax();
     this._emitDust(onG);

@@ -31,13 +31,9 @@ export class MenuScene extends Phaser.Scene {
     this._playBtn(colB, r[1], '🏠 Level 4', () => this._go('L4_Intro'), BW);
     this._playBtn(colA, r[2], '🐶 Level 5', () => this._go('L5_Intro'), BW);
     this._playBtn(colB, r[2], '🐾 Level 6', () => this._go('Level6'), BW);
-    this._playBtn(colA, r[3], '🚑 Level 7', () => this._go('L7_Cutscene', { lives: 3, points: 0 }, {
-      slides: [
-        { bg: 'l7_s1_sky', emoji: '🌧️', charTex: 'gleeda_idle', text: 'A thunderstorm rolls over the countryside. Inside, Gamma the dog whimpers — her three newborn puppies are sick and fading fast.' },
-        { bg: 'l7_s1_sky', emoji: '🐶', charTex: 'gleeda_idle', text: 'Glenda makes a vow: "I\'ll get you to the animal hospital tonight — whatever it takes." But first she needs the jeep key…' },
-      ],
-      next: 'L7_Stage1'
-    }), BW);
+    // Level 7 goes straight into Stage 1, which plays the merged V1+V2 intro
+    // cinematic over the scene before gameplay (replaces the old text cutscene).
+    this._playBtn(colA, r[3], '🚑 Level 7', () => this._go('L7_Stage1', { lives: 3, points: 0 }), BW);
 
     this._playBtn(colB, r[3], '🐾 Level 8', () => this._go('L8_FoodRun', { lives: 3, points: 0, l8_score: 0, l8_hp: 3 }), BW);
 

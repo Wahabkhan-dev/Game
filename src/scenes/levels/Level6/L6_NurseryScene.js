@@ -142,13 +142,13 @@ export class L6_NurseryScene extends Phaser.Scene {
     const cg = this.add.graphics().setDepth(61).setScrollFactor(0);
     cg.fillStyle(0xfdf0e8, 1); cg.fillRoundedRect(W / 2 - 185, H / 2 - 110, 370, 220, 18);
     cg.lineStyle(3, 0xf5c84a, 1); cg.strokeRoundedRect(W / 2 - 185, H / 2 - 110, 370, 220, 18);
-    this.add.text(W / 2, H / 2 - 78, 'CHAPTER 6 COMPLETE! 🎉', { fontSize: '19px', fontFamily: 'Georgia, serif', color: '#d94060', stroke: '#fdf0e8', strokeThickness: 2 }).setOrigin(0.5).setDepth(62).setScrollFactor(0);
+    this.add.text(W / 2, H / 2 - 78, 'LEVEL 6 COMPLETE! 🎉', { fontSize: '19px', fontFamily: 'Georgia, serif', color: '#d94060', stroke: '#fdf0e8', strokeThickness: 2 }).setOrigin(0.5).setDepth(62).setScrollFactor(0);
     this.add.text(W / 2, H / 2 - 44, 'The Puppy Naming Adventure', { fontSize: '15px', fontFamily: 'Georgia, serif', color: '#a0522d' }).setOrigin(0.5).setDepth(62).setScrollFactor(0);
     this.add.text(W / 2, H / 2 - 16, `⭐ Score: ${this._stars} · 🐶 7 puppies named!`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#8a5a30' }).setOrigin(0.5).setDepth(62).setScrollFactor(0);
     const menu = this.add.text(W / 2 - 70, H / 2 + 66, '🏠 Menu', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 18, y: 10 } }).setOrigin(0.5).setDepth(62).setScrollFactor(0).setInteractive({ useHandCursor: true });
-    const replay = this.add.text(W / 2 + 70, H / 2 + 66, '🔁 Replay', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#884422', padding: { x: 16, y: 10 } }).setOrigin(0.5).setDepth(62).setScrollFactor(0).setInteractive({ useHandCursor: true });
+    const next = this.add.text(W / 2 + 70, H / 2 + 66, '▶ Next Level', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#5b6cff', padding: { x: 16, y: 10 } }).setOrigin(0.5).setDepth(62).setScrollFactor(0).setInteractive({ useHandCursor: true });
     menu.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); });
-    replay.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Level6')); });
+    next.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('L7_Cutscene', { lives: 3, points: 0 })); });
   }
 
   _sparkle(x, y) { for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22; const s = this.add.text(x, y, '✨', { fontSize: '15px' }).setDepth(30); this.tweens.add({ targets: s, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0, duration: 600, onComplete: () => s.destroy() }); } }

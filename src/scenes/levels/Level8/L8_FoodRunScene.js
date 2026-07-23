@@ -295,7 +295,7 @@ export class L8_FoodRunScene extends L8BaseScene {
 
   // ── update ──────────────────────────────────────────────────────────────────
   update() {
-    if (this._done || this._paused) return;
+    if (this._done || this._paused || this._miniGameOpen) return;
     const onG = this.runMovement();  // L8BaseScene manual left/right + jump/slide
     this.updateParallax();
     this._emitDust(onG);

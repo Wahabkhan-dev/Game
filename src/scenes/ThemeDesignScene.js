@@ -107,7 +107,7 @@ export class ThemeDesignScene extends Phaser.Scene {
     // health (left) — lifebg.png
     this._buildHealthPanel(16, y, D + 1);
     // banner (center) — banner-bg.png
-    this._buildMiniBanner((W - 300) / 2, y - 6, 300, 62, D + 1, 'CHAPTER 1', "SHADOW'S JOURNEY");
+    this._buildMiniBanner((W - 300) / 2, y - 6, 300, 62, D + 1, 'LEVEL 1', "SHADOW'S JOURNEY");
     // right cluster: timer · coin · menu
     const menuX = W - 16 - 40;
     this._buildCoinPanel(menuX - 10 - 60, y, 60, 44, D + 1);        // coin-bg.png
@@ -162,7 +162,7 @@ export class ThemeDesignScene extends Phaser.Scene {
   }
 
   // ── BANNER: banner-bg.png art + chapter label + title ────────────────────────
-  _buildMiniBanner(x, y, w, h, depth = D + 2, chapter = 'CHAPTER 1', title = "SHADOW'S JOURNEY") {
+  _buildMiniBanner(x, y, w, h, depth = D + 2, chapter = 'LEVEL 1', title = "SHADOW'S JOURNEY") {
     this.add.image(x + w / 2, y + h / 2, 'ui_banner_bg').setDisplaySize(w, h).setDepth(depth);
     this.add.text(x + w / 2, y + h * 0.40, chapter, {
       fontFamily: 'Georgia, serif', fontSize: '9px', color: THEME.goldDim,

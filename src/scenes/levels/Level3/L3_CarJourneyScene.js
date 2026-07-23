@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL3Assets } from './L3Assets.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { playVideoOverlay, showStoryCard } from '../../../utils/VideoOverlay.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 import { FOLDER as CAR_FOLDER, FRAME_FILES as CAR_FRAME_FILES, FRAME_KEYS as CAR_FRAME_KEYS, RUN_FPS as CAR_RUN_FPS, TARGET_HEIGHT as CAR_TARGET_HEIGHT } from '../../CarSimulator.js';
 
 // 0.72 + 0.10 push-down so the road (and everything anchored to it — car,
@@ -1025,7 +1026,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
   // ── HUD — unified Level-2 header (health · banner · timer · coin · menu) ──────
   _buildHUD() {
     this._hdr = buildStandardHeader(this, {
-      chapterLabel: 'CHAPTER 3', title: 'Drive to the Hospital',
+      chapterLabel: 'LEVEL 3', title: 'Drive to the Hospital',
       timer: 90, coinValue: this._coins,
       lives: this._lives, hp: this._hp,
       onMenu: () => this._togglePause(), depth: 48,
@@ -1218,8 +1219,10 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     // Story beat first, then the exception cinematic, then restart the drive.
     showStoryCard(this, '💔  Gamma didn\'t survive.\nShe couldn\'t reach the hospital in time…', () => {
       playVideoOverlay(this, 'l3_exception_video', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('L3_Drive'));
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(600, 0, 0, 0);
+          this.time.delayedCall(650, () => this.scene.start('L3_Drive'));
+        });
       });
     });
   }

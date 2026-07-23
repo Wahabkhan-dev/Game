@@ -5,6 +5,7 @@ import { applyGlendaSkin } from './L9_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L9BaseScene — shared scaffolding for Level 9 "A Holiday for the Puppies".
@@ -436,7 +437,13 @@ export class L9BaseScene extends Phaser.Scene {
       this._deathLabel = this.add.text(W / 2, H / 2 - 10, this._lives > 0 ? `💔 Life Lost! ${this._lives} left` : '💔 Game Over!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#ff9ec4', stroke: '#0a1a0e', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(121);
       this.time.delayedCall(1600, () => {
         if (this._lives > 0) { this._hp = 3; this.registry.set('l9_hp', 3); this._respawnAtCheckpoint(); }
-        else { this.registry.set('lives', 3); this.registry.set('l9_hp', 3); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => { this._wakeLoop(); this.scene.start('Menu'); }); }
+        else {
+          this.registry.set('lives', 3); this.registry.set('l9_hp', 3);
+          showTryAgainModal(this, () => {
+            this.cameras.main.fadeOut(450, 0, 0, 0);
+            this.time.delayedCall(480, () => { this._wakeLoop(); this.scene.restart(); });
+          });
+        }
       });
     } else {
       this.toast(`💔 ${this._hp} HP left!`);

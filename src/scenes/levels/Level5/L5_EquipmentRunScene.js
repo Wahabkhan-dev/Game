@@ -5,6 +5,7 @@ import { preloadGlendaSkin, applyGlendaSkin } from './L5_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 
 // ── Level 5 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
 const WORLD_W  = 12200;
@@ -189,7 +190,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     generatePremiumHudTextures(this);
 
     // level banner — real art at the approved L1/L2 size (never stretched)
-    const ban = buildLevelBanner(this, 'CHAPTER 5', 'GATHER THE SUPPLIES', 48);
+    const ban = buildLevelBanner(this, 'LEVEL 5', 'GATHER THE SUPPLIES', 48);
 
     // health panel (left), centred on the banner midline
     const HPx = 8, HPh = 42, HPy = ban.midY - HPh / 2, HPw = 140;
@@ -341,7 +342,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this._done || this._paused) return;
+    if (this._done || this._paused || this._miniGameOpen) return;
     if (this._falling) {
       this.player.play('gleeda_jump_anim', true);
       if (this.player.y > H + 60) this._onHoleFell();
@@ -361,9 +362,15 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     if (!onGround)      p.play('gleeda_jump_anim', true);
     else if (vx !== 0)  p.play('gleeda_walk', true);
     else                p.play('gleeda_idle_anim', true);
+    // Background now scrolls at the SAME rate as the ground (this._groundTile
+    // has no scrollFactor override, so it already moves 1:1 with the camera)
+    // instead of a slow parallax fraction — previously _bgMain (the actual
+    // background in use, since l5_bg_main is loaded) was never updated here
+    // at all and stayed completely static while the ground scrolled under it.
     const sx = this.cameras.main.scrollX;
-    if (this._sky)    this._sky.tilePositionX    = sx * 0.12 / this._sky.tileScaleX;
-    if (this._houses) this._houses.tilePositionX = sx * 0.45 / this._houses.tileScaleX;
+    if (this._bgMain) this._bgMain.tilePositionX = sx / this._bgMain.tileScaleX;
+    if (this._sky)    this._sky.tilePositionX    = sx / this._sky.tileScaleX;
+    if (this._houses) this._houses.tilePositionX = sx / this._houses.tileScaleX;
     this._checkItems();
     this._checkObstacles(onGround);
     this._checkBalls();
@@ -601,8 +608,12 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     if (this._lives <= 0) {
       this._done = true;
       this.add.rectangle(this.cameras.main.scrollX + W / 2, H / 2, W, H, 0x000000, 0.65).setDepth(60).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 - 10, '💔 Oh no! Try again', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-      this.time.delayedCall(1600, () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); });
+      this.time.delayedCall(400, () => {
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(400, 0, 0, 0);
+          this.time.delayedCall(450, () => this.scene.restart());
+        });
+      });
     } else {
       this._toast(`💔 Life lost! ${this._lives} left — respawning!`);
       this.time.delayedCall(700, () => this._respawnAtCheckpoint());

@@ -3,6 +3,8 @@ import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
 import { applyL3Frame } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+import { playVideoOverlay } from '../../../../utils/VideoOverlay.js';
+import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
 
 // MG6 — Post Care: drag food bowl and medicine to Gamma to complete treatment
 export class L3_MG6_PostCareScene extends Phaser.Scene {
@@ -21,7 +23,7 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     this._medGiven = false;
     this._health  = this.registry.get('l3_health') || 100;
 
-    this._buildHUD(6);
+    this._buildHUD(3);
     this._buildTitle('🍲 Post Care', 'Feed Gamma and give her medicine to complete the treatment!');
 
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
@@ -34,9 +36,6 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     // Gamma on bed, happy
     if (this.textures.exists('gemma_happy')) {
       this._gammaImg = this.add.image(490, H - 48, 'gemma_happy').setDisplaySize(200, 110).setOrigin(0.5, 1).setDepth(8);
-    }
-    if (this.textures.exists('gleeda_idle')) {
-      this.add.image(120, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
     }
 
     // Hospital table
@@ -156,11 +155,11 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 6`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 3`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 6; i++) {
-      const dot = this.add.circle(W / 2 - 75 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 3; i++) {
+      const dot = this.add.circle(W / 2 - 30 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }
@@ -192,8 +191,13 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(40);
 
     this.time.delayedCall(2400, () => {
-      this.cameras.main.fadeOut(700, 0, 0, 0);
-      this.time.delayedCall(750, () => this.scene.start('L3_End'));
+      // Last hospital step → play the recovery cinematic, THEN go straight to
+      // the Level Complete modal (no separate celebration scene).
+      playVideoOverlay(this, 'l3_recovery_video', () => {
+        const coins  = this.registry.get('l3_coins') || 0;
+        const points = coins + 250 + Math.round(this._health);
+        showLevelCompleteModal(this, points, { nextLevelKey: 'L4_Intro' });
+      });
     });
   }
 }

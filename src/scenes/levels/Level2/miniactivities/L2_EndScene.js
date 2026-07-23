@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
+import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
 
 // Level 2 End — 3 stars celebration, Play Level 3 button
 export class L2_EndScene extends Phaser.Scene {
@@ -59,22 +60,10 @@ export class L2_EndScene extends Phaser.Scene {
       this.tweens.add({ targets: badge, alpha: { from: 0, to: 1 }, duration: 600 });
     });
 
-    // Continue button
+    // Points + Menu / Next Level modal
     this.time.delayedCall(2800, () => {
-      const contBg = this.add.rectangle(400, 254, 260, 52, 0x3a2010, 1)
-        .setDepth(30).setStrokeStyle(2, 0xf5c87a, 0.8).setInteractive({ useHandCursor: true });
-      const contTxt = this.add.text(400, 254, '▶  Play Level 3', {
-        fontSize: '18px', fontFamily: 'Georgia, serif', color: '#f5e0b0'
-      }).setOrigin(0.5).setDepth(31);
-
-      this.tweens.add({ targets: [contBg, contTxt], alpha: { from: 0.4, to: 1 }, duration: 900, yoyo: true, repeat: -1 });
-
-      contBg.on('pointerup', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('Level3'));
-      });
-      contBg.on('pointerover', () => contBg.setFillStyle(0x5a3820));
-      contBg.on('pointerout',  () => contBg.setFillStyle(0x3a2010));
+      const points = this.registry.get('points') || 0;
+      showLevelCompleteModal(this, points, { nextLevelKey: 'Level3', nextLevelData: { l3_health: 100, l3_coins: 0 } });
     });
 
     // Continuous hearts + sparkles

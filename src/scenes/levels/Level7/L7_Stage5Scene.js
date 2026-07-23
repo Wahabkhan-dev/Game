@@ -111,8 +111,7 @@ export class L7_Stage5Scene extends L7BaseScene {
       this.registry.set('l7_checkpoint', 'L7_COMPLETE');
       this.cameras.main.fadeOut(700, 0, 0, 0);
       this.time.delayedCall(740, () => {
-        this._wakeLoop();
-        this.scene.start('EndScene');
+        this._forceSceneStart('EndScene');
       });
     });
   }

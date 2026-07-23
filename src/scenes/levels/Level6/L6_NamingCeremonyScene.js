@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
+import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 // ── Level 6 · Part 2 — Naming Ceremony (Tap-to-Recall) ───────────────────
 // All 12 names are VISIBLE from the first frame. The player taps the 7 names
@@ -226,9 +228,15 @@ export class L6_NamingCeremonyScene extends Phaser.Scene {
     btnHit.on('pointerover', () => drawBtn(true));
     btnHit.on('pointerout',  () => drawBtn(false));
     btnHit.on('pointerdown', () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(550, () =>
-        this.scene.start('L6_Introduction', { names: this._correct, stars: this._stars }));
+      // Straight to the conclusion cinematic + Level Complete — no separate
+      // puppy-introduction/celebration scene in between. playVideoOverlay
+      // draws its own opaque black backdrop, so no camera fade is needed
+      // here — a fadeOut with nothing to fade back IN would otherwise leave
+      // the video and the modal after it invisible (audio would still play).
+      playVideoOverlay(this, 'l6_conclusion_video', () => {
+        const points = this._stars * 100;
+        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+      });
     });
   }
 

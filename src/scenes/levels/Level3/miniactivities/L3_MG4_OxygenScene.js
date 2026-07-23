@@ -3,6 +3,7 @@ import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
 import { applyL3Frame } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+import { showStoryCard, playVideoOverlay } from '../../../../utils/VideoOverlay.js';
 
 // MG4 — Special Treatment: drag oxygen mask to Gamma, then watch vitals stabilise
 export class L3_MG4_OxygenScene extends Phaser.Scene {
@@ -20,7 +21,7 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     this._health = this.registry.get('l3_health') || 100;
     this._phase  = 0; // 0=place mask, 1=stabilise
 
-    this._buildHUD(4);
+    this._buildHUD(3);   // 3rd of 3 real steps now (MG3 Heart Monitor removed from the flow)
     this._buildTitle('🫁 Oxygen Treatment', 'Drag the oxygen mask to Gamma\'s face, then stabilise the vitals.');
 
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
@@ -33,9 +34,6 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     // Characters
     if (this.textures.exists('gemma_idle')) {
       this._gammaImg = this.add.image(480, H - 50, 'gemma_idle').setDisplaySize(180, 100).setOrigin(0.5, 1).setDepth(8).setTint(0xffcccc);
-    }
-    if (this.textures.exists('gleeda_idle')) {
-      this.add.image(120, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
     }
 
     // Table
@@ -138,11 +136,11 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 3`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 3; i++) {
+      const dot = this.add.circle(W / 2 - 30 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }
@@ -166,9 +164,16 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
       fontSize: '24px', fontFamily: 'Georgia, serif', color: '#44ffaa',
       stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
+    // MG5 (the tap-order "Treatment Steps" recap) has been removed from the
+    // flow — this is now the last hospital step. Show the recovered-message
+    // card, THEN the recovery cinematic, THEN the end scene.
     this.time.delayedCall(2000, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L3_MG5'));
+      showStoryCard(this, '💛 Gemma is safely recovered now!', () => {
+        playVideoOverlay(this, 'l3_recovery_video', () => {
+          this.cameras.main.fadeOut(600, 0, 0, 0);
+          this.time.delayedCall(650, () => this.scene.start('L3_End'));
+        });
+      });
     });
   }
 }

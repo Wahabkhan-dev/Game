@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../config/GameConfig.js';
 import { makePanel, generatePremiumHudTextures, buildLevelBanner, THEME } from '../../hud/premium/PremiumTheme.js';
+import { showTryAgainModal } from '../../utils/EndModals.js';
 
 export class BaseLevelScene extends Phaser.Scene {
 
@@ -735,16 +736,18 @@ export class BaseLevelScene extends Phaser.Scene {
   // in a level scene (e.g. Level1Scene) to play a cinematic first; whatever you
   // do, end by resetting the registry and starting/restarting a scene.
   _handleGameOver() {
-    this._showMessage('💔 No lives left! Starting over...');
-    this.time.delayedCall(1800, () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
+    this._showMessage('💔 No lives left!');
+    this.time.delayedCall(1200, () => {
       this.registry.set('lives', 3);
       this.registry.set('shadowHP', 3);
       // Guaranteed reset — the death tween's own cleanup may not have run yet
       // (or may get cut short) by the time the level restarts.
       this.shadow.clearTint();
       this.shadow.setAlpha(1);
-      this.time.delayedCall(550, () => this.scene.restart());
+      showTryAgainModal(this, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.time.delayedCall(550, () => this.scene.restart());
+      });
     });
   }
 
@@ -758,6 +761,13 @@ export class BaseLevelScene extends Phaser.Scene {
     this._videoOverlayOpen = true;
     this.physics.pause();
 
+    // Touch controls must never show over a cutscene — hide them for the
+    // duration, then restore whatever visibility the level had before
+    // (CSS still keeps them off on large screens regardless).
+    const footer = document.getElementById('game-footer');
+    const footerWasVisible = !!footer && footer.style.display !== 'none';
+    if (footer) footer.style.display = 'none';
+
     const bg = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1)
       .setScrollFactor(0).setDepth(200);
 
@@ -770,6 +780,7 @@ export class BaseLevelScene extends Phaser.Scene {
       try { video?.stop(); video?.destroy(); } catch (_) {}
       try { bg.destroy(); skip.destroy(); } catch (_) {}
       this.physics.resume();
+      if (footer && footerWasVisible) footer.style.display = 'flex';
       if (onDone) onDone();
     };
 
@@ -1145,12 +1156,21 @@ export class BaseLevelScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(75).setInteractive();
     toDestroy.push(backdrop);
 
-    const panelG = this.add.graphics().setScrollFactor(0).setDepth(76);
-    panelG.fillStyle(0x100c06, 0.97);
-    panelG.fillRoundedRect(100, 60, 600, 330, 18);
-    panelG.lineStyle(3, 0xf5c87a, 0.9);
-    panelG.strokeRoundedRect(100, 60, 600, 330, 18);
-    toDestroy.push(panelG);
+    // Same wooden-modal art the iframe mini-games use (level1-frame.css →
+    // Level1_modal.png), loaded here as 'shared_modal_bg' — so this built-in
+    // puzzle popup matches the random-mini-game activities visually instead
+    // of a plain flat panel.
+    if (this.textures.exists('shared_modal_bg')) {
+      toDestroy.push(this.add.image(W / 2, 60 + 330 / 2, 'shared_modal_bg')
+        .setDisplaySize(600, 330).setScrollFactor(0).setDepth(76));
+    } else {
+      const panelG = this.add.graphics().setScrollFactor(0).setDepth(76);
+      panelG.fillStyle(0x100c06, 0.97);
+      panelG.fillRoundedRect(100, 60, 600, 330, 18);
+      panelG.lineStyle(3, 0xf5c87a, 0.9);
+      panelG.strokeRoundedRect(100, 60, 600, 330, 18);
+      toDestroy.push(panelG);
+    }
 
     toDestroy.push(this.add.text(W / 2, 98, title, {
       fontSize: '22px', fontFamily: 'Georgia, serif',

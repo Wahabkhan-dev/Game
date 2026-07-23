@@ -108,7 +108,7 @@ export class L1Header {
     this.c.add(s.add.image(W / 2, BAN_CY, 'ui_banner_bg').setDisplaySize(BAN.w, BAN.h)
       .setScrollFactor(0).setDepth(D));
 
-    this.c.add(s.add.text(W / 2, BAN.y + BAN.h * 0.36, 'CHAPTER 1', {
+    this.c.add(s.add.text(W / 2, BAN.y + BAN.h * 0.36, 'LEVEL 1', {
       fontFamily: 'Georgia, serif', fontSize: '9px', color: THEME.goldDim,
       stroke: '#2a1a06', strokeThickness: 2
     }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 2));

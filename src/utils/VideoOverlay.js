@@ -33,6 +33,21 @@ export function showStoryCard(scene, message, onDone, opts = {}) {
   hit.on('pointerup', finish);
 }
 
+// Play several video keys back-to-back as ONE continuous overlay (used to
+// "merge" clips like Level 7's intro V1+V2 and the V4+V5 bridge). Each clip
+// runs to completion (or is skipped) before the next begins; onDone fires once
+// after the last. Missing keys are skipped over gracefully.
+export function playVideoSequence(scene, keys, onDone) {
+  const list = (keys || []).filter(Boolean);
+  let i = 0;
+  const playNext = () => {
+    if (i >= list.length) { if (onDone) onDone(); return; }
+    const key = list[i++];
+    playVideoOverlay(scene, key, playNext);
+  };
+  playNext();
+}
+
 // Full-screen video overlay with a skip button and a safety timeout, for
 // scenes that don't extend BaseLevelScene (which has its own private copy of
 // this same pattern, used by Level 1/2). Pauses arcade physics for the
@@ -41,6 +56,13 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
   if (scene._videoOverlayOpen) return;
   scene._videoOverlayOpen = true;
   if (scene.physics?.world) scene.physics.pause();
+
+  // Touch controls must never show over a cutscene — hide them for the
+  // duration, then restore whatever visibility the level had before
+  // (CSS still keeps them off on large screens regardless).
+  const footer = document.getElementById('game-footer');
+  const footerWasVisible = !!footer && footer.style.display !== 'none';
+  if (footer) footer.style.display = 'none';
 
   const bg = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1)
     .setScrollFactor(0).setDepth(200);
@@ -54,6 +76,7 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
     try { video?.stop(); video?.destroy(); } catch (_) {}
     try { bg.destroy(); skip.destroy(); } catch (_) {}
     if (scene.physics?.world) scene.physics.resume();
+    if (footer && footerWasVisible) footer.style.display = 'flex';
     if (onDone) onDone();
   };
 

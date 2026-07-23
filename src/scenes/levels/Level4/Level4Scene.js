@@ -5,6 +5,7 @@ import { preloadGlendaSkin, applyGlendaSkin } from './L4_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 
 // ── Level 4 — Build Gamma's New Home: 3 checkpoints to collect 6 materials ──
 // CP1: Wood + Roof (x: 0-4000)  |  CP2: Nails + Paint (x: 4000-8000)  |  CP3: Bedding + Bowl (x: 8000-12000)
@@ -234,7 +235,7 @@ export class Level4Scene extends Phaser.Scene {
     generatePremiumHudTextures(this);
 
     // level banner — real art at the approved L1/L2 size (never stretched)
-    const ban = buildLevelBanner(this, 'CHAPTER 4', "BUILD GAMMA'S HOME", 48);
+    const ban = buildLevelBanner(this, 'LEVEL 4', "BUILD GAMMA'S HOME", 48);
 
     // health panel (left), centred on the banner midline
     const HPx = 8, HPh = 42, HPy = ban.midY - HPh / 2, HPw = 140;
@@ -314,7 +315,7 @@ export class Level4Scene extends Phaser.Scene {
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   update(time, delta) {
-    if (this._done || this._paused) return;
+    if (this._done || this._paused || this._miniGameOpen) return;
 
     // Dropping into a pothole — let gravity pull the player down, then respawn
     if (this._falling) {
@@ -344,11 +345,14 @@ export class Level4Scene extends Phaser.Scene {
     else if (vx !== 0) { p.play('gleeda_walk', true); }
     else { p.play('gleeda_idle_anim', true); }
 
-    // society parallax (tilePosition in texture px)
+    // Background now scrolls at the SAME rate as the ground (this._groundTile
+    // has no scrollFactor override, so it already moves 1:1 with the camera)
+    // instead of a slow parallax fraction — previously the background crept
+    // along at 12-15% speed while the ground flew by underneath it.
     const sx2 = this.cameras.main.scrollX;
-    if (this._bgMain) this._bgMain.tilePositionX = sx2 * 0.15 / this._bgMain.tileScaleX;
-    if (this._sky)    this._sky.tilePositionX    = sx2 * 0.12 / this._sky.tileScaleX;
-    if (this._houses) this._houses.tilePositionX = sx2 * 0.45 / this._houses.tileScaleX;
+    if (this._bgMain) this._bgMain.tilePositionX = sx2 / this._bgMain.tileScaleX;
+    if (this._sky)    this._sky.tilePositionX    = sx2 / this._sky.tileScaleX;
+    if (this._houses) this._houses.tilePositionX = sx2 / this._houses.tileScaleX;
 
     this._checkItems();
     this._checkFlags();
@@ -708,8 +712,12 @@ export class Level4Scene extends Phaser.Scene {
   _gameOver() {
     this._done = true;
     this.add.rectangle(this.cameras.main.scrollX + W / 2, H / 2, W, H, 0x000000, 0.65).setDepth(60).setScrollFactor(0);
-    this.add.text(W / 2, H / 2 - 10, '💔 Oh no! Try again', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-    this.time.delayedCall(1600, () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); });
+    this.time.delayedCall(400, () => {
+      showTryAgainModal(this, () => {
+        this.cameras.main.fadeOut(400, 0, 0, 0);
+        this.time.delayedCall(450, () => this.scene.restart());
+      });
+    });
   }
 
   _sparkle(x, y) {

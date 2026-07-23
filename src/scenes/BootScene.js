@@ -52,6 +52,24 @@ export class BootScene extends Phaser.Scene {
     this.load.video('l5_intro2',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658743/shadow-gamma/video/Level%2005/after-intro.mp4');
     this.load.video('l5_reach_home',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658777/shadow-gamma/video/Level%2005/reaching-home-l5.mp4');
     this.load.video('l5_conclusion',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658746/shadow-gamma/video/Level%2005/conclusion.mp4');
+    // ── Level 6 story videos ─────────────────────────────────────────────────
+    // Source files are HEVC (hvc1) — audio plays but video doesn't render in
+    // most browsers. vc_h264 asks Cloudinary to transcode on-the-fly to H.264
+    // (avc1), same fix already used for l1_conclusion_video below.
+    this.load.video('l6_intro_video',      'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784771946/shadow-gamma/video/Level%206/intro-l6.mp4');
+    this.load.video('l6_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784771954/shadow-gamma/video/Level%206/conclusion-l6.mp4');
+    // ── Level 7 story videos (8 clips; already H.264/avc1, no transcode needed) ──
+    // v1+v2 = merged intro (before Stage 1); v3 = Stage 2 start; v4+v5 = merged,
+    // end of Stage 2 → Stage 3; v6 = Stage 4 start; v7 = Stage 4 end (reached
+    // hospital) → Stage 5; v8 = game-over cinematic (all lives lost).
+    this.load.video('l7_v1', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777628/shadow-gamma/video/Level%207/video-1.mp4');
+    this.load.video('l7_v2', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777635/shadow-gamma/video/Level%207/video-2.mp4');
+    this.load.video('l7_v3', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777637/shadow-gamma/video/Level%207/video-3.mp4');
+    this.load.video('l7_v4', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777645/shadow-gamma/video/Level%207/video-4.mp4');
+    this.load.video('l7_v5', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777654/shadow-gamma/video/Level%207/video-5.mp4');
+    this.load.video('l7_v6', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777661/shadow-gamma/video/Level%207/video-6.mp4');
+    this.load.video('l7_v7', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777665/shadow-gamma/video/Level%207/video-7.mp4');
+    this.load.video('l7_v8', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777669/shadow-gamma/video/Level%207/video-8.mp4');
     this.load.image('street_lamp',    'assets/images/Street_Lamp_Post.png');
     this.load.image('traffic_signal', 'assets/images/Traffic_Signal.png');
     this.load.image('cone',           'assets/images/Traffic_Cone.png');
@@ -73,7 +91,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('shared_modal_bg', 'assets/images/level1/Level1_modal.png');
     // ── Level 1 real artwork (jungle background + forest-floor surface) ──────
     this.load.image('l1_bg',      'assets/images/level1/Level 01.jpg');
-    this.load.image('l1_surface', 'assets/images/level1/Level 01 bottom.png');
+    this.load.image('l1_surface', 'assets/images/level1/Level 01 bottom.jpg');
     // Real-art meat prop (replaces the procedurally-drawn 'meat' texture in the
     // food-collecting bonus round) — falls back to the procedural one if missing.
     this.load.image('l1_meat_real', 'assets/images/level1/meat.png');
@@ -112,6 +130,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
     this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
     this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
+    this.load.image('l3_stretcher',   'assets/images/Level 3/stretcher.png');
     this.load.image('l3_modal_frame', 'assets/images/Level 3/l3_modal_frame.png');
     // NOTE: l3_ekg_screen & l3_vitals_bg stay PROCEDURAL — the game draws live
     // animated EKG line / vitals readouts on top, which need a blank screen.
@@ -126,7 +145,7 @@ export class BootScene extends Phaser.Scene {
     // Missing optional L4 files fall back to vector art
     this.load.on('loaderror', (f) => { if (f && f.key && f.key.startsWith('l4_')) { /* vector fallback in generators */ } });
     // Real-art background + ground (same technique as Level 3's Level 03 art)
-    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4.jpeg');
+    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4.jpg');
     this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom.png');
     // New garage-build background (replaces the old l4_garage_bg)
     this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.png');
@@ -139,7 +158,7 @@ export class BootScene extends Phaser.Scene {
       'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
     ].forEach(k => this.load.image(k, `${L5}${k}.png`));
     // Real-art background + ground (same technique as Level 4's backgorund-l4)
-    this.load.image('l5_bg_main',      'assets/images/Level 5/backgorund-l5.jpeg');
+    this.load.image('l5_bg_main',      'assets/images/Level 5/backgorund-l5.jpg');
     this.load.image('l5_ground_bottom','assets/images/Level 5/bottom-l5.png');
     // ── Level 3 audio (fail silently if files not present) ──────────────────
     this.load.audio('bump_fast',      'assets/audio/bump_fast.mp3');

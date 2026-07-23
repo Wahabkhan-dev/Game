@@ -33,7 +33,9 @@ body.embedded{ background:transparent; }
   background:rgba(0,0,0,.32); color:#f7dd97;
   border:1.5px solid rgba(245,215,138,.5);
 }
-.prompt{ color:#f2e6c8; text-shadow:0 1px 3px rgba(0,0,0,.55); }
+/* Question / prompt text — white + bold so it reads clearly on the brown
+   wood modal (was a dim cream that looked near-black on some panels). */
+.prompt{ color:#ffffff; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.65); }
 
 /* Drag games: slots fit the wood panel */
 .dropzone{ background:rgba(0,0,0,.20); border:5px dashed rgba(245,215,138,.5); }

@@ -5,6 +5,7 @@ import { applyGlendaSkin } from './L8_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L8BaseScene — shared scaffolding for Level 8 "Puppy Care Day".
@@ -404,8 +405,10 @@ export class L8BaseScene extends Phaser.Scene {
         } else {
           this.registry.set('lives', 3);
           this.registry.set('l8_hp', 3);
-          this.cameras.main.fadeOut(450, 0, 0, 0);
-          this.time.delayedCall(480, () => this.scene.start('Menu'));
+          showTryAgainModal(this, () => {
+            this.cameras.main.fadeOut(450, 0, 0, 0);
+            this.time.delayedCall(480, () => this.scene.restart());
+          });
         }
       });
     } else {

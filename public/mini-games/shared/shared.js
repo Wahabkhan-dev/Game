@@ -109,6 +109,16 @@
     node.addEventListener('pointerdown', e=>{
       if(node.dataset.locked==='1') return;    // games can lock a placed tile
       e.preventDefault();
+      // Snapshot the node's ORIGINAL inline styles before the drag mutates
+      // them, so resetPos can put back the game-authored size (e.g. a tile
+      // created with width:90px) instead of blanking it — blanking made the
+      // tile collapse to content size ("shrink") on every drop/snap-back.
+      node._dragOrig = {
+        position: node.style.position, left: node.style.left, top: node.style.top,
+        zIndex: node.style.zIndex, width: node.style.width, height: node.style.height,
+        margin: node.style.margin, pointerEvents: node.style.pointerEvents,
+        transform: node.style.transform, transformOrigin: node.style.transformOrigin,
+      };
       const s   = window.__miniScale || 1;
       const r0  = node.getBoundingClientRect();             // on-screen (scaled) box
       const offX= e.clientX-r0.left, offY = e.clientY-r0.top;   // grab point, screen px
@@ -124,6 +134,7 @@
       node.style.zIndex='3001';
       const place=(cx,cy)=>{ node.style.left=(cx-offX)+'px'; node.style.top=(cy-offY)+'px'; };
       layer.appendChild(node); place(e.clientX,e.clientY);
+      opts.onDragStart&&opts.onDragStart();
       const move=ev=>place(ev.clientX,ev.clientY);
       const up=ev=>{
         document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
@@ -134,14 +145,29 @@
         // Restore to home + strip drag styling BEFORE the game's onDrop runs.
         resetPos(node);
         if(origParent) origParent.insertBefore(node, origNext);
+        opts.onDragEnd&&opts.onDragEnd();
         opts.onDrop&&opts.onDrop(under,ev);
       };
       document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
     });
   }
-  function resetPos(n){ n.style.position=''; n.style.left=''; n.style.top=''; n.style.zIndex='';
-    n.style.width=''; n.style.height=''; n.style.margin=''; n.style.pointerEvents='';
-    n.style.transform=''; n.style.transformOrigin=''; }
+  function resetPos(n){
+    // Restore the exact inline styles the node had BEFORE the drag (captured
+    // in enableDrag) so game-authored sizing survives — not left blank, or the
+    // tile shrinks to content size. Kept (not deleted) so a second resetPos
+    // call from a game's onDrop is idempotent. Falls back to blanking for a
+    // node that was never dragged.
+    const o = n._dragOrig;
+    if(o){
+      n.style.position=o.position; n.style.left=o.left; n.style.top=o.top; n.style.zIndex=o.zIndex;
+      n.style.width=o.width; n.style.height=o.height; n.style.margin=o.margin;
+      n.style.pointerEvents=o.pointerEvents; n.style.transform=o.transform; n.style.transformOrigin=o.transformOrigin;
+    } else {
+      n.style.position=''; n.style.left=''; n.style.top=''; n.style.zIndex='';
+      n.style.width=''; n.style.height=''; n.style.margin=''; n.style.pointerEvents='';
+      n.style.transform=''; n.style.transformOrigin='';
+    }
+  }
 
   /* ---------- responsive scale-to-fit stage ----------
      Every activity is authored at its own natural size. Instead of reflowing or
@@ -152,6 +178,9 @@
      Idempotent + observes the panel so it re-fits on rounds / window resize. */
   const FIT_MIN_H = 520;     // keep the wood panel a panel even when content is short
   const FIT_DESIGN_W = 900;  // panels are authored at this width (level1-frame max-width)
+  const MODAL_SCALE = 0.8;   // render every activity at 80% of the max fit (20%
+                             // smaller) so it reads as a floating modal over the
+                             // level, not a full-screen takeover.
   function setupFit(){
     const app = document.getElementById('app');
     if(!app || app.dataset.fit==='1') return;
@@ -176,7 +205,7 @@
       game.style.transform='none';                       // measure at 1:1
       const natW=game.offsetWidth, natH=game.offsetHeight;
       if(!natW || !natH){ return; }
-      const s=Math.min(app.clientWidth/natW, app.clientHeight/natH);
+      const s=Math.min(app.clientWidth/natW, app.clientHeight/natH) * MODAL_SCALE;
       window.__miniScale=s;
       game.style.transform='scale('+s+')';
     };
@@ -214,25 +243,29 @@
     ]);
     function setScore(t){ scorePill.textContent=t; }
     function instructions(demoHtml,onStart){
-      const ov=el('.overlay',null,[
-        el('.demo',{html:demoHtml}),
-        el('h2',null,'How to play'),
-        el('button.btn.big',{onclick:()=>{ov.remove();onStart();}},'▶ Start')
-      ]); body.appendChild(ov);
+      // Start screen removed — every game begins immediately, no "How to
+      // play" gate / Start button. (demoHtml is kept as a parameter purely
+      // so all 40 existing game.js call sites don't need touching; it's
+      // simply unused now.)
+      onStart();
     }
     function result(stars,onAgain){
+      // End screen removed for the embedded case (the real, in-game
+      // experience) — report the win straight back to the host level with
+      // no manual "Continue" click, so the star reward reaches the coin HUD
+      // and the mini-game overlay closes immediately.
+      if (EMBEDDED) { postToHost('minigame-complete', {stars}); return; }
+      // Standalone play (via the dev hub outside the actual game) has no
+      // host to report to, so it keeps the trophy/stars screen.
       const s='⭐'.repeat(stars)+'☆'.repeat(3-stars);
-      // Embedded in the main game → single "Continue" that reports the result
-      // back to the host level. Standalone → the usual Play Again / Menu.
-      const buttons = EMBEDDED
-        ? [ el('button.btn.big',{onclick:()=>postToHost('minigame-complete',{stars})},'▶ Continue') ]
-        : [ el('button.btn.big',{onclick:()=>{ov.remove();onAgain();}},'🔁 Play Again'),
-            el('button.btn.big.secondary',{onclick:goMenu},'🏠 Menu') ];
       const ov=el('.overlay',null,[
         el('.demo',null,stars===3?'🏆':'🎉'),
         el('h2',null,stars===3?'Perfect!':'Great job!'),
         el('.stars',null,s),
-        el('.row',null,buttons)
+        el('.row',null,[
+          el('button.btn.big',{onclick:()=>{ov.remove();onAgain();}},'🔁 Play Again'),
+          el('button.btn.big.secondary',{onclick:goMenu},'🏠 Menu')
+        ])
       ]); body.appendChild(ov); burstConfetti();
     }
     // Once game.js has appended this panel + built its layout, fit it to screen.

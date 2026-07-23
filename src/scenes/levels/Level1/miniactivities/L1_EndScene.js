@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
+import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
 
 // Final scene — Stars reward, unlock Level 2
 export class L1_EndScene extends Phaser.Scene {
@@ -77,11 +78,11 @@ export class L1_EndScene extends Phaser.Scene {
       });
     }
 
-    // Auto-advance to Level 2 after celebration — no button needed. Goes
-    // straight in; Level2Scene plays its own intro video immediately.
+    // After the celebration, show points + Menu/Next Level — no more
+    // auto-advancing straight into Level 2.
     this.time.delayedCall(5200, () => {
-      this.cameras.main.fadeOut(800, 0, 0, 0);
-      this.time.delayedCall(850, () => this.scene.start('Level2'));
+      const points = this.registry.get('points') || 0;
+      showLevelCompleteModal(this, points, { nextLevelKey: 'Level2' });
     });
 
     this.time.addEvent({

@@ -3,6 +3,7 @@ import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
 import { applyL3Frame } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
+import { showStoryCard, playVideoOverlay } from '../../../../utils/VideoOverlay.js';
 
 // MG2 — Give Injection: drag syringe to the glowing spot on Gamma, twice
 export class L3_MG2_InjectionScene extends Phaser.Scene {
@@ -23,18 +24,11 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     this._buildHUD(2);
     this._buildTitle('💉 Give the Injection', 'Drag the syringe to the glowing target on Gamma.');
 
-    // Gamma on table
-    if (this.textures.exists('gemma_idle')) {
-      this.add.image(500, H - 50, 'gemma_idle').setDisplaySize(190, 105).setOrigin(0.5, 1).setDepth(8).setTint(0xffdddd);
+    // Gamma on the stretcher (image already includes the gurney itself, so it
+    // replaces both the old gemma_idle sprite and the flat table graphic).
+    if (this.textures.exists('l3_stretcher')) {
+      this.add.image(490, H - 15, 'l3_stretcher').setDisplaySize(460, 300).setOrigin(0.5, 1).setDepth(8);
     }
-    if (this.textures.exists('gleeda_idle')) {
-      this.add.image(130, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
-    }
-
-    // Hospital table
-    const g = this.add.graphics().setDepth(7);
-    g.fillStyle(0x182838, 1); g.fillRoundedRect(310, H - 65, 360, 18, 4);
-    g.lineStyle(1, 0x2a4a68, 0.6); g.strokeRoundedRect(310, H - 65, 360, 18, 4);
 
     this._buildInjection();
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
@@ -46,7 +40,11 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
   }
 
   _buildInjection() {
-    const targX = 480, targY = H - 90;
+    // Target sits on the dog's shoulder/upper back in the stretcher artwork
+    // (stretcher displayed at 460×300, origin bottom-center at 490,H-15).
+    // Positions verified against an actual render — the first estimate
+    // landed on the dog's head, this one sits correctly on the shoulder.
+    const targX = 522, targY = H - 228;
 
     // Target spot on Gamma (shoulder)
     this._target = this.add.image(targX, targY, 'l3_inject_spot').setDisplaySize(40, 40).setDepth(12);
@@ -71,11 +69,15 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     });
 
     this.input.on('dragend', (ptr, obj) => {
-      if (this._done) return;
-      const dist = Phaser.Math.Distance.Between(obj.x, obj.y, targX, targY);
+      if (this._done || this._locked) return;
+      // Read the target's CURRENT position, not the first spot's frozen
+      // coordinates — otherwise the hit-test still checks against the first
+      // target after it has moved for the second injection, and dropping the
+      // syringe on the (now-relocated) second target can silently miss.
+      const dist = Phaser.Math.Distance.Between(obj.x, obj.y, this._target.x, this._target.y);
       if (dist < 44) {
         this._hits++;
-        this._doInject(targX, targY, obj);
+        this._doInject(this._target.x, this._target.y, obj);
       } else {
         this.tweens.add({ targets: obj, x: obj._origX, y: obj._origY, duration: 220 });
       }
@@ -83,6 +85,10 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
   }
 
   _doInject(tx, ty, syringe) {
+    // Lock the syringe out until this injection's animation (and, for the
+    // first hit, the retarget to the second spot) has fully finished — the
+    // player must not be able to start the next drag mid-animation.
+    this._locked = true;
     this.cameras.main.flash(200, 30, 180, 60);
     this.cameras.main.shake(100, 0.006);
     this.tweens.add({ targets: syringe, x: tx, y: ty, duration: 180 });
@@ -100,12 +106,14 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     if (this._hits >= 2) {
       this._complete();
     } else {
-      // Second injection at different spot
+      // Second injection at different spot — on the hip/haunch, clearly
+      // separate from the first (shoulder) spot.
       this.time.delayedCall(900, () => {
         if (this._done) return;
         this.tweens.add({ targets: syringe, x: syringe._origX, y: syringe._origY, duration: 300 });
-        this._target.x = 530; this._target.y = ty + 20;
+        this._target.x = 420; this._target.y = ty;
         if (this._hint && this._hint.active) this._hint.setText('→ One more!');
+        this._locked = false;
       });
     }
   }
@@ -114,11 +122,11 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 2`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 2; i++) {
+      const dot = this.add.circle(W / 2 - 15 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
     // Health: name label on top, bar clearly below (no overlap)
@@ -148,9 +156,16 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
       fontSize: '23px', fontFamily: 'Georgia, serif', color: '#88ffaa',
       stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
+    // Only Medicine + Injection remain — no oxygen step, no post-care, no more
+    // treatment. Straight to the recovered-message card, then the recovery
+    // cinematic, then the level ends.
     this.time.delayedCall(2000, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L3_MG3'));
+      showStoryCard(this, '💛 Gemma is safely recovered now!', () => {
+        playVideoOverlay(this, 'l3_recovery_video', () => {
+          this.cameras.main.fadeOut(600, 0, 0, 0);
+          this.time.delayedCall(650, () => this.scene.start('L3_End'));
+        });
+      });
     });
   }
 }

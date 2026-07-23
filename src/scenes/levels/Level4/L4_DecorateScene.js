@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL4Assets, generateL4StreetAssets } from './L4Assets.js';
 import { addStandaloneMenuButton } from '../../../hud/premium/PremiumTheme.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 // ── Level 4 — Build Scene: the player SELECTS each collected material from a
 // tray to raise Gamma's real dog house, in the home garage. Nothing builds by
@@ -323,10 +324,10 @@ export class L4_DecorateScene extends Phaser.Scene {
       this.tweens.add({ targets: txt, alpha: 1, duration: 700 });
     });
 
-    // Quiet auto-return to the main menu — no buttons to tap.
+    // Points + Menu / Next Level.
     this.time.delayedCall(4200, () => {
-      this.cameras.main.fadeOut(900, 0, 0, 0);
-      this.time.delayedCall(950, () => this.scene.start('Menu'));
+      const points = this.registry.get('points') || 0;
+      showLevelCompleteModal(this, points, { nextLevelKey: 'L5_Intro' });
     });
   }
 

@@ -15,7 +15,7 @@
     {n:'Broccoli',   cat:'veg',   img:'assets/broccoli.png',   emo:'🥦'},
     {n:'Corn',       cat:'veg',   img:'assets/corn.png',       emo:'🌽'},
     {n:'Potato',     cat:'veg',   img:'assets/potato.png',     emo:'🥔'},
-    {n:'Pepper',     cat:'veg',   img:'assets/pepper.png',     emo:'🫑'}
+    {n:'Cucumber',   cat:'veg',   img:'assets/cucumber.png',   emo:'🥒'}
   ];
   const G = mountGame({icon:'🍎', title:'Fruit & Veg Sort'});
   let mistakes=0, sorted=0, need=0;

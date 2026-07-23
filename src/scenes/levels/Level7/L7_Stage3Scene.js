@@ -204,8 +204,7 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.time.delayedCall(600, () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => {
-        this._wakeLoop();
-        this.scene.start('L7_Stage4');
+        this._forceSceneStart('L7_Stage4');
       });
     });
   }

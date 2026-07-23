@@ -5,6 +5,8 @@ import { L1HUD } from '../hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from '../L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from '../L1_Scenery.js';
 import { pickRandomGame } from '../../../../utils/MiniGamePicker.js';
+import { showStoryCard } from '../../../../utils/VideoOverlay.js';
+import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
 
 // Bonus round — collect 5 pieces of meat across the world, solve puzzles, then
 // return to Gemma at the start to feed her — all on one continuous map.
@@ -225,30 +227,51 @@ export class L1_FoodScene extends BaseLevelScene {
     this.tweens.add({ targets: pop, y: pop.y - 50, alpha: 0, duration: 800, onComplete: () => pop.destroy() });
     this.cameras.main.flash(160, 60, 140, 10);
 
-    // Puzzle at fruit 2 — Random mini-game
+    // Puzzle at fruit 2 — Random mini-game. Freeze the character THE INSTANT
+    // the fruit is collected (not just when the activity finally appears) —
+    // previously the dog kept running for the whole 900ms wait, so the
+    // activity felt like it popped up "late" out of nowhere.
     if (fruitNum === 2 && !this._act2Done) {
       this._act2Done = true;
+      this._freezeForMini = true;
+      if (this.shadow.body) this.shadow.setVelocity(0, 0);
+      // Freezing velocity only stops WORLD movement — Phaser keeps advancing
+      // whatever animation was already playing on its own, so without this
+      // the dog would stay stuck visibly mid-run-cycle instead of idling.
+      if (this._idleAnim) this.shadow.play(this._idleAnim, true);
       this.time.delayedCall(900, async () => {
         const game = await pickRandomGame(1);
+        this._freezeForMini = false;
         if (game) this._launchMiniGame(game);
       });
     }
 
-    // Puzzle at fruit 4 — Random mini-game
+    // Puzzle at fruit 4 — Random mini-game (same immediate-freeze fix).
     if (fruitNum === 4 && !this._act4Done) {
       this._act4Done = true;
+      this._freezeForMini = true;
+      if (this.shadow.body) this.shadow.setVelocity(0, 0);
+      if (this._idleAnim) this.shadow.play(this._idleAnim, true);
       this.time.delayedCall(900, async () => {
         const game = await pickRandomGame(1);
+        this._freezeForMini = false;
         if (game) this._launchMiniGame(game);
       });
     }
 
-    // Puzzle at fruit 5 — last collection mini-activity
+    // Puzzle at fruit 5 — last collection mini-activity (same immediate-freeze
+    // fix). Skips straight past the usual "Play / Skip" intro card (pass
+    // _skip=true) so this third activity jumps directly into the letter
+    // puzzle, no start screen.
     if (fruitNum === 5 && !this._act5Done) {
       this._act5Done = true;
-      this.time.delayedCall(900, () =>
-        this._puzzleMissingLetter(() => this._onAllCollected())
-      );
+      this._freezeForMini = true;
+      if (this.shadow.body) this.shadow.setVelocity(0, 0);
+      if (this._idleAnim) this.shadow.play(this._idleAnim, true);
+      this.time.delayedCall(900, () => {
+        this._freezeForMini = false;
+        this._puzzleMissingLetter(() => this._onAllCollected(), true);
+      });
     }
   }
 
@@ -268,10 +291,14 @@ export class L1_FoodScene extends BaseLevelScene {
     this.shadow.setVelocityX(0);
     this._gemmaGlow.destroy();
 
-    // Real feeding cinematic replaces the old sparkle/heart-burst celebration.
-    this._playVideoOverlay('l1_food_video', () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L1_End'));
+    showStoryCard(this, '🍖  Gemma is fed... she\'ll survive a little longer! 💛', () => {
+      // Real feeding cinematic replaces the old sparkle/heart-burst celebration.
+      // Straight to the Level Complete modal after the video — no separate
+      // celebration scene/animation in between.
+      this._playVideoOverlay('l1_food_video', () => {
+        const points = this.registry.get('points') || 0;
+        showLevelCompleteModal(this, points, { nextLevelKey: 'Level2' });
+      });
     });
   }
 

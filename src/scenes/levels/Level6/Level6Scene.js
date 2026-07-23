@@ -3,6 +3,8 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generatePremiumHudTextures, buildStandardHeader, buildCheckpointBoard, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L6_GlendaSkin.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 
 // ── Level 6 · Part 1 — Puppy Garden Runner ────────────────────────────────
 // Player runs through a garden collecting 7 puppy name tokens.
@@ -11,8 +13,8 @@ import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGameP
 
 const WORLD_W   = 13000;
 const GROUND_Y  = 408;
-const RUN_SPEED = 230;
-const JUMP_V    = -440;
+const RUN_SPEED = 200; // matches Level 2's BaseLevelScene.updateMovement() speed
+const JUMP_V    = -430; // matches Level 2's BaseLevelScene.updateMovement() jump velocity
 // Obstacles sit flush on the stone path section of the surface image.
 // OBS_BASE_DROP shifts obstacle bases below GROUND_Y to match visual character feet.
 const OBS_BASE_DROP = 18;
@@ -150,6 +152,11 @@ export class Level6Scene extends Phaser.Scene {
     });
 
     this.time.delayedCall(700, () => this._toast('🐾 Collect 7 puppy names to start the ceremony!'));
+
+    if (!this._introVideoPlayed) {
+      this._introVideoPlayed = true;
+      playVideoOverlay(this, 'l6_intro_video', () => {});
+    }
   }
 
   // ── BACKGROUND ────────────────────────────────────────────────────────────
@@ -406,7 +413,7 @@ export class Level6Scene extends Phaser.Scene {
     // ── Unified Level-2 header (health · banner · coin · menu) ──
     generatePremiumHudTextures(this);
     this._hdr = buildStandardHeader(this, {
-      chapterLabel: 'CHAPTER 6', title: '🐾 Collect 7 Puppy Names!',
+      chapterLabel: 'LEVEL 6', title: '🐾 Collect 7 Puppy Names!',
       timer: null, coinValue: this._score,
       lives: this._lives, hp: this._hp,
       onMenu: () => this._togglePause(), depth: 48,
@@ -531,7 +538,7 @@ export class Level6Scene extends Phaser.Scene {
 
   // ── MAIN LOOP ────────────────────────────────────────────────────────────
   update() {
-    if (this._done || this._paused || this._miniActive) return;
+    if (this._done || this._paused || this._miniActive || this._miniGameOpen) return;
     const ts = window._touchState || {};
     const p  = this.player;
     const onGround = p.body.blocked.down || p.body.touching.down;
@@ -809,10 +816,11 @@ export class Level6Scene extends Phaser.Scene {
     this.cameras.main.shake(200, 0.012);
 
     if (this._lives <= 0) {
-      this._toast('💔 Game Over! Restarting…');
-      this.time.delayedCall(1100, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(550, () => this.scene.restart());
+      this.time.delayedCall(400, () => {
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(500, 0, 0, 0);
+          this.time.delayedCall(550, () => this.scene.restart());
+        });
       });
       return;
     }
@@ -846,10 +854,11 @@ export class Level6Scene extends Phaser.Scene {
       this._hdr?.setLives(this._lives);
       this._hdr?.setHP(this._hp);
       if (this._lives <= 0) {
-        this._toast('💔 Game Over! Restarting…');
-        this.time.delayedCall(1100, () => {
-          this.cameras.main.fadeOut(500, 0, 0, 0);
-          this.time.delayedCall(550, () => this.scene.restart());
+        this.time.delayedCall(400, () => {
+          showTryAgainModal(this, () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(550, () => this.scene.restart());
+          });
         });
         return;
       }

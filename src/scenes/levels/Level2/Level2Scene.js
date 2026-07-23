@@ -6,6 +6,7 @@ import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVi
 import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
@@ -47,8 +48,10 @@ export class Level2Scene extends BaseLevelScene {
       // yet (or may get cut short) by the time the level restarts.
       this.shadow.clearTint();
       this.shadow.setAlpha(1);
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(550, () => this.scene.restart());
+      showTryAgainModal(this, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.time.delayedCall(550, () => this.scene.restart());
+      });
     });
   }
 
@@ -222,22 +225,22 @@ export class Level2Scene extends BaseLevelScene {
     //   0–350 | 750–1250 | 1650–2150 | 2550–3050 | 3450–3950 | 4350–4850 | 5250–end
     this._roadHazards = [];
 
-    // Cones — spaced one per safe window
+    // Cones — spaced one per safe window (sized up ~15% from 22×34)
     [200, 950, 1750, 2650, 3650, 4550, 5350].forEach(cx => {
-      this.add.image(cx, 424, 'cone').setOrigin(0.5, 1).setDisplaySize(22, 34).setDepth(8);
-      this._roadHazards.push({ x: cx - 11, w: 22, y: 390 });
+      this.add.image(cx, 424, 'cone').setOrigin(0.5, 1).setDisplaySize(26, 40).setDepth(8);
+      this._roadHazards.push({ x: cx - 13, w: 26, y: 390 });
     });
 
-    // Barriers — one per alternate safe window
+    // Barriers — one per alternate safe window (sized up ~15% from 62×44)
     [1050, 2750, 3800, 4700].forEach(bx => {
-      this.add.image(bx, 424, 'road_barrier').setOrigin(0.5, 1).setDisplaySize(62, 44).setDepth(8);
-      this._roadHazards.push({ x: bx - 31, w: 62, y: 380 });
+      this.add.image(bx, 424, 'road_barrier').setOrigin(0.5, 1).setDisplaySize(72, 51).setDepth(8);
+      this._roadHazards.push({ x: bx - 36, w: 72, y: 380 });
     });
 
-    // Barrels — offset from cones inside same safe windows
+    // Barrels — offset from cones inside same safe windows (sized up ~15% from 30×40)
     [300, 1150, 2000, 2900, 3500, 4450, 5450].forEach(rx => {
-      this.add.image(rx, 424, 'barrel').setOrigin(0.5, 1).setDisplaySize(30, 40).setDepth(8);
-      this._roadHazards.push({ x: rx - 15, w: 30, y: 384 });
+      this.add.image(rx, 424, 'barrel').setOrigin(0.5, 1).setDisplaySize(35, 46).setDepth(8);
+      this._roadHazards.push({ x: rx - 17, w: 35, y: 384 });
     });
 
     // ── Zone 1 crosswalk warnings before each pothole ─────────────────────
@@ -331,19 +334,6 @@ export class Level2Scene extends BaseLevelScene {
     this.add.image(5900,  424, 'checkpoint_flag').setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(8);
     this.add.image(11900, 424, 'checkpoint_flag').setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(8);
 
-    // ── Zone 2: jungle torches ─────────────────────────────────────────────
-    [6200, 7100, 8000, 8900, 9800, 10700, 11600].forEach(tx => {
-      const t = this.add.text(tx, H - 54, '🔥', { fontSize: '18px' }).setDepth(7);
-      this.tweens.add({ targets: t, alpha: 0.6, duration: 280 + Math.random() * 180, yoyo: true, repeat: -1 });
-    });
-
-    // ── Zone 3: candles ────────────────────────────────────────────────────
-    // 14000 was inside gap 13900-14030 → moved to 14100
-    [12200, 13100, 14100, 14900, 15800, 16700, 17600, 18200].forEach(tx => {
-      const t = this.add.text(tx, H - 54, '🕯️', { fontSize: '16px' }).setDepth(7);
-      this.tweens.add({ targets: t, alpha: 0.35, duration: 380 + Math.random() * 240, yoyo: true, repeat: -1 });
-    });
-
     // ── Zone 3 rain — screen-space, hidden until Zone 3 entered ───────────
     this._rainDrops = [];
     for (let i = 0; i < 28; i++) {
@@ -382,8 +372,8 @@ export class Level2Scene extends BaseLevelScene {
     // Safe positions only — 12600 replaces 12900 (was inside gap 12800-12930),
     // 17490 replaces 17300 (was inside gap 17200-17330)
     [12600, 13700, 14600, 15500, 16400, 17490].forEach(sx2 => {
-      this.add.image(sx2, H - 44, 'spike').setDisplaySize(52, 24).setDepth(8);
-      this._spikes.push({ x: sx2 - 22, w: 52, y: H - 58 });
+      this.add.image(sx2, H - 44, 'spike').setDisplaySize(60, 28).setDepth(8);
+      this._spikes.push({ x: sx2 - 25, w: 60, y: H - 58 });
     });
 
     // ── Cactus thorn hazards (Zone 2 + Zone 3) — real cactus art, same
@@ -393,12 +383,14 @@ export class Level2Scene extends BaseLevelScene {
     // touched (H-46+16=420 / H-46+18=422), then doubled — so the visual
     // footprint on the ground stays put, only the cactus grows upward.
     [7200, 10200].forEach(tx => {
-      this.add.image(tx, H - 30, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(64, 64).setDepth(9);
-      this._thorns.push({ x: tx - 14, y: H - 60, w: 28 });
-    });
-    [12050, 17800].forEach(tx => {
-      this.add.image(tx, H - 28, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(72, 72).setDepth(9);
+      this.add.image(tx, H - 30, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(74, 74).setDepth(9);
       this._thorns.push({ x: tx - 16, y: H - 60, w: 32 });
+    });
+    // 17800 removed — that's Gemma's cage location at the end of the level;
+    // a cactus was sitting right next to/under the cage there.
+    [12050].forEach(tx => {
+      this.add.image(tx, H - 28, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(83, 83).setDepth(9);
+      this._thorns.push({ x: tx - 18, y: H - 60, w: 37 });
     });
 
     // ── Collapsing platforms (Zone 3) ─────────────────────────────────────
@@ -646,7 +638,7 @@ export class Level2Scene extends BaseLevelScene {
   // so nothing else in Level 2 changes.
   _buildHUD(config) {
     this._hud = new PremiumHUD(this, {
-      chapterLabel: 'CHAPTER 2',
+      chapterLabel: 'LEVEL 2',
       title: 'RESCUE GEMMA!',
       timer: config.timer,
       worldWidth: config.worldWidth,
@@ -769,7 +761,10 @@ export class Level2Scene extends BaseLevelScene {
 
   // ── Update ────────────────────────────────────────────────────────────────
   update() {
-    if (this._pauseMenuOpen) return;
+    // While a mini-game overlay is open, freeze EVERYTHING in the level —
+    // hurdles/hazards must not be able to cost a life while the player is
+    // stuck inside the puzzle with no way to dodge.
+    if (this._pauseMenuOpen || this._miniGameOpen) return;
     this._updateBgParallax();
 
     if (this._roadBgTile && this._roadBgTile.alpha > 0) {

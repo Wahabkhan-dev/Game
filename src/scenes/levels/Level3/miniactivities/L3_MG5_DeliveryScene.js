@@ -25,7 +25,7 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     this._timeLeft = 30;
     this._health   = this.registry.get('l3_health') || 100;
 
-    this._buildHUD(5);
+    this._buildHUD(3);
     this._buildTitle('💊 Treatment Steps', 'Tap the steps in order:  💊 → 💉 → ❤️ → 🩹');
 
     // Random mini-game from Level 3's slice of the 40 games overlays on top —
@@ -38,9 +38,6 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     // Gamma on table
     if (this.textures.exists('gemma_idle')) {
       this.add.image(W / 2, H - 48, 'gemma_idle').setDisplaySize(200, 110).setOrigin(0.5, 1).setDepth(8).setTint(0xffddcc);
-    }
-    if (this.textures.exists('gleeda_idle')) {
-      this.add.image(108, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
     }
 
     // Timer countdown — neutralized immediately: the random mini-game overlay
@@ -187,11 +184,11 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 4`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 4; i++) {
+      const dot = this.add.circle(W / 2 - 45 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }

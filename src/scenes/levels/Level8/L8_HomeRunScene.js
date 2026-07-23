@@ -150,7 +150,7 @@ export class L8_HomeRunScene extends L8BaseScene {
   }
 
   update() {
-    if (this._done) return;
+    if (this._done || this._paused || this._miniGameOpen) return;
     const onG = this.runMovement();
     this.updateParallax();
     this._checkGates();

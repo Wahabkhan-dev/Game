@@ -14,7 +14,11 @@
   const numeral = el('.big-target');
   const basket = el('.dropzone', {style:'width:420px;height:150px;flex-wrap:wrap;align-content:flex-start;gap:6px;padding:10px;font-size:44px;overflow:hidden;'});
   const basketWrap = el('div', null, [el('div',{style:'font-size:22px;margin-bottom:6px'},'🧺 Basket'), basket]);
-  const tray = el('.row', {style:'flex-wrap:wrap;max-width:420px;'});
+  // Fixed width (not max-width) so the tray's box never shrinks as apples
+  // are dragged out of it — otherwise the tray+basket row's total width
+  // changes live during play, which flips the layout between side-by-side
+  // and stacked mid-game depending on how many apples are left.
+  const tray = el('.row', {style:'flex-wrap:wrap;width:420px;align-content:flex-start;'});
   const checkBtn = el('button.btn.big', {onclick:check}, '✓ Check');
 
   G.body.appendChild(prompt);
@@ -27,16 +31,23 @@
 
   function makeApple(){
     const a = el('.tile', {style:'width:56px;height:56px;font-size:32px;border-radius:50%;'}, '🍎');
-    enableDrag(a, {onDrop:(under)=>{
-      // Two-way drag: drop ON the basket → into the basket; drop ANYWHERE else →
-      // return the apple to the tray (its old home), so a wrong count is fixable.
-      if(under && (under===basket || basket.contains(under))){
-        basket.appendChild(a); a.dataset.in='1';
-      } else {
-        tray.appendChild(a);   a.dataset.in='';
+    enableDrag(a, {
+      // Highlight the basket as the active drop target the moment a drag
+      // starts — a glow + scale anchored at its own center, so its position
+      // never shifts mid-drag (a moving target would make drops miss).
+      onDragStart:()=>basket.classList.add('drop-target-active'),
+      onDragEnd:  ()=>basket.classList.remove('drop-target-active'),
+      onDrop:(under)=>{
+        // Two-way drag: drop ON the basket → into the basket; drop ANYWHERE else →
+        // return the apple to the tray (its old home), so a wrong count is fixable.
+        if(under && (under===basket || basket.contains(under))){
+          basket.appendChild(a); a.dataset.in='1';
+        } else {
+          tray.appendChild(a);   a.dataset.in='';
+        }
+        resetPos(a); recount();
       }
-      resetPos(a); recount();
-    }});
+    });
     return a;
   }
   function recount(){ inBasket = basket.querySelectorAll('.tile').length; }

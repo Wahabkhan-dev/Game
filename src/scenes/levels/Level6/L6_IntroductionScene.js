@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
+import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 // ── Level 6 · Parts 3 & 4 — Puppy Introduction + Final Celebration ────────
 // Part 3: Each of the 7 puppies is introduced one by one with their name.
@@ -310,9 +312,16 @@ export class L6_IntroductionScene extends Phaser.Scene {
       btn.on('pointerover', () => btn.setColor('#FFD700'));
       btn.on('pointerout',  () => btn.setColor('#fff'));
       btn.on('pointerdown', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () =>
-          this.scene.start('EndScene'));
+        // Reached home + finished the naming ceremony → the conclusion
+        // cinematic, then straight to the Level Complete modal (no
+        // decorating part, no separate celebration scene). playVideoOverlay
+        // draws its own opaque black backdrop, so no camera fade is needed
+        // here — a fadeOut with nothing to fade back IN would otherwise
+        // leave the video and the modal after it invisible.
+        playVideoOverlay(this, 'l6_conclusion_video', () => {
+          const points = this._stars * 100;
+          showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+        });
       });
     });
   }

@@ -76,6 +76,14 @@ canvas {
   border-color: #f5c87a;
 }
 
+/* Touch controls are for mobile/touch play only — on large (desktop) screens
+   keyboard controls (arrows/WASD/B/F) already work, so never show them there.
+   !important overrides the many level scripts that set style.display='flex'
+   directly. */
+@media (min-width: 900px) {
+  #game-footer { display: none !important; }
+}
+
 /* ── Loading screen (full-page overlay) ──────────────────────────────────── */
 #loading-screen {
   position: fixed; inset: 0;

@@ -38,7 +38,7 @@ export class L9_BowTieScene extends L9BaseScene {
     // proud mother Gamma (with her santa hat) watching from the left
     this.add.image(120, 300, 'l9_gamma').setDisplaySize(150, 106).setDepth(4);
 
-    this.buildTopBanner('CHAPTER 9', 'BOW-TIE PUPPIES', null);
+    this.buildTopBanner('LEVEL 9', 'BOW-TIE PUPPIES', null);
     this._counter = this.buildCounterPill('🐶', 'DRESSED', PUPS.length);   // below banner
 
     this._buildPuppies();

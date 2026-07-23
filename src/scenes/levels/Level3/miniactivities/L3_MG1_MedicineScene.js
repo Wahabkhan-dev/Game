@@ -3,7 +3,6 @@ import { W, H } from '../../../../config/GameConfig.js';
 import { generateL3Assets } from '../L3Assets.js';
 import { applyL3Frame } from './L3Modal.js';
 import { launchRandomMiniGame } from '../../../../utils/MiniGamePicker.js';
-import { playVideoOverlay } from '../../../../utils/VideoOverlay.js';
 
 // MG1 — Select Medicines: drag 3 correct bottles into tray, avoid 2 wrong ones
 export class L3_MG1_MedicineScene extends Phaser.Scene {
@@ -34,10 +33,6 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     // the decorative gold frame goes with it — only the arcade activity gets it.
     launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
 
-    // Gleeda guide
-    if (this.textures.exists('gleeda_idle')) {
-      this.add.image(90, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
-    }
     // Gamma on bed
     if (this.textures.exists('gemma_idle')) {
       this.add.image(620, H - 52, 'gemma_idle').setDisplaySize(130, 72).setOrigin(0.5, 1).setDepth(8).setTint(0xffdddd);
@@ -170,13 +165,13 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
 
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 2`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
 
     // Step progress dots
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 2; i++) {
+      const dot = this.add.circle(W / 2 - 15 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
 
@@ -209,11 +204,9 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(40);
     this.tweens.add({ targets: ok, scale: 1.08, duration: 300, yoyo: true, repeat: 1 });
     this.time.delayedCall(2000, () => {
-      // Medicine tray ready → play the injection cinematic, THEN the injection scene.
-      playVideoOverlay(this, 'l3_injection_video', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('L3_MG2'));
-      });
+      // Medicine tray ready → straight to the injection scene, no cinematic.
+      this.cameras.main.fadeOut(600, 0, 0, 0);
+      this.time.delayedCall(650, () => this.scene.start('L3_MG2'));
     });
   }
 }

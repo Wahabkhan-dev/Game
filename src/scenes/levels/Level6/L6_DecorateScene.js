@@ -3,8 +3,10 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL6Assets, generateL5StreetAssets } from './L6Assets.js';
 import { applyModalFrame } from '../ModalFrame.js';
 import { addStandaloneMenuButton } from '../../../hud/premium/PremiumTheme.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
-// ── Level 6 · Build Scene — identical to L4_Decorate but ends at Level5 treatment
+// ── Level 6 · Build Scene — puppies' new home, played after the conclusion
+// cinematic; ends the level (Level Complete → Level 7), not a treatment loop.
 const HX = 470, HY = 374;
 
 const STEPS = [
@@ -236,7 +238,7 @@ export class L6_DecorateScene extends Phaser.Scene {
                 this._heartBurst();
                 if (this.textures.exists('gleeda_idle'))
                   this.add.image(HX - this._hw * 0.62, HY + 4, 'gleeda_idle').setOrigin(0.5, 1).setDisplaySize(80, 98).setDepth(8);
-                this.add.text(W / 2, 150, '💛 Now help Gamma through delivery! 💛', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ffd0e4', stroke: '#3a0820', strokeThickness: 3 }).setOrigin(0.5).setDepth(45).setAlpha(0).setData('fin', 1);
+                this.add.text(W / 2, 150, '💛 Welcome home, puppies! 💛', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ffd0e4', stroke: '#3a0820', strokeThickness: 3 }).setOrigin(0.5).setDepth(45).setAlpha(0).setData('fin', 1);
                 this.children.list.filter(c => c.getData && c.getData('fin')).forEach(c => this.tweens.add({ targets: c, alpha: 1, duration: 500 }));
                 this.time.delayedCall(2000, () => this._proceed());
               }
@@ -255,7 +257,8 @@ export class L6_DecorateScene extends Phaser.Scene {
     this.cameras.main.flash(500, 255, 180, 200);
   }
 
-  // ── Only difference from L4_Decorate: goes to Level5 treatment instead of Menu ──
+  // Level 6's finale: the puppies' new home is built → straight to the
+  // Level Complete modal (advances to Level 7), same as every other level.
   _proceed() {
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60);
     const cg = this.add.graphics().setDepth(61);
@@ -266,11 +269,14 @@ export class L6_DecorateScene extends Phaser.Scene {
       const st = this.add.text(W / 2 - 34 + i * 34, H / 2 - 50, s, { fontSize: '30px' }).setOrigin(0.5).setDepth(62).setScale(0.2);
       this.tweens.add({ targets: st, scale: 1, duration: 350, delay: 250 + i * 160, ease: 'Back.easeOut' });
     });
-    this.add.text(W / 2, H / 2 - 4, 'Now help Gamma give birth! 🐕', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#a0522d' }).setOrigin(0.5).setDepth(62);
-    const next = this.add.text(W / 2, H / 2 + 64, '▶ Continue to Treatment', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 20, y: 10 } }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true });
+    this.add.text(W / 2, H / 2 - 4, 'All seven puppies have a home! 🐕', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#a0522d' }).setOrigin(0.5).setDepth(62);
+    const next = this.add.text(W / 2, H / 2 + 64, '▶ Continue', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 20, y: 10 } }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true });
     next.on('pointerdown', () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(550, () => this.scene.start('Level5', { stars: this._stars }));
+      this.time.delayedCall(550, () => {
+        const points = this._stars * 100;
+        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+      });
     });
     this.time.addEvent({ delay: 200, repeat: 20, callback: () => this._sparkle(W / 2 - 130 + Math.random() * 260, H / 2 - 100 + Math.random() * 220) });
   }

@@ -56,7 +56,9 @@ export function applyGlendaSkin(scene) {
   const origScale = player.scaleX;
   const worldBW   = player.body.width  * origScale;
   const worldBH   = player.body.height * origScale;
-  const odh       = player.displayHeight;
+  const SIZE_BOOST = 1.22;                          // visual-only enlargement, same as Level 2
+  const odh0      = player.displayHeight;           // original on-screen height
+  const odh       = odh0 * SIZE_BOOST;               // enlarged on-screen height
 
   const groups = [{ keys: runKeys }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
   const { scale } = processGlendaGroups(scene, groups, odh, SS);
@@ -69,6 +71,10 @@ export function applyGlendaSkin(scene) {
   player.setTexture(IDLE_KEY);
   player.setScale(scale);
   player.body.setSize(worldBW / scale, worldBH / scale, true);
+  // Keep the ORIGINAL foot line: setSize's auto-centering would otherwise
+  // sink the boosted sprite by half the added height — push the body down
+  // within the frame so the extra height all goes UP (feet stay planted).
+  player.body.setOffset(player.body.offset.x, player.body.offset.y + (odh - odh0) / 2 / scale);
   player.play('gleeda_idle', true);
 
   // Slide's hardcoded (120,30)/(73,56) source-space restores are calibrated for

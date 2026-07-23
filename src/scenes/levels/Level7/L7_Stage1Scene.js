@@ -63,7 +63,10 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.buildFog(18, 0.18);
     this.startLightning();
 
-    this.time.delayedCall(500, () => this.toast('🏠 The storm cut the power — find the jeep key. Walk right →', 3400));
+    // Intro cinematic (V1+V2 merged) plays over Stage 1 before gameplay begins.
+    this.playStoryVideos(['l7_v1', 'l7_v2'], () => {
+      this.toast('🏠 The storm cut the power — find the jeep key. Walk right →', 3400);
+    });
   }
 
   _buildWorld() {
@@ -216,8 +219,7 @@ export class L7_Stage1Scene extends L7BaseScene {
       this.registry.set('l7_checkpoint', 'L7_Stage2');
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => {
-        this._wakeLoop();
-        this.scene.start('L7_Stage2');
+        this._forceSceneStart('L7_Stage2');
       });
     });
   }

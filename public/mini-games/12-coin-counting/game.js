@@ -11,10 +11,23 @@
   const TOTAL=5;
 
   const prompt = el('.prompt');
-  const targetBox = el('.big-target');
-  const totalLbl = el('div',{style:'font-size:26px;font-weight:bold;color:var(--good)'},'Jar total: 0¢');
+  // Prominent centered "target cents" badge — a big gold coin disc with a
+  // large, bold, high-contrast number in the middle (replaces the old faint
+  // gradient .big-target text that was hard to read on the brown modal).
+  const targetBox = el('div',{style:
+    'width:150px;height:150px;border-radius:50%;margin:6px auto;'+
+    'display:flex;align-items:center;justify-content:center;'+
+    'font-size:58px;font-weight:900;color:#4a2f00;'+
+    'background:radial-gradient(circle at 38% 32%, #ffe9a0 0%, #ffd24a 46%, #e0a520 100%);'+
+    'border:6px solid #b9860b;box-shadow:0 6px 18px rgba(0,0,0,.35), inset 0 3px 8px rgba(255,255,255,.5);'+
+    'text-shadow:0 1px 1px rgba(255,255,255,.55);'});
+  const totalLbl = el('div',{style:'font-size:26px;font-weight:bold;color:#ffe08a;text-shadow:0 2px 4px rgba(0,0,0,.6)'},'Jar total: 0¢');
   const jar = el('.dropzone',{style:'width:220px;min-height:200px;flex-wrap:wrap;gap:6px;padding:14px;position:relative'});
-  const tray = el('.row',{style:'gap:16px;flex-wrap:wrap;max-width:560px'});
+  // Fixed width (not max-width) so the tray's box never shrinks as coins are
+  // dragged out of it — otherwise the tray+jar row's total width changes
+  // live during play, flipping the layout between side-by-side and stacked
+  // mid-game depending on how many coins are left.
+  const tray = el('.row',{style:'gap:16px;flex-wrap:wrap;width:560px;align-content:flex-start'});
   const checkBtn = el('button.btn.big',{onclick:check},'✓ Check');
 
   G.body.appendChild(prompt);
@@ -33,10 +46,15 @@
     c.appendChild(el('div',{style:'position:absolute;bottom:2px;right:6px;font-size:16px;font-weight:bold;color:#7a5b00'}, val+'¢'));
     c.dataset.val=val;
     enableDrag(c, {onDrop:(under)=>{
+      // Two-way drag: drop ON the jar → into the jar; drop ANYWHERE else →
+      // return the coin to the tray (its old home), so an overshoot is fixable.
       if(under && (under===jar || jar.contains(under))){
-        jar.appendChild(c); resetPos(c); c.style.cursor='default'; c.onpointerdown=null;
-        recount();
-      } else resetPos(c);
+        jar.appendChild(c);
+      } else {
+        tray.appendChild(c);
+      }
+      resetPos(c);
+      recount();
     }});
     return c;
   }

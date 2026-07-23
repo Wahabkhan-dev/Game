@@ -4,6 +4,7 @@ import { generateL6Assets, generateL5StreetAssets } from './L6Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L6_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
+import { showTryAgainModal } from '../../../utils/EndModals.js';
 
 // ── Level 6 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
 const WORLD_W  = 12200;
@@ -169,7 +170,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     generatePremiumHudTextures(this);
 
     // level banner — real art at the approved L1/L2 size (never stretched)
-    const ban = buildLevelBanner(this, 'CHAPTER 6', 'SUPPLY RUN', 48);
+    const ban = buildLevelBanner(this, 'LEVEL 6', 'SUPPLY RUN', 48);
 
     // health panel (left), centred on the banner midline
     const HPx = 8, HPh = 42, HPy = ban.midY - HPh / 2, HPw = 140;
@@ -246,7 +247,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this._done || this._paused) return;
+    if (this._done || this._paused || this._miniGameOpen) return;
     if (this._falling) {
       this.player.play('gleeda_jump_anim', true);
       if (this.player.y > H + 60) this._onHoleFell();
@@ -503,8 +504,12 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     if (this._lives <= 0) {
       this._done = true;
       this.add.rectangle(this.cameras.main.scrollX + W / 2, H / 2, W, H, 0x000000, 0.65).setDepth(60).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 - 10, '💔 Oh no! Try again', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-      this.time.delayedCall(1600, () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); });
+      this.time.delayedCall(400, () => {
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(400, 0, 0, 0);
+          this.time.delayedCall(450, () => this.scene.restart());
+        });
+      });
     } else {
       this._toast(`💔 Life lost! ${this._lives} left — respawning!`);
       this.time.delayedCall(700, () => this._respawnAtCheckpoint());

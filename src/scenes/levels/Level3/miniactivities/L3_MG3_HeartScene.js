@@ -35,7 +35,6 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
 
     // Characters
     if (this.textures.exists('gemma_idle'))  this.add.image(560, H - 50, 'gemma_idle').setDisplaySize(150, 82).setOrigin(0.5, 1).setDepth(8).setTint(0xffcccc);
-    if (this.textures.exists('gleeda_idle')) this.add.image(110, H - 50, 'gleeda_idle').setDisplaySize(90, 52).setOrigin(0.5, 1).setDepth(8);
 
     // EKG monitor frame
     const monX = W / 2 - 110, monY = 112;
@@ -168,11 +167,11 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
     g.fillStyle(0x060e1a, 0.92); g.fillRoundedRect(4, 4, W - 8, 44, 6);
     g.lineStyle(1.5, 0x88aacc, 0.4); g.strokeRoundedRect(4, 4, W - 8, 44, 6);
-    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 5`, {
+    this.add.text(W / 2, 14, `HOSPITAL TREATMENT  —  STEP ${step} of 4`, {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88aacc'
     }).setOrigin(0.5).setDepth(21);
-    for (let i = 0; i < 5; i++) {
-      const dot = this.add.circle(W / 2 - 60 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
+    for (let i = 0; i < 4; i++) {
+      const dot = this.add.circle(W / 2 - 45 + i * 30, 34, 7, i < step ? 0x44aaff : 0x1a3040, 1).setDepth(21);
       dot.setStrokeStyle(1.5, 0x88aacc, 0.6);
     }
   }
