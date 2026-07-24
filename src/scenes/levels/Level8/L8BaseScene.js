@@ -18,9 +18,11 @@ import { showTryAgainModal } from '../../../utils/EndModals.js';
 // ════════════════════════════════════════════════════════════════════════════
 export class L8BaseScene extends Phaser.Scene {
 
-  // ── Background — identical to Level 6: single garden image, parallax 25% ────
+  // ── Background — same seam technique as Level 4: ends EXACTLY where the
+  // ground band begins (groundY - 16), so the two meet with no gap and no
+  // overlap, and the ground doesn't eat more of the screen than Level 4's. ───
   buildSky() {
-    const bgDisplayH = (this._groundY || 380) + 5;
+    const bgDisplayH = (this._groundY || 380) - 16;
     if (this.textures.exists('l8_bg')) {
       const src  = this.textures.get('l8_bg').getSourceImage();
       const srcH = src.naturalHeight || src.height || 700;
@@ -41,28 +43,146 @@ export class L8BaseScene extends Phaser.Scene {
     if (this._surfTile) this._surfTile.tilePositionX = camX;
   }
 
-  // ── Ground — identical to Level 6: single surface image at groundY-65 ──────
-  buildGround(worldW, groundY) {
+  // ── Ground — same seam/band-height technique as Level 4 (surface starts at
+  // groundY - 16, matching buildSky()'s bgDisplayH, instead of the old -65
+  // which made the ground band nearly 2.5x taller than Level 4's).
+  // `pits` (optional) is an array of { x, hw } fall-through gaps — Level-2/6
+  // style holes the player loses a life for dropping into, instead of the old
+  // "puddle" sprite hurdle. When omitted, behaves exactly as before: one
+  // continuous physics floor + one screen-locked tileSprite. ─────────────────
+  buildGround(worldW, groundY, pits = []) {
     this._worldW = worldW; this._groundY = groundY;
-    // invisible physics floor across the whole world
-    const body = this.add.rectangle(worldW / 2, groundY + 20, worldW, 40, 0, 0).setDepth(-9);
-    this.physics.add.existing(body, true);
-    this._ground = body;
-    // surface image (screen-locked tileSprite, scrolls 1:1 with camera)
-    const surfaceY = groundY - 65;
+    this._pitZones = pits;
+
+    const surfaceY = groundY - 16;
     const surfaceH = H - surfaceY;
-    if (this.textures.exists('l8_surface')) {
-      const src  = this.textures.get('l8_surface').getSourceImage();
+    const hasSurf = this.textures.exists('l8_surface');
+    let tileScale = 1;
+    if (hasSurf) {
+      const src = this.textures.get('l8_surface').getSourceImage();
       const srcH = src.naturalHeight || src.height || 380;
-      const scale = surfaceH / srcH;
-      this._surfTile = this.add.tileSprite(0, surfaceY, W, surfaceH, 'l8_surface')
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(-8);
-      this._surfTile.setTileScale(scale, scale);
-    } else {
-      const fg = this.add.graphics().setDepth(-8).setScrollFactor(0);
-      fg.fillStyle(0x70B030, 1); fg.fillRect(0, surfaceY, W, surfaceH);
+      tileScale = surfaceH / srcH;
     }
-    return body;
+
+    if (!pits.length) {
+      // invisible physics floor across the whole world
+      const body = this.add.rectangle(worldW / 2, groundY + 20, worldW, 40, 0, 0).setDepth(-9);
+      this.physics.add.existing(body, true);
+      this._ground = body;
+      // surface image (screen-locked tileSprite, scrolls 1:1 with camera)
+      if (hasSurf) {
+        this._surfTile = this.add.tileSprite(0, surfaceY, W, surfaceH, 'l8_surface')
+          .setOrigin(0, 0).setScrollFactor(0).setDepth(-8);
+        this._surfTile.setTileScale(tileScale, tileScale);
+      } else {
+        const fg = this.add.graphics().setDepth(-8).setScrollFactor(0);
+        fg.fillStyle(0x70B030, 1); fg.fillRect(0, surfaceY, W, surfaceH);
+      }
+      return body;
+    }
+
+    // ── Segmented floor with fall-through gaps at each pit (world-space, same
+    // technique Level 6 uses — a screen-locked tileSprite can't show a real
+    // gap while scrolling, so both the physics floor and the ground art are
+    // split into one piece per solid span between pits). ─────────────────────
+    const sorted = [...pits].sort((a, b) => a.x - b.x);
+    this._floorSegs = [];
+    const segments = [];
+    let cursor = 0;
+    sorted.forEach(pit => {
+      const segEnd = pit.x - pit.hw;
+      if (segEnd > cursor) {
+        segments.push({ start: cursor, end: segEnd });
+        const w = segEnd - cursor, cx = cursor + w / 2;
+        const r = this.add.rectangle(cx, groundY + 20, w, 40, 0, 0).setDepth(-9);
+        this.physics.add.existing(r, true);
+        this._floorSegs.push(r);
+      }
+      cursor = pit.x + pit.hw;
+    });
+    const lastW = worldW - cursor;
+    if (lastW > 0) {
+      segments.push({ start: cursor, end: worldW });
+      const r = this.add.rectangle(cursor + lastW / 2, groundY + 20, lastW, 40, 0, 0).setDepth(-9);
+      this.physics.add.existing(r, true);
+      this._floorSegs.push(r);
+    }
+    this._ground = this._floorSegs;
+
+    segments.forEach(seg => {
+      const w = seg.end - seg.start;
+      if (w <= 0) return;
+      if (hasSurf) {
+        const ts = this.add.tileSprite(seg.start + w / 2, surfaceY + surfaceH / 2, w, surfaceH, 'l8_surface').setDepth(-8);
+        ts.tileScaleX = ts.tileScaleY = tileScale;
+      } else {
+        const fg = this.add.graphics().setDepth(-8);
+        fg.fillStyle(0x70B030, 1); fg.fillRect(seg.start, surfaceY, w, surfaceH);
+      }
+    });
+
+    sorted.forEach(pit => this._buildPitVisual(pit.x - pit.hw, pit.hw * 2, surfaceY));
+    return this._ground;
+  }
+
+  // Level-2/6-style broken-ground pit — dark void + jagged edges + bouncing
+  // jump hint. gx = gap's left edge, gw = gap's full width, topY = where the
+  // ground surface starts (so the void seam lines up with no gap).
+  _buildPitVisual(gx, gw, topY) {
+    const gr = this.add.graphics().setDepth(4);
+    gr.fillStyle(0x050302, 1);
+    gr.fillRect(gx, topY, gw, H - topY + 20);
+    gr.fillStyle(0x2a1608, 0.55);
+    gr.fillRect(gx + 4, H - 10, gw - 8, 14);
+
+    gr.fillStyle(0x3d3d4a, 1);
+    gr.fillTriangle(gx, topY,      gx + 11, topY,      gx,      topY + 11);
+    gr.fillTriangle(gx, topY + 15, gx + 7,  topY + 13, gx,      topY + 24);
+    gr.fillStyle(0x2a2a38, 1);
+    gr.fillTriangle(gx, topY + 9,  gx + 8,  topY + 9,  gx + 3,  topY + 19);
+    gr.fillStyle(0x3d3d4a, 1);
+    gr.fillTriangle(gx + gw, topY,      gx + gw - 11, topY,      gx + gw, topY + 11);
+    gr.fillTriangle(gx + gw, topY + 15, gx + gw - 7,  topY + 13, gx + gw, topY + 24);
+    gr.fillStyle(0x2a2a38, 1);
+    gr.fillTriangle(gx + gw, topY + 9,  gx + gw - 8,  topY + 9,  gx + gw - 3, topY + 19);
+
+    gr.lineStyle(1.5, 0x18182a, 1);
+    gr.lineBetween(gx - 18, topY + 2,  gx,     topY + 8);
+    gr.lineBetween(gx - 11, topY - 3,  gx,     topY + 3);
+    gr.lineBetween(gx - 22, topY + 9,  gx - 4, topY + 7);
+    gr.lineBetween(gx + gw + 16, topY + 2,  gx + gw,     topY + 8);
+    gr.lineBetween(gx + gw +  9, topY - 3,  gx + gw,     topY + 3);
+    gr.lineBetween(gx + gw + 20, topY + 9,  gx + gw + 4, topY + 7);
+
+    const cx = gx + gw / 2;
+    const arrow = this.add.text(cx, topY - 32, '⬆', {
+      fontSize: '18px', color: '#ffee44', stroke: '#1a1008', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(9);
+    this.tweens.add({ targets: arrow, y: topY - 44, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  // Fall-through pit detection — call once per frame from a scene's update(),
+  // after runMovement(). No-op if buildGround() wasn't given any pits.
+  _checkPits() {
+    if (!this._pitZones || !this._pitZones.length) return;
+    if (this._paused || this._busy || this._done || this._fallingIntoPit) return;
+    const p = this.player;
+    if (!p) return;
+    const onG = p.body.blocked.down || p.body.touching.down;
+    if (!onG && p.body.bottom > this._groundY + 6) {
+      const inPit = this._pitZones.some(z => Math.abs(p.body.x - z.x) < z.hw);
+      if (inPit) {
+        this._fallingIntoPit = true;
+        this._fallIntoPit();
+      }
+    }
+  }
+
+  _fallIntoPit() {
+    this.cameras.main.flash(320, 0, 0, 0, true);
+    this.cameras.main.shake(200, 0.012);
+    this.toast('💧 Fell in a hole!');
+    this.loseLife(() => { this._fallingIntoPit = false; });
   }
 
   // ── Gleeda character (Glenda): JUMP + SLIDE ───────────────────────────────────
@@ -77,7 +197,10 @@ export class L8BaseScene extends Phaser.Scene {
     this.player.setScale(0.18);
     this.player.body.setSize(73, 56, true);
     this.player.setCollideWorldBounds(true);
-    this.physics.add.collider(this.player, this._ground);
+    // _ground is a single body normally, or one body per solid segment when
+    // buildGround() was given pit gaps — collide with each individually.
+    (Array.isArray(this._ground) ? this._ground : [this._ground])
+      .forEach(g => this.physics.add.collider(this.player, g));
     this.player.play('gleeda_idle');
     // applyGlendaSkin computes and stores _normalBodyW/H and _slideBodyW/H
     // (world-space, derived from the ORIGINAL 0.18 scale before it changes
@@ -425,6 +548,7 @@ export class L8BaseScene extends Phaser.Scene {
     this._done    = false;
     this._busy    = false;
     this._invuln  = false;
+    this._fallingIntoPit = false;
     if (this.physics?.world) this.physics.resume();
     // restore hearts HUD
     this._refreshHeartsHUD();

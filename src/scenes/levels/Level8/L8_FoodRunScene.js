@@ -50,18 +50,25 @@ const ACTIVITY_GATES = [
 ];
 
 // ALL hurdles sit ON the surface and are cleared by JUMPING (same as Level 6).
-// 10 obstacles across the longer 7000-unit world for tighter difficulty.
+// 9 obstacles across the longer 7000-unit world for tighter difficulty, plus
+// one real fall-through hole (PITS below, Level-2 style) where the puddle
+// hurdle used to be.
 const OBS_GROUND = [
   { x: 800,  tex: 'l8_obs_pot',    h: 60 },
   { x: 1500, tex: 'l8_obs_branch', h: 50 },
   { x: 2250, tex: 'l8_obs_toybox', h: 52 },
   { x: 2700, tex: 'l8_obs_crate',  h: 54 },
   { x: 3150, tex: 'l8_obs_pot',    h: 60 },
-  { x: 3750, tex: 'l8_obs_puddle', h: 26, flat: true },
   { x: 4350, tex: 'l8_obs_crate',  h: 54 },
   { x: 5100, tex: 'l8_obs_branch', h: 50 },
   { x: 5600, tex: 'l8_obs_toybox', h: 52 },
   { x: 6500, tex: 'l8_obs_pot',    h: 60 },
+];
+
+// Fall-through ground holes (Level-2/6 style) — walk/jump-mistimed into one
+// and you lose a life, same as Level 6's pits. hw = half-width of the gap.
+const PITS = [
+  { x: 3750, hw: 80 },
 ];
 
 export class L8_FoodRunScene extends L8BaseScene {
@@ -79,9 +86,10 @@ export class L8_FoodRunScene extends L8BaseScene {
     const OB = `${B}obstacle/`;
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
 
-    // background + surface (Level 6 art, kept in root)
-    load('l8_bg',      `${B}l8_bg.png`);
-    load('l8_surface', `${B}l8_surface.png`);
+    // background + surface — same real-art technique as Level 4 (fit-height,
+    // horizontally tiling images), swapped in for the old procedural-style art.
+    load('l8_bg',      `${B}backgorund-l8.jpg`);
+    load('l8_surface', `${B}bottoml8.jpg`);
 
     // food collectibles (Food Run + Feeding scene)
     load('l8_food_bag',  `${F}l8_food_bag.png`);
@@ -107,7 +115,6 @@ export class L8_FoodRunScene extends L8BaseScene {
     load('l8_obs_branch',  `${OB}l8_obs_branch.png`);
     load('l8_obs_toybox',  `${OB}l8_obs_toybox.png`);
     load('l8_obs_crate',   `${OB}l8_obs_crate.png`);
-    load('l8_obs_puddle',  `${OB}l8_obs_puddle.png`);
     load('l8_obs_banner',  `${OB}l8_obs_banner.png`);
     load('l8_obs_balloon', `${OB}l8_obs_balloon.png`);
     load('l8_cp_flag',     `${OB}l8_cp_flag.png`);
@@ -135,7 +142,7 @@ export class L8_FoodRunScene extends L8BaseScene {
 
     // ── world ────────────────────────────────────────────────────────────────
     this.buildSky();
-    this.buildGround(WORLD_W, GROUND_Y);
+    this.buildGround(WORLD_W, GROUND_Y, PITS);
     this._buildDecor();
     this._buildCPs();
     this._buildFood();
@@ -303,6 +310,7 @@ export class L8_FoodRunScene extends L8BaseScene {
     this._checkCPs();
     this._checkFood();
     this._checkObstacles(onG);
+    this._checkPits();
     this._updateDist();
   }
 

@@ -431,40 +431,12 @@ export class Level2Scene extends BaseLevelScene {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 2
     }).setScrollFactor(0).setDepth(40).setVisible(false);
 
-    // ── Gemma's cage (Zone 3 end) ──────────────────────────────────────────
+    // ── Gemma's cage (Zone 3 end) — real-art image (dog + cage baked in) ───
     {
-      const gx = 17800, gy = 404, cW = 100, cH = 90;
-      const cL = gx - cW / 2, cT = gy - cH;
-      this.gemmaCageBack = this.add.graphics().setDepth(7);
-      this.gemmaCageBack.fillStyle(0x1a1208, 1);
-      this.gemmaCageBack.fillRect(cL, cT, cW, cH);
-      this.gemmaCageBack.lineStyle(2, 0x3a2e10, 1);
-      this.gemmaCageBack.strokeRect(cL, cT, cW, cH);
-      this.gemmaCageBack.lineStyle(3, 0x2a2010, 0.9);
-      for (let r = 1; r <= 3; r++) {
-        const by = cT + (cH / 4) * r;
-        this.gemmaCageBack.lineBetween(cL + 4, by, cL + cW - 4, by);
-      }
-      this.gemmaInCage = this.physics.add.staticImage(gx, gy, 'gemma_idle')
-        .setDisplaySize(90, 50).setDepth(8).setOrigin(0.5, 1).refreshBody();
+      const gx = 17800, gy = 404;
+      this.gemmaInCage = this.physics.add.staticImage(gx, gy, 'l2_gemma_cage')
+        .setDisplaySize(110, 110).setDepth(8).setOrigin(0.5, 1).refreshBody();
       this.tweens.add({ targets: this.gemmaInCage, y: gy - 5, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const barCount = 6, barGap = cW / (barCount + 1);
-      this.gemmaCageFront = this.add.graphics().setDepth(10);
-      this.gemmaCageFront.lineStyle(5, 0x4a3a18, 1);
-      for (let b = 1; b <= barCount; b++) {
-        const bx = cL + barGap * b;
-        this.gemmaCageFront.lineBetween(bx, cT + 3, bx, gy - 2);
-      }
-      this.gemmaCageFront.lineStyle(6, 0x4a3a18, 1);
-      this.gemmaCageFront.lineBetween(cL, cT + 3,         cL + cW, cT + 3);
-      this.gemmaCageFront.lineBetween(cL, cT + cH * 0.45, cL + cW, cT + cH * 0.45);
-      this.gemmaCageFront.lineBetween(cL, gy - 2,          cL + cW, gy - 2);
-      this.gemmaCageFront.lineStyle(2, 0xc8a040, 0.35);
-      for (let b = 1; b <= barCount; b++) {
-        const bx = cL + barGap * b - 1;
-        this.gemmaCageFront.lineBetween(bx, cT + 3, bx, gy - 2);
-      }
-      this.gemmaCage = this.gemmaCageFront;
     }
 
     // ── Zone 2 porcupine ─────────────────────────────────────────────────
@@ -714,9 +686,9 @@ export class Level2Scene extends BaseLevelScene {
 
     this.time.delayedCall(1800, () => {
       this.tweens.add({
-        targets: this.gemmaCage, angle: 14, duration: 180, yoyo: true, repeat: 2,
+        targets: this.gemmaInCage, angle: 14, duration: 180, yoyo: true, repeat: 2,
         onComplete: () => {
-          this.tweens.add({ targets: [this.gemmaCageBack, this.gemmaCage, this.gemmaInCage], alpha: 0, duration: 600 });
+          this.tweens.add({ targets: this.gemmaInCage, alpha: 0, duration: 600 });
           this.time.delayedCall(900, () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
             this.time.delayedCall(550, () => this.scene.start('L2_Calmer'));

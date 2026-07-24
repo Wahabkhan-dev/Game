@@ -86,9 +86,9 @@ export class L7_Stage2Scene extends L7BaseScene {
     this.cameras.main.flash(300, 120, 220, 140);
     this.registry.set('lives', this._lives);
     this.registry.set('l7_checkpoint', 'L7_Stage3');
-    // End-of-Stage-2 bridge cinematic (V4+V5 merged) → then Stage 3 (fuel part).
+    // End-of-Stage-2 bridge cinematic (V4) → then Stage 3 (fuel part).
     this.time.delayedCall(600, () => {
-      this.playStoryVideos(['l7_v4', 'l7_v5'], () => {
+      this.playStoryVideos(['l7_v4'], () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.time.delayedCall(520, () => {
           this._forceSceneStart('L7_Stage3');

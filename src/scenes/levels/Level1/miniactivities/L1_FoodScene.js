@@ -92,48 +92,16 @@ export class L1_FoodScene extends BaseLevelScene {
     this._gemmaY = H - 32;   // ground surface (setOrigin bottom-anchored)
 
     // Smaller cage: 100px wide so it stays in x=5..105, well left of Shadow's spawn (260)
-    const cageW = 100, cageH = 90;
+    const cageW = 100;
     const cageL = this._gemmaX - cageW / 2;   // = 5
-    const cageT = this._gemmaY - cageH;
 
-    // Back wall of cage (depth 7)
-    const cageBack = this.add.graphics().setDepth(7);
-    cageBack.fillStyle(0x1a1208, 1);
-    cageBack.fillRect(cageL, cageT, cageW, cageH);
-    cageBack.lineStyle(2, 0x3a2e10, 1);
-    cageBack.strokeRect(cageL, cageT, cageW, cageH);
-    cageBack.lineStyle(3, 0x2a2010, 0.9);
-    for (let row = 1; row <= 3; row++) {
-      const by = cageT + (cageH / 4) * row;
-      cageBack.lineBetween(cageL + 4, by, cageL + cageW - 4, by);
-    }
-
-    // Gemma inside the cage (depth 8)
-    this._gemmaImg = this.add.image(this._gemmaX, this._gemmaY, 'gemma_idle')
-      .setDisplaySize(95, 52).setOrigin(0.5, 1).setDepth(8);
+    // Gemma in her cage — real-art image (dog + cage baked into one picture)
+    this._gemmaImg = this.add.image(this._gemmaX, this._gemmaY, 'l1_gemma_cage')
+      .setDisplaySize(110, 110).setOrigin(0.5, 1).setDepth(8);
     this.tweens.add({
       targets: this._gemmaImg, y: this._gemmaY - 4,
       duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
     });
-
-    // Front bars of cage drawn OVER Gemma (depth 10)
-    const cageFront = this.add.graphics().setDepth(10);
-    const barCount = 6;
-    const barGap = cageW / (barCount + 1);
-    cageFront.lineStyle(5, 0x4a3a18, 1);
-    for (let b = 1; b <= barCount; b++) {
-      const bx = cageL + barGap * b;
-      cageFront.lineBetween(bx, cageT + 3, bx, this._gemmaY - 2);
-    }
-    cageFront.lineStyle(6, 0x4a3a18, 1);
-    cageFront.lineBetween(cageL, cageT + 3,              cageL + cageW, cageT + 3);
-    cageFront.lineBetween(cageL, cageT + cageH * 0.45,   cageL + cageW, cageT + cageH * 0.45);
-    cageFront.lineBetween(cageL, this._gemmaY - 2,        cageL + cageW, this._gemmaY - 2);
-    cageFront.lineStyle(2, 0xc8a040, 0.35);
-    for (let b = 1; b <= barCount; b++) {
-      const bx = cageL + barGap * b - 1;
-      cageFront.lineBetween(bx, cageT + 3, bx, this._gemmaY - 2);
-    }
 
     // Glow under cage — appears when all fruits collected
     this._gemmaGlow = this.add.circle(this._gemmaX, this._gemmaY - 10, 38, 0xffcc00, 0)

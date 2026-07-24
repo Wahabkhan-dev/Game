@@ -29,12 +29,17 @@ const OBSTACLES = [
   { x: 1300, tex: 'l8_obs_branch',  type: 'overhead', h: 58 },
   { x: 1950, tex: 'l8_obs_crate',   type: 'ground',   h: 56 },
   { x: 2350, tex: 'l8_obs_balloon', type: 'overhead', h: 84 },
-  { x: 2900, tex: 'l8_obs_puddle',  type: 'ground',   h: 28, flat: true },
   { x: 3550, tex: 'l8_obs_banner',  type: 'overhead', h: 52 },
   { x: 4100, tex: 'l8_obs_pot',     type: 'ground',   h: 62 },
   { x: 4600, tex: 'l8_obs_crate',   type: 'ground',   h: 56 },
   { x: 5200, tex: 'l8_obs_balloon', type: 'overhead', h: 84 },
   { x: 5750, tex: 'l8_obs_pot',     type: 'ground',   h: 62 },
+];
+
+// Fall-through ground holes (Level-2/6 style) — walk/jump-mistimed into one
+// and you lose a life, same as Level 6's pits. hw = half-width of the gap.
+const PITS = [
+  { x: 2900, hw: 80 },
 ];
 
 // ── Mid-run mini-activity gates ─────────────────────────────────────────────
@@ -56,8 +61,10 @@ export class L8_HomeRunScene extends L8BaseScene {
     const OB = `${B}obstacle/`;
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
 
-    load('l8_bg',      `${B}l8_bg.png`);
-    load('l8_surface', `${B}l8_surface.png`);
+    // background + surface — same real-art technique as Level 4 (fit-height,
+    // horizontally tiling images), swapped in for the old procedural-style art.
+    load('l8_bg',      `${B}backgorund-l8.jpg`);
+    load('l8_surface', `${B}bottoml8.jpg`);
 
     load('l8_item_bed',          `${HI}l8_item_bed.png`);
     load('l8_item_foodstation',  `${HI}l8_item_foodstation.png`);
@@ -72,7 +79,6 @@ export class L8_HomeRunScene extends L8BaseScene {
     load('l8_obs_branch',  `${OB}l8_obs_branch.png`);
     load('l8_obs_crate',   `${OB}l8_obs_crate.png`);
     load('l8_obs_balloon', `${OB}l8_obs_balloon.png`);
-    load('l8_obs_puddle',  `${OB}l8_obs_puddle.png`);
     load('l8_obs_banner',  `${OB}l8_obs_banner.png`);
     load('l8_house',       `${OB}l8_house.png`);
   }
@@ -88,7 +94,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     this._groundY = GROUND_Y;   // needed by buildSky() before buildGround()
 
     this.buildSky();
-    this.buildGround(WORLD_W, GROUND_Y);
+    this.buildGround(WORLD_W, GROUND_Y, PITS);
     this._buildDecor();
     this._buildItems();
     this._buildObstacles();
@@ -156,6 +162,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     this._checkGates();
     this._checkItems();
     this._checkObstacles(onG);
+    this._checkPits();
     if (this.player.x > WORLD_W - 240) this._finish();
   }
 

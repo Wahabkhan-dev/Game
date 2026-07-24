@@ -11,9 +11,13 @@ import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 //   Avoid Traffic · Road Block · Quick-Time Event · Steep Climb · Final Drive
 // Uses the same car sprite + position as Level 3 (l3_car @ CAR_X).
 // ════════════════════════════════════════════════════════════════════════════
-const ROAD_TOP = 312;
-const ROAD_H   = 100;
-const DRIVE_Y  = ROAD_TOP + 60;   // wheel-contact surface
+// Match Level 3's driving-scene geometry exactly so the road band + background
+// are the same size/position (was ROAD_TOP=312 / ROAD_H=100 / +60 — a taller,
+// higher road than Level 3). Every hurdle, sign, the car and the finish line
+// all derive from these three, so they move together with the change.
+const ROAD_TOP = Math.round(H * 0.82);  // ≈ 369 — road band top (same as Level 3's ROAD_TOP_Y)
+const ROAD_H   = H - ROAD_TOP;          // ≈ 81  — road band fills to screen bottom, like Level 3
+const DRIVE_Y  = ROAD_TOP + 52;         // wheel-contact surface (matches Level 3's +52 offset)
 const CAR_X    = 200;             // same as Level 3
 
 const CFG = {
@@ -89,24 +93,22 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._buildObjectives();
     this._buildControls();
 
-    // V6 plays at the start of Stage 4, before the drive begins. Freeze the
-    // driving loop (update() early-returns while _paused) until it finishes.
-    this._paused = true;
-    playVideoSequence(this, ['l7_v6'], () => {
-      this._paused = false;
-      this.time.delayedCall(300, () => this._toast('🚗 ▶/D = accelerate · ◀/A = brake.  Slow for 🛑 breakers & 🚦 red lights!', 4000));
-    });
+    this.time.delayedCall(300, () => this._toast('🚗 ▶/D = accelerate · ◀/A = brake.  Slow for 🛑 breakers & 🚦 red lights!', 4000));
   }
 
   // ── BACKGROUND — Level 3's city art, anchored so its baked-in street level
   // lands exactly at ROAD_TOP (same technique as Level 3's car journey). ───────
   _buildBackground() {
     this.add.rectangle(W / 2, H / 2, W, H, 0x0c1322, 1).setDepth(-20);
-    if (this.textures.exists('l7s4_bg')) {
-      const src   = this.textures.get('l7s4_bg').getSourceImage();
+    // Prefer Level 3's actual city background so Stage 4 looks identical to the
+    // Level 3 car journey; fall back to the Stage-4 copy, then the sky tile.
+    const cityKey = this.textures.exists('l3_bg_main') ? 'l3_bg_main'
+                  : this.textures.exists('l7s4_bg')    ? 'l7s4_bg' : null;
+    if (cityKey) {
+      const src   = this.textures.get(cityKey).getSourceImage();
       const srcH  = src.naturalHeight || src.height || ROAD_TOP;
       const dispH = ROAD_TOP;
-      this._bgCity = this.add.tileSprite(W / 2, dispH / 2, W, dispH, 'l7s4_bg').setDepth(-15);
+      this._bgCity = this.add.tileSprite(W / 2, dispH / 2, W, dispH, cityKey).setDepth(-15);
       this._bgCity.tileScaleX = this._bgCity.tileScaleY = dispH / srcH;
     } else {
       this._sky = this.add.tileSprite(W / 2, H / 2 - 30, W, H, 'l7_s4_sky').setDepth(-15);
@@ -121,10 +123,14 @@ export class L7_Stage4Scene extends Phaser.Scene {
   // comes from scrolling the tile in update(), so no procedural lane dashes. ──
   _buildRoad() {
     const RS = ROAD_TOP, roadH = H - RS;
-    if (this.textures.exists('l7s4_road')) {
-      const src  = this.textures.get('l7s4_road').getSourceImage();
+    // Prefer Level 3's actual road-bottom art so the bottom matches Level 3
+    // exactly; fall back to the Stage-4 copy, then a plain asphalt fill.
+    const roadKey = this.textures.exists('l3_road_bottom') ? 'l3_road_bottom'
+                  : this.textures.exists('l7s4_road')       ? 'l7s4_road' : null;
+    if (roadKey) {
+      const src  = this.textures.get(roadKey).getSourceImage();
       const srcH = src.naturalHeight || src.height || 81;
-      this._roadTile = this.add.tileSprite(W / 2, RS + roadH / 2, W, roadH, 'l7s4_road')
+      this._roadTile = this.add.tileSprite(W / 2, RS + roadH / 2, W, roadH, roadKey)
         .setDepth(1).setScrollFactor(0);
       this._roadTile.tileScaleX = this._roadTile.tileScaleY = roadH / srcH;
     } else {
@@ -307,7 +313,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
   _buildHUD() {
     this._points = this.registry.get('points') ?? 0;
     this._hdr = buildStandardHeader(this, {
-      chapterLabel: 'STAGE 4', title: 'Drive to the Hospital',
+      chapterLabel: 'LEVEL 7', title: 'Drive to the Hospital',
       timer: 90, coinValue: this._points,
       lives: this._lives, hp: 3,
       onMenu: () => this._togglePause(), depth: 48,
@@ -365,21 +371,13 @@ export class L7_Stage4Scene extends Phaser.Scene {
     }
   }
 
-  // ── Mini-activity checklist (matches the reference image) ───────────────────
+  // ── Mini-activity checklist state (no longer shown as a panel) ─────────────
   _buildObjectives() {
     const items = ['Mind the speed breakers', 'Stop at the red lights', 'Clear the road blocks', 'Quick-time swerve', 'Climb the hill', 'Reach the hospital'];
     this._obj = items.map(t => ({ t, done: false }));
-    const px = 6, py = 62, pw = 168, ph = 20 + items.length * 15;
-    const g = this.add.graphics().setDepth(20).setScrollFactor(0);
-    g.fillStyle(0x0a0f1a, 0.7); g.fillRoundedRect(px, py, pw, ph, 6);
-    g.lineStyle(1, 0x3a5070, 0.6); g.strokeRoundedRect(px, py, pw, ph, 6);
-    this.add.text(px + 8, py + 5, '🎯 TASKS', { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#7fb0e0' }).setDepth(21).setScrollFactor(0);
-    this._objTxt = items.map((t, i) => this.add.text(px + 10, py + 21 + i * 15, '○ ' + t, {
-      fontSize: '10px', fontFamily: 'Georgia, serif', color: '#cdd8e6', stroke: '#000', strokeThickness: 2
-    }).setDepth(21).setScrollFactor(0));
   }
   _completeObj(i) {
-    if (!this._obj[i] || this._obj[i].done) return;
+    if (!this._obj[i] || this._obj[i].done || !this._objTxt) return;
     this._obj[i].done = true;
     this._objTxt[i].setText('✓ ' + this._obj[i].t).setColor('#7dffa0');
     this.tweens.add({ targets: this._objTxt[i], scale: { from: 1.2, to: 1 }, duration: 250 });
@@ -573,8 +571,8 @@ export class L7_Stage4Scene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 + 14, 'Hospital Reached!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 48, `Puppies' safety: ${this._lives}/3 ❤️`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.time.delayedCall(2000, () => {
-        // V7 plays after reaching the hospital, then on to Stage 5.
-        playVideoSequence(this, ['l7_v7'], () => {
+        // V6 plays after reaching the hospital (end of Stage 4), then on to Stage 5.
+        playVideoSequence(this, ['l7_v6'], () => {
           this.cameras.main.fadeOut(700, 0, 0, 0);
           this.time.delayedCall(740, () => {
             this._forceSceneStart('L7_Stage5');
@@ -620,14 +618,17 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._done = true; this._speed = 0;
     this._timerEvt?.remove();
     this.registry.set('lives', 3);
+    this.registry.set('l7_checkpoint', 'L7_Stage1');
     // V8 = the "exceptional" cinematic — plays when the player runs out of lives
-    // before reaching the hospital — then shows the try-again screen.
+    // before reaching the hospital — then shows the try-again screen. Lives
+    // are shared across all 5 stages, so running out sends the player back
+    // to the start of Level 7, not just this stage.
     playVideoSequence(this, ['l7_v8'], () => {
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60).setScrollFactor(0);
       this.add.text(W / 2, H / 2 - 50, '💔', { fontSize: '50px' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 6, msg, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ff6677', align: 'center', stroke: '#000', strokeThickness: 3, lineSpacing: 6 }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 64, '↺ Tap to try again', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-      this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this.scene.restart()); });
+      this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this._forceSceneStart('L7_Stage1')); });
     });
   }
 

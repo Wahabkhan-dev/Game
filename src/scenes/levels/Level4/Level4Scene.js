@@ -163,12 +163,8 @@ export class Level4Scene extends Phaser.Scene {
       return s;
     };
 
-    // Bushes scattered along the walk
-    [500, 1800, 2600, 4000, 5400, 6800, 8000, 9600, 10600, 11800].forEach(x => place(x, 'l4_bush', 70, 4));
-
-    // Street lamps + benches
+    // Street lamps
     [1400, 4600, 7600, 10400].forEach(x => place(x, 'l4_lamp', 150, 4));
-    [2400, 7000, 9900].forEach(x => place(x, 'l4_bench', 78, 4));
 
     // ── Checkpoint flags — visible markers at the two mid-level checkpoint
     // boundaries (CP1→CP2 at ~4000, CP2→CP3 at ~8000). Same art + size + ground

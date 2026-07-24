@@ -10,8 +10,8 @@ const IMG = 'assets/images/Level7/Stage1/';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 1 — FIND THE HOUSE KEY  (inside the home, stormy night, power out)
-// Restore power (fuse box) → unlock the attic cabinet → search the basement →
-// assemble the jeep key. Real hand-painted interior art.
+// Restore power (fuse box) → search the basement → assemble the jeep key.
+// Real hand-painted interior art.
 // ════════════════════════════════════════════════════════════════════════════
 export class L7_Stage1Scene extends L7BaseScene {
   constructor() { super('L7_Stage1'); }
@@ -23,8 +23,8 @@ export class L7_Stage1Scene extends L7BaseScene {
   preload() {
     console.log('[L7_Stage1] preload() start');
     preloadGlendaSkin(this);
-    const files = ['l7_s1_bg', 'l7_s1_floor', 'l7_s1_window', 'l7_s1_ladder', 'l7_s1_basement',
-      'l7_s1_debris', 'l7_fusebox', 'l7_puddle', 'l7_keyfrag', 'l7_key'];
+    const files = ['l7_s1_bg', 'l7_s1_floor', 'l7_s1_window', 'l7_s1_basement',
+      'l7_fusebox', 'l7_keyfrag', 'l7_key'];
 
     files.forEach(k => {
       if (!this.textures.exists(k)) {
@@ -51,7 +51,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.cameras.main.setBackgroundColor('#0a0e16');
 
     this._fragments = 0;
-    this._stationsDone = { power: false, attic: false, basement: false };
+    this._stationsDone = { power: false, basement: false };
     this._powerOn = false;
 
     this._buildWorld();
@@ -59,7 +59,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     this._buildStations();
     this._buildPlayer();
     this.buildStageHUD(1, 'Find the House Key',
-      ['Restore the power', 'Unlock the attic cabinet', 'Search the basement', 'Assemble the jeep key']);
+      ['Restore the power', 'Search the basement', 'Assemble the jeep key']);
     this.buildFog(18, 0.18);
     this.startLightning();
 
@@ -97,23 +97,11 @@ export class L7_Stage1Scene extends L7BaseScene {
     const body = this.add.rectangle(WORLD_W / 2, GROUND_Y + 16, WORLD_W, 28, 0, 0);
     this.physics.add.existing(body, true);
     this._ground = body;
-
-    // Hurdle: fallen boxes / toppled stool (jump over)
-    this._debris = this.add.image(720, GROUND_Y + 10, 'l7_s1_debris').setOrigin(0.5, 1).setDisplaySize(140, 76).setDepth(8);
-    const db = this.add.rectangle(720, GROUND_Y - 14, 96, 40, 0, 0);
-    this.physics.add.existing(db, true);
-    this._debrisBody = db;
-
-    // Hurdle: ceiling-leak puddle (slippery)
-    this._puddles = [1280].map(x => ({
-      x, img: this.add.image(x, GROUND_Y + 8, 'l7_puddle').setOrigin(0.5, 1).setDisplaySize(96, 30).setDepth(6), hit: false
-    }));
   }
 
   _buildStations() {
     this._stations = [
       { key: 'power',    x: 420,  tex: 'l7_fusebox',    dw: 122, dh: 122 * 369 / 677, oy: 0.5, y: 232, label: '⚡ Fuse Box', run: () => this._wirePuzzle() },
-      { key: 'attic',    x: 1010, tex: 'l7_s1_ladder',  dw: 300 * 373 / 669, dh: 300, oy: 1,   y: GROUND_Y + 4, label: '🪜 Attic',    run: () => this._comboPuzzle() },
       { key: 'basement', x: 1560, tex: 'l7_s1_basement',dw: 168, dh: 168 * 369 / 677, oy: 1,   y: GROUND_Y + 10, label: '🚪 Basement', run: () => this._basementPuzzle() },
     ];
     this._stations.forEach(st => {
@@ -134,7 +122,6 @@ export class L7_Stage1Scene extends L7BaseScene {
   _buildPlayer() {
     this.buildPlayer(80, GROUND_Y);
     this.physics.add.collider(this.player, this._ground);
-    this.physics.add.collider(this.player, this._debrisBody);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
   }
 
@@ -142,15 +129,6 @@ export class L7_Stage1Scene extends L7BaseScene {
     if (this._busy || this._paused) return;
     this.runMovement(210, -460);
     this.updateFog();
-
-    for (const pd of this._puddles) {
-      if (!pd.hit && Math.abs(this.player.x - pd.x) < 32 && this.player.body.blocked.down) {
-        pd.hit = true;
-        this.sparkleBurst(pd.x, GROUND_Y - 4, 6);
-        this.toast('💦 Splash! Slippery floor — careful.', 1400);
-        this.time.delayedCall(2500, () => { pd.hit = false; });
-      }
-    }
 
     let near = null;
     for (const st of this._stations) {
@@ -160,7 +138,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     this._near = near;
     if (near && Phaser.Input.Keyboard.JustDown(this.keys.E)) this._trigger(near);
 
-    if (this._fragments >= 3 && !this._assembled && this.player.x > this._assembleX) this._assembleKey();
+    if (this._fragments >= 2 && !this._assembled && this.player.x > this._assembleX) this._assembleKey();
   }
 
   _trigger(st) {
@@ -168,7 +146,6 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.player.setVelocity(0, 0);
     const intros = {
       power:    ['⚡', 'Restore the Power', 'Connect each wire to the\nmatching coloured socket.'],
-      attic:    ['🔒', 'Attic Cabinet Lock', 'Set the 3 dials to match\nthe code to open it.'],
       basement: ['🔦', 'Search the Basement', "It's pitch black — drag the\nflashlight to find the fragment."],
     };
     const [e, t, d] = intros[st.key];
@@ -194,9 +171,9 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.sparkleBurst(frag.x, frag.y, 12);
     this.tweens.add({ targets: frag, x: this.cameras.main.scrollX + 120, y: 70, scale: 0.5, duration: 700, scrollFactorX: 0 });
     this.time.delayedCall(720, () => frag.destroy());
-    this.toast(`🗝️ Key fragment ${this._fragments}/3 collected!`, 2200);
+    this.toast(`🗝️ Key fragment ${this._fragments}/2 collected!`, 2200);
 
-    if (this._fragments >= 3) {
+    if (this._fragments >= 2) {
       this.time.delayedCall(900, () => this.toast('✨ All 3 fragments found — assemble the key at the end →', 3200));
       this._doorKey = this.add.image(this._assembleX, GROUND_Y - 70, 'l7_keyfrag').setDisplaySize(54, 34).setDepth(20);
       this.tweens.add({ targets: this._doorKey, y: this._doorKey.y - 12, duration: 700, yoyo: true, repeat: -1 });
@@ -209,7 +186,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     this._busy = true;
     this.player.setVelocity(0, 0);
     if (this._doorKey) this._doorKey.destroy();
-    this.completeObjective(3);
+    this.completeObjective(2);
     const key = this.add.image(this.player.x, GROUND_Y - 90, 'l7_key').setScale(0).setDepth(40);
     this.sparkleBurst(key.x, key.y, 20);
     this.tweens.add({ targets: key, scale: 0.5, duration: 600, ease: 'Back.easeOut', yoyo: true, hold: 400, onComplete: () => key.destroy() });
@@ -266,40 +243,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     drawLinks();
   }
 
-  // ── Mini-game 2: Combination lock (Attic Cabinet) ──────────────────────────
-  _comboPuzzle() {
-    const { td, close, px, py, pw, ph } = this.openPanel('🔒 Cabinet Lock', 'Match the dials to the code, then OPEN.', { w: 480, h: 320 });
-    const code = [Phaser.Math.Between(1, 9), Phaser.Math.Between(1, 9), Phaser.Math.Between(1, 9)];
-    td.push(this.add.text(W / 2, py + 84, `CODE:  ${code.join('  ')}`, {
-      fontSize: '18px', fontFamily: 'Georgia, serif', color: '#f0c860', stroke: '#000', strokeThickness: 2
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(103));
-    const vals = [1, 1, 1];
-    const dialTxt = [];
-    const startX = W / 2 - 90;
-    for (let d = 0; d < 3; d++) {
-      const dx = startX + d * 90, dy = py + 170;
-      const box = this.add.graphics().setScrollFactor(0).setDepth(102);
-      box.fillStyle(0x1c2436, 1); box.fillRoundedRect(dx - 28, dy - 30, 56, 60, 8);
-      box.lineStyle(2, 0x5a6a82, 1); box.strokeRoundedRect(dx - 28, dy - 30, 56, 60, 8);
-      td.push(box);
-      const t = this.add.text(dx, dy, '1', { fontSize: '30px', fontFamily: 'Georgia, serif', color: '#cfe0f5' }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
-      td.push(t); dialTxt.push(t);
-      this.panelButton(td, dx, dy - 52, '▲', 0x7fb0e0, () => { vals[d] = vals[d] === 9 ? 1 : vals[d] + 1; t.setText(String(vals[d])); }, 44, 28);
-      this.panelButton(td, dx, dy + 52, '▼', 0x7fb0e0, () => { vals[d] = vals[d] === 1 ? 9 : vals[d] - 1; t.setText(String(vals[d])); }, 44, 28);
-    }
-    this.panelButton(td, W / 2, py + ph - 36, '🔓  OPEN', 0x7dff88, () => {
-      if (vals.every((v, i) => v === code[i])) {
-        this.cameras.main.flash(300, 120, 220, 140);
-        this.time.delayedCall(400, () => { close(); this._onStationWin('attic', 1); });
-      } else {
-        this.cameras.main.shake(180, 0.01);
-        dialTxt.forEach(t => t.setColor('#ff6666'));
-        this.time.delayedCall(400, () => dialTxt.forEach(t => t.setColor('#cfe0f5')));
-      }
-    }, 160, 42);
-  }
-
-  // ── Mini-game 3: Flashlight hidden-object (Basement) ───────────────────────
+  // ── Mini-game 2: Flashlight hidden-object (Basement) ───────────────────────
   _basementPuzzle() {
     const { td, close, px, py, pw, ph } = this.openPanel('🔦 Dark Basement', 'Drag the flashlight to find the key fragment.', { w: 580, h: 330 });
     const maskArea = { x: px + 20, y: py + 70, w: pw - 40, h: ph - 100 };
@@ -334,7 +278,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     frag.on('pointerdown', () => {
       if (frag.alpha < 0.9) return;
       this.cameras.main.flash(300, 120, 220, 140);
-      this.time.delayedCall(400, () => { close(); this._onStationWin('basement', 2); });
+      this.time.delayedCall(400, () => { close(); this._onStationWin('basement', 1); });
     });
     reveal();
   }

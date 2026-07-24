@@ -109,9 +109,12 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.time.delayedCall(2200, () => {
       this.registry.set('lives', this._lives);
       this.registry.set('l7_checkpoint', 'L7_COMPLETE');
-      this.cameras.main.fadeOut(700, 0, 0, 0);
-      this.time.delayedCall(740, () => {
-        this._forceSceneStart('EndScene');
+      // V7 plays once all 5 stages are done, then the level truly ends.
+      this.playStoryVideos(['l7_v7'], () => {
+        this.cameras.main.fadeOut(700, 0, 0, 0);
+        this.time.delayedCall(740, () => {
+          this._forceSceneStart('EndScene');
+        });
       });
     });
   }

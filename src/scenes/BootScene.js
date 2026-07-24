@@ -20,6 +20,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image('fountain',     'assets/images/fountain.png');
     this.load.image('gemma_idle',    'assets/images/gemma/gemma_idle.png');
     this.load.image('gemma_happy',   'assets/images/gemma/gemma_happy.png');
+    // Real-art "Gemma in cage" (dog + cage baked into one image) — replaces
+    // the procedurally-drawn bars + plain gemma_idle sprite combo in Level 1's
+    // fruit part and Level 2's cage scene.
+    this.load.image('l1_gemma_cage', 'assets/images/level1/gemma-in-cage.png');
+    this.load.image('l2_gemma_cage', 'assets/images/Level 2/gemma-in-cage.png');
     this.load.image('shadow_idle',   'assets/images/shadow/shadow_idle.png');
     this.load.image('shadow_run1',   'assets/images/shadow/shadow_run1.png');
     this.load.image('shadow_run2',   'assets/images/shadow/shadow_run2.png');
@@ -146,7 +151,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('loaderror', (f) => { if (f && f.key && f.key.startsWith('l4_')) { /* vector fallback in generators */ } });
     // Real-art background + ground (same technique as Level 3's Level 03 art)
     this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4.jpg');
-    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom.png');
+    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom.jpg');
     // New garage-build background (replaces the old l4_garage_bg)
     this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.png');
     // ── Level 5 real artwork (rainy neighborhood + garage birth) ────────────
@@ -159,7 +164,7 @@ export class BootScene extends Phaser.Scene {
     ].forEach(k => this.load.image(k, `${L5}${k}.png`));
     // Real-art background + ground (same technique as Level 4's backgorund-l4)
     this.load.image('l5_bg_main',      'assets/images/Level 5/backgorund-l5.jpg');
-    this.load.image('l5_ground_bottom','assets/images/Level 5/bottom-l5.png');
+    this.load.image('l5_ground_bottom','assets/images/Level 5/bottom-l5.jpg');
     // ── Level 3 audio (fail silently if files not present) ──────────────────
     this.load.audio('bump_fast',      'assets/audio/bump_fast.mp3');
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');

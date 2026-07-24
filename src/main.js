@@ -166,6 +166,14 @@ const config = {
   loader: {
     crossOrigin: 'anonymous',
   },
+  // Lets scenes use `this.add.dom(...)` — real HTML/CSS elements overlaid on
+  // the canvas (used by Level 5's treatment-room HUD). Phaser's own position
+  // sync for this assumes IT centers the canvas; since this project centers
+  // via CSS flex instead (see `autoCenter: NO_CENTER` below), the overlay is
+  // manually re-synced to the canvas's real screen box below instead.
+  dom: {
+    createContainer: true,
+  },
   scale: {
     mode: Phaser.Scale.FIT,          // preserve the 16:9 aspect (letterbox, never distort)
     autoCenter: Phaser.Scale.NO_CENTER,   // CSS flex centers the canvas (avoids double-centering offset)
@@ -307,3 +315,33 @@ try {
   const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
   if (mq && mq.addEventListener) mq.addEventListener('change', _refreshRenderZoom, { once: false });
 } catch (_) {}
+
+// ── Keep the DOM Element overlay glued to the canvas's real on-screen box ───
+// Phaser's built-in `dom.createContainer` sync assumes Phaser itself is
+// centering the canvas (via `scale.autoCenter`). This project centers the
+// canvas with CSS flex instead (`autoCenter: NO_CENTER`, chosen to avoid a
+// double-centering offset — see the scale config above), so Phaser's internal
+// math ends up positioning/scaling the DOM container wrong (it doesn't know
+// about the flex offset). Fix: measure the canvas's ACTUAL rendered box with
+// getBoundingClientRect() — always correct, however it got there — and slave
+// the DOM container to that directly, overriding Phaser's own placement.
+function _syncDomOverlay() {
+  const game = window._game;
+  const dom = game && game.domContainer;
+  const canvas = game && game.canvas;
+  if (!dom || !canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const scale = rect.width / W;
+  dom.style.left = `${rect.left}px`;
+  dom.style.top = `${rect.top}px`;
+  dom.style.transform = `scale(${scale})`;
+  dom.style.transformOrigin = 'left top';
+}
+window._game.events.once('ready', () => {
+  _syncDomOverlay();
+  try {
+    if (window._game.canvas) new ResizeObserver(_syncDomOverlay).observe(window._game.canvas);
+  } catch (_) {}
+});
+window.addEventListener('resize', () => setTimeout(_syncDomOverlay, 160));

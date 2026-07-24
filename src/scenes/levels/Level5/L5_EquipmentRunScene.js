@@ -147,9 +147,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       if (tint) s.setTint(tint);
       return s;
     };
-    [500, 1800, 2600, 4000, 5400, 6800, 8000, 9600, 10600, 11800].forEach(x => place(x, 'l5_bush', 70, 4));
     [1400, 4600, 7600, 10400].forEach(x => place(x, 'l5_lamp', 150, 4));
-    [2400, 7000, 9900].forEach(x => place(x, 'l5_bench', 78, 4));
     const gate = (x, txt) => this.add.text(x, GY - 150, txt, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#5a3d1a', stroke: '#fff8', strokeThickness: 3, backgroundColor: '#ffffffcc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setDepth(6);
     gate(2300, '🛒 GROCERY'); gate(4700, '🏘️ HOMES'); gate(7000, '🌳 PARK'); gate(9300, '🏪 MARKET'); gate(11600, '🏡 HOME ZONE');
   }

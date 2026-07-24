@@ -32,11 +32,18 @@ export class L7_Stage3Scene extends L7BaseScene {
   _wh(key, h) { const s = this.textures.get(key).getSourceImage(); return [h * s.width / s.height, h]; }
 
   create() {
+    // Explicit opaque cover, faded out in parallel with the camera's own
+    // fadeIn below — a redundant safety net so no unrendered/default frame
+    // can ever flash through during the scene handoff from Stage 2's video,
+    // regardless of what's causing it.
+    const cover = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setScrollFactor(0).setDepth(1000);
+    this.tweens.add({ targets: cover, alpha: 0, duration: 700, onComplete: () => cover.destroy() });
+
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#0c1020');
+    this.cameras.main.fadeIn(700, 0, 0, 0);
 
     this._fuel = 0;          // 0..100
     this._stationsDone = {};
@@ -201,10 +208,13 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.cameras.main.flash(300, 120, 220, 140);
     this.registry.set('lives', this._lives);
     this.registry.set('l7_checkpoint', 'L7_Stage4');
+    // End-of-Stage-3 bridge cinematic (V5) → then Stage 4 (drive).
     this.time.delayedCall(600, () => {
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => {
-        this._forceSceneStart('L7_Stage4');
+      this.playStoryVideos(['l7_v5'], () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.time.delayedCall(520, () => {
+          this._forceSceneStart('L7_Stage4');
+        });
       });
     });
   }

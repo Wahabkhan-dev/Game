@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { generateL5Assets } from './L5Assets.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
+import { addStandaloneMenuButton } from '../../../hud/premium/PremiumTheme.js';
 
 // ── Pastel color palette (matches UI mockup) ─────────────────────────────
 const C = {
@@ -18,7 +20,6 @@ const TASKS = [
   { id:'water',   label:'Fresh Water',   emoji:'💧', color:0xD0EEFF },
   { id:'towels',  label:'Soft Towel',    emoji:'🧺', color:0xFFEED0 },
   { id:'blanket', label:'Cozy Blanket',  emoji:'🧣', color:0xEDD0FF },
-  { id:'lamp',    label:'Gentle Heat',   emoji:'💡', color:0xFFF0C0 },
   { id:'nursery', label:'Nursery Setup', emoji:'🧸', color:0xFFD8E8 },
 ];
 
@@ -30,7 +31,6 @@ const MID_H = H - HDR_H - BOT_H; // main area height (354)
 const L_W   = 550;              // left scene width
 const R_X   = 554;              // right panel start x
 const R_W   = W - R_X - 4;     // right panel width (242)
-const ROW_H = Math.floor((MID_H - 12) / 6); // ≈59
 const BOT_Y = H - BOT_H;       // bottom bar y (404)
 
 
@@ -39,7 +39,6 @@ const PUPPY_STEPS = [
   { task:'towels',  msg:'"Dry this little one! 🧺"',      action:'Use soft towels!'    },
   { task:'water',   msg:'"Warm paws in the bowl! 💧"',     action:'Warm water ready!'   },
   { task:'blanket', msg:'"Wrap in the blanket! 🧣"',       action:'Cozy and wrapped!'   },
-  { task:'lamp',    msg:'"Under the warm lamp! 💡"',       action:'Nice and toasty!'    },
   { task:'nursery', msg:'"Nursery corner check! 🧸"',      action:'Comfort check done!' },
   { task:'heart',   msg:'"Last one — heart check! 🩺"',    action:'All heartbeats good!'},
 ];
@@ -55,12 +54,10 @@ export class Level5Scene extends Phaser.Scene {
       water_bowl:  'water_bowl',
       towels:      'towels_stack',
       blanket:     'blanket',
-      lamp:        'heat_lamp',
       basket:      'puppy_basket',
       nursery:     'nursery',
       gemma_lying: 'gemma_lying',
       gemma_lying_blanket: 'gemma_lying_blanket',
-      heat_lamp_img: 'heat_lamp',
       puppy:          'puppy',
       puppy_in_basket:'puppy_in_basket',
     };
@@ -69,44 +66,49 @@ export class Level5Scene extends Phaser.Scene {
         this.load.image(key, `${IMG_PATH}${file}.png`);
       }
     });
+    if (!this.textures.exists('l5_treatment_bg')) {
+      this.load.image('l5_treatment_bg', 'assets/images/Level 5/level 05 BG.png');
+    }
     this.load.on('loaderror', (fileObj) => console.warn('❌ Failed to load:', fileObj.src));
   }
 
   create() {
     try { generateL5Assets(this); } catch(_) {}
 
-    this._stars    = this.registry.get('l5_stars') || 0;
     this._taskIdx  = 0;
-    this._done     = Array(6).fill(false);
+    this._done     = Array(TASKS.length).fill(false);
     this._progress = 0;
     this._phase    = 'prep';
     this._iObjs    = [];
     this._roomDecors = [];   // persistent decor added after each task
     this._pupCount = 0;
     this._bktSlots = [];
-    this._progressInterval = null;
 
     this.events.once('shutdown', () => {
-      if (this._progressInterval) { clearInterval(this._progressInterval); this._progressInterval = null; }
       this.tweens.killAll();
       this.time.removeAllEvents();
     });
     // maps both task IDs (heart/water/...) and prop names to texture keys
     this._propTextures = {
-      heart:'stethoscope', water:'water_bowl', towels:'towels', blanket:'blanket', lamp:'lamp', nursery:'nursery',
+      heart:'stethoscope', water:'water_bowl', towels:'towels', blanket:'blanket', nursery:'nursery',
       stethoscope:'stethoscope', water_bowl:'water_bowl',
     };
 
     const footer = document.getElementById('game-footer');
     if (footer) footer.style.display = 'none';
 
-    this.cameras.main.setBackgroundColor('#F9D4D4');
-    this.cameras.main.fadeIn(700, 249, 212, 212);
+    this.cameras.main.setBackgroundColor('#6B4423');
+    this.cameras.main.fadeIn(700, 107, 68, 35);
 
     this._buildRoom();
     this._buildHeader();
     this._buildCareJourney();
     this._buildBottomBar();
+
+    // Positioned inside the room area (not the default top-right) — the
+    // header/sidebar are real DOM elements that paint over the whole canvas,
+    // so a Phaser-rendered button under them would be visually hidden.
+    addStandaloneMenuButton(this, { x: L_W - 30, y: HDR_H + 26 });
 
     this.time.delayedCall(900, () => this._activateTask(0));
   }
@@ -115,83 +117,55 @@ export class Level5Scene extends Phaser.Scene {
   // ROOM SCENE (left 490px)
   // ═══════════════════════════════════════════════════════════════════════
   _buildRoom() {
-    // ── WALL BACKGROUND ─────────────────────────────────────────────────
-    const bg = this.add.graphics().setDepth(0);
-    bg.fillGradientStyle(0xFFE4D8, 0xFFE4D8, 0xFAD4C4, 0xFAD4C4, 1);
-    bg.fillRect(0, MID_Y, L_W, MID_H);
-
-    // Subtle wall panel lines (wainscoting)
-    const wall = this.add.graphics().setDepth(0);
-    wall.lineStyle(1, 0xF0C0A8, 0.4);
-    for (let wx = 40; wx < L_W; wx += 60) wall.lineBetween(wx, MID_Y, wx, MID_Y + MID_H * 0.6);
-    wall.lineStyle(1, 0xF0C0A8, 0.35);
-    wall.lineBetween(0, MID_Y + MID_H * 0.6, L_W, MID_Y + MID_H * 0.6);
-
-    // ── FLOOR ───────────────────────────────────────────────────────────
-    const fl = this.add.graphics().setDepth(0);
-    fl.fillGradientStyle(0xF0DEC8, 0xF0DEC8, 0xE0CEB4, 0xE0CEB4, 1);
-    fl.fillRect(0, MID_Y + MID_H * 0.6, L_W, MID_H * 0.4);
-    // Floorboard lines
-    for (let fx = 0; fx < L_W; fx += 48) {
-      fl.lineStyle(1, 0xD0B898, 0.35);
-      fl.lineBetween(fx, MID_Y + MID_H * 0.6, fx + 30, MID_Y + MID_H);
+    // ── ROOM BACKGROUND — real art (level 05 BG.png), replaces the old
+    // procedurally-drawn wall/floor/window/curtains for the treatment room. ──
+    if (this.textures.exists('l5_treatment_bg')) {
+      const src  = this.textures.get('l5_treatment_bg').getSourceImage();
+      const srcW = src.naturalWidth || src.width || L_W;
+      const srcH = src.naturalHeight || src.height || MID_H;
+      // Cover the room area (may overflow slightly to fill, never letterbox/
+      // stretch) — clipped to the room rectangle with a geometry mask so the
+      // overflow doesn't spill into the header or the right-side panel.
+      const scale = Math.max(L_W / srcW, MID_H / srcH);
+      const img = this.add.image(L_W / 2, MID_Y + MID_H / 2, 'l5_treatment_bg')
+        .setDisplaySize(srcW * scale, srcH * scale).setDepth(0);
+      const maskG = this.make.graphics({ x: 0, y: 0 }, false);
+      maskG.fillRect(0, MID_Y, L_W, MID_H);
+      img.setMask(maskG.createGeometryMask());
+    } else {
+      // Fallback flat wall if the image fails to load.
+      const bg = this.add.graphics().setDepth(0);
+      bg.fillGradientStyle(0xFFE4D8, 0xFFE4D8, 0xFAD4C4, 0xFAD4C4, 1);
+      bg.fillRect(0, MID_Y, L_W, MID_H);
     }
-    // Baseboard
-    fl.fillStyle(0xE8C8A8, 1);
-    fl.fillRect(0, MID_Y + MID_H * 0.6, L_W, 6);
-    fl.lineStyle(1, 0xC8A880, 0.6);
-    fl.lineBetween(0, MID_Y + MID_H * 0.6 + 6, L_W, MID_Y + MID_H * 0.6 + 6);
-
-    // ── WINDOW (top right, with sunlight rays) ───────────────────────────
-    const wx = 368, wy = MID_Y + 10, ww = 100, wh = 82;
-    // Sunlight splash behind window
-    const sunG = this.add.graphics().setDepth(1);
-    sunG.fillStyle(0xFFEEB0, 0.22);
-    sunG.fillTriangle(wx, wy, wx + ww, wy, wx + ww * 1.6, MID_Y + MID_H * 0.55);
-    sunG.fillTriangle(wx - ww * 0.3, wy, wx + ww, wy, wx + ww * 0.8, MID_Y + MID_H * 0.55);
-    // Window pane
-    const win = this.add.graphics().setDepth(2);
-    win.fillStyle(0xD8F4FF, 0.65); win.fillRoundedRect(wx, wy, ww, wh, 8);
-    win.lineStyle(2.5, 0xB8D4E8, 0.8); win.strokeRoundedRect(wx, wy, ww, wh, 8);
-    // Cross dividers
-    win.lineStyle(2, 0xC0D8EE, 0.7);
-    win.lineBetween(wx + ww/2, wy + 2, wx + ww/2, wy + wh - 2);
-    win.lineBetween(wx + 2, wy + wh/2, wx + ww - 2, wy + wh/2);
-    // Window sill
-    win.fillStyle(0xE8C8A8, 1);
-    win.fillRoundedRect(wx - 4, wy + wh - 2, ww + 8, 8, 3);
-    // Curtain left
-    const wcu = this.add.graphics().setDepth(3);
-    wcu.fillStyle(0xFFB8A0, 0.6); wcu.fillRoundedRect(wx - 8, wy - 2, 20, wh + 8, { tl:4, tr:0, bl:4, br:0 });
-    wcu.fillStyle(0xFF9880, 0.35); wcu.fillRect(wx - 4, wy, 10, wh);
-    // Curtain right
-    wcu.fillStyle(0xFFB8A0, 0.6); wcu.fillRoundedRect(wx + ww - 12, wy - 2, 20, wh + 8, { tl:0, tr:4, bl:0, br:4 });
-    wcu.fillStyle(0xFF9880, 0.35); wcu.fillRect(wx + ww - 6, wy, 10, wh);
-    // Curtain tie-backs
-    wcu.fillStyle(0xFFD080, 1); wcu.fillCircle(wx + 10, wy + wh * 0.6, 5);
-    wcu.fillStyle(0xFFD080, 1); wcu.fillCircle(wx + ww + 10, wy + wh * 0.6, 5);
-
-    // ── WALL DECORATIONS ────────────────────────────────────────────────
-    // Small heart picture frame
-    const frame = this.add.graphics().setDepth(2);
-    frame.fillStyle(0xD4A870, 1); frame.fillRoundedRect(38, MID_Y + 16, 44, 44, 5);
-    frame.lineStyle(2, 0xC09050, 1); frame.strokeRoundedRect(38, MID_Y + 16, 44, 44, 5);
-    frame.fillStyle(0xFFF0E8, 1); frame.fillRoundedRect(42, MID_Y + 20, 36, 36, 3);
-    this.add.text(60, MID_Y + 38, '🐾', { fontSize: '20px' }).setOrigin(0.5).setDepth(3);
 
     // ── BED AREA with GAMMA ───────────────────────────────────────────────
     const bx = 226, by = MID_Y + MID_H * 0.56;
     this._bedCX = bx; this._bedCY = by;
 
-    // Bed shadow on floor
-    this.add.ellipse(bx + 4, by + 72, 280, 24, 0x000000, 0.1).setDepth(2);
+    // Warm wood-toned rug under the bed — bridges the bed's bright purple
+    // into the room's brown wood palette so it reads as sitting IN the room
+    // rather than pasted flat on top of the background.
+    const rug = this.add.graphics().setDepth(1);
+    rug.fillStyle(0x8B5A2B, 0.16); rug.fillEllipse(bx + 4, by + 76, 340, 46);
+    rug.fillStyle(0xC9A06B, 0.35); rug.fillEllipse(bx + 4, by + 74, 300, 36);
+    rug.lineStyle(2, 0x6B4423, 0.4); rug.strokeEllipse(bx + 4, by + 74, 300, 36);
+
+    // Bed shadow on floor — layered (soft wide + tight dark core) for a
+    // proper grounded contact shadow instead of one faint flat ellipse.
+    const shadowG = this.add.graphics().setDepth(2);
+    shadowG.fillStyle(0x000000, 0.1); shadowG.fillEllipse(bx + 4, by + 74, 290, 30);
+    shadowG.fillStyle(0x000000, 0.18); shadowG.fillEllipse(bx + 4, by + 72, 200, 18);
 
     // GAMMA (gemma_lying.png fills the bed area)
     this._gammaX = bx; this._gammaY = by;
 
     if (this.textures.exists('gemma_lying')) {
       this._gamma = this.add.image(bx, by, 'gemma_lying')
-        .setDisplaySize(320, 160).setDepth(7).setOrigin(0.5, 0.5);
+        .setDisplaySize(320, 160).setDepth(7).setOrigin(0.5, 0.5)
+        // Subtle warm multiply tint so the bed picks up the room's amber
+        // lighting instead of looking like a flat, un-color-graded sticker.
+        .setTint(0xF3DCC0);
     } else if (this.textures.exists('gemma_idle')) {
       // Use idle image, squished horizontally to suggest lying
       this._gamma = this.add.image(gx, gy, 'gemma_idle')
@@ -238,22 +212,6 @@ export class Level5Scene extends Phaser.Scene {
     if (this._gamma.y !== undefined)
       this.tweens.add({ targets: this._gamma, y: this._gamma.y - 3, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    // ── WATER BOWL (bottom left, improved) ──────────────────────────────
-    const wbG = this.add.graphics().setDepth(4);
-    // Bowl base shadow
-    wbG.fillStyle(0x000000, 0.07); wbG.fillEllipse(60, BOT_Y - 14, 68, 14);
-    // Bowl outer
-    wbG.fillStyle(0xFFAACC, 1); wbG.fillEllipse(58, BOT_Y - 18, 68, 30);
-    // Bowl rim
-    wbG.lineStyle(2, 0xFF88AA, 1); wbG.strokeEllipse(58, BOT_Y - 18, 68, 30);
-    // Water surface
-    wbG.fillStyle(0xAADDFF, 0.85); wbG.fillEllipse(58, BOT_Y - 22, 52, 18);
-    wbG.lineStyle(1, 0x88CCFF, 0.6); wbG.strokeEllipse(58, BOT_Y - 22, 52, 18);
-    // Water shimmer
-    wbG.fillStyle(0xFFFFFF, 0.5); wbG.fillEllipse(50, BOT_Y - 24, 16, 6);
-    // "WATER" label
-    this.add.text(58, BOT_Y - 6, 'water', { fontSize: '7px', fontFamily: 'Georgia, serif', color: '#AA88BB' }).setOrigin(0.5).setDepth(5);
-
     // Room warm glow (fills as tasks complete)
     this._roomGlow = this.add.rectangle(L_W/2, MID_Y + MID_H/2, L_W, MID_H, C.BGLOW, 0).setDepth(2);
   }
@@ -262,171 +220,57 @@ export class Level5Scene extends Phaser.Scene {
   // HEADER
   // ═══════════════════════════════════════════════════════════════════════
   _buildHeader() {
-    const g = this.add.graphics().setDepth(35);
-    g.fillStyle(C.PEACH, 1); g.fillRect(0, 0, W, HDR_H);
-    g.fillStyle(0x000000, 0.05); g.fillRect(0, HDR_H - 3, W, 3);
+    this._headerDom = this.add.dom(W / 2, HDR_H / 2)
+      .createFromHTML('<div class="l5-header"><span>Treatment Support &amp; Puppy Welcome</span></div>')
+      .setDepth(35);
+  }
 
-    // Title
-    this.add.text(W/2, 25, 'Treatment Support & Puppy Welcome',
-      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#5A3A2A', fontStyle: 'bold' })
-      .setOrigin(0.5).setDepth(36);
+  // DOM Elements always paint above the ENTIRE WebGL canvas as one group —
+  // Phaser can't interleave them with canvas content (video overlay, the
+  // Level Complete modal), so the HTML header/sidebar/bottom bar must be
+  // hidden before those full-screen Phaser moments, or they'd bleed through
+  // on top of them.
+  _hideHUD() {
+    [this._headerDom, this._sidebarDom, this._bottomDom].forEach(d => d?.setVisible(false));
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   // CARE JOURNEY PANEL  (right side — matches premium mockup)
   // ═══════════════════════════════════════════════════════════════════════
   _buildCareJourney() {
-    // Panel background with soft shadow
-    const shadowG = this.add.graphics().setDepth(9);
-    shadowG.fillStyle(0x000000, 0.1);
-    shadowG.fillRoundedRect(R_X + 3, MID_Y + 3, R_W - 2, MID_H - 2, 10);
-
-    // Main white panel
-    const pg = this.add.graphics().setDepth(10);
-    pg.fillStyle(0xFFFAF8, 1);
-    pg.fillRoundedRect(R_X, MID_Y, R_W, MID_H, 10);
-    pg.lineStyle(3.5, 0xE8C8B8, 1);
-    pg.strokeRoundedRect(R_X, MID_Y, R_W, MID_H, 10);
-
-    // Gradient-like header with warm accent
-    const hdrG = this.add.graphics().setDepth(11);
-    hdrG.fillStyle(0xFFF5F0, 1);
-    hdrG.fillRoundedRect(R_X, MID_Y, R_W, 45, { tl: 10, tr: 10, bl: 0, br: 0 });
-    // Accent line below header
-    hdrG.lineStyle(4, 0xE8B66C, 1);
-    hdrG.lineBetween(R_X + 10, MID_Y + 45, R_X + R_W - 10, MID_Y + 45);
-
-    this.add.text(R_X + R_W / 2, MID_Y + 22, 'Care Journey',
-      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#C8623C', fontStyle: 'bold', stroke: '#FFF5F0', strokeThickness: 2 })
-      .setOrigin(0.5).setDepth(12);
-
-    // Build rows
-    this._rowObjs = [];
-    TASKS.forEach((t, i) => this._rowObjs.push(this._buildJourneyRow(i, t)));
+    this._sidebarDom = this.add.dom(R_X + R_W / 2, MID_Y + MID_H / 2)
+      .createFromHTML(this._sidebarHTML())
+      .setDepth(10);
   }
 
-  _buildJourneyRow(i, def) {
-    const all = [];
-    const PANEL_TOP = MID_Y + 50;
-    const STEP_H    = Math.floor((MID_H - 55) / 6);
-    const ry        = PANEL_TOP + i * STEP_H + STEP_H / 2;
-    const done      = this._done[i];
-    const active    = i === this._taskIdx && !done;
-    const locked    = i > this._taskIdx;
+  // Builds the full sidebar markup for the current task/done state. Re-render
+  // wholesale on every update (cheap — five small rows) rather than diffing.
+  _sidebarHTML() {
+    const rows = TASKS.map((def, i) => {
+      const done   = this._done[i];
+      const active = i === this._taskIdx && !done;
+      const locked = i > this._taskIdx;
+      const state  = done ? 'done' : active ? 'active' : locked ? 'locked' : '';
+      const step   = done ? '✓' : `${i + 1}`;
+      const rightIcon = locked ? '🔒' : done ? '⭐' : active ? '▶' : '';
+      return `
+        <div class="l5-row ${state}">
+          <div class="l5-step">${step}</div>
+          <div class="l5-icon">${def.emoji}</div>
+          <div class="l5-label">${def.label}</div>
+          <div class="l5-right-icon">${rightIcon}</div>
+        </div>`;
+    }).join('');
 
-    // ── Connector line & arrow between rows ──────────────────────────
-    if (i < 5) {
-      const conn = this.add.graphics().setDepth(11);
-      conn.lineStyle(3, locked && i >= this._taskIdx ? 0xD8D8D8 : 0xB8D8C8, 0.95);
-      conn.lineBetween(R_X + 16, ry + STEP_H / 2 + 2, R_X + 16, ry + STEP_H - 6);
-      // arrowhead
-      conn.fillStyle(locked && i >= this._taskIdx ? 0xD8D8D8 : 0xB8D8C8, 0.95);
-      conn.fillTriangle(R_X + 16, ry + STEP_H - 1, R_X + 10, ry + STEP_H - 10, R_X + 22, ry + STEP_H - 10);
-      all.push(conn);
-    }
-
-    // ── Row background with soft shadow ───────────────────────────────
-    const rowShadow = this.add.graphics().setDepth(11);
-    const rowBg = this.add.graphics().setDepth(12);
-
-    if (active) {
-      // Active row: golden highlight with shadow
-      rowShadow.fillStyle(0x000000, 0.08);
-      rowShadow.fillRoundedRect(R_X + 4, ry - STEP_H/2 + 4, R_W - 8, STEP_H - 4, 8);
-      rowBg.fillStyle(0xFFFAF0, 1);
-      rowBg.fillRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-      rowBg.lineStyle(3, 0xE8B450, 1);
-      rowBg.strokeRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-    } else if (done) {
-      // Done row: soft green
-      rowShadow.fillStyle(0x000000, 0.05);
-      rowShadow.fillRoundedRect(R_X + 4, ry - STEP_H/2 + 4, R_W - 8, STEP_H - 4, 8);
-      rowBg.fillStyle(0xF5FDF8, 1);
-      rowBg.fillRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-      rowBg.lineStyle(2.5, 0xA0D8B8, 0.9);
-      rowBg.strokeRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-    } else {
-      // Locked row: neutral
-      rowBg.fillStyle(0xFBFAF9, 0.6);
-      rowBg.fillRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-      rowBg.lineStyle(1.5, 0xD8D8D8, 0.6);
-      rowBg.strokeRoundedRect(R_X + 4, ry - STEP_H/2 + 1, R_W - 8, STEP_H - 4, 8);
-    }
-    all.push(rowShadow);
-    all.push(rowBg);
-
-    // ── Step number circle ────────────────────────────────────────────
-    const cx = R_X + 16, cy = ry;
-    const circG = this.add.graphics().setDepth(13);
-    if (done) {
-      circG.fillStyle(0x40D060, 1); circG.fillCircle(cx, cy, 13);
-      circG.lineStyle(3, 0x1A8E38, 1); circG.strokeCircle(cx, cy, 13);
-    } else if (active) {
-      circG.fillStyle(0xF8D44A, 1); circG.fillCircle(cx, cy, 13);
-      circG.lineStyle(3, 0xD8A01C, 1); circG.strokeCircle(cx, cy, 13);
-      const pulse = this.add.circle(cx, cy, 17, 0xF8D44A, 0.3).setDepth(12);
-      all.push(pulse);
-      this.tweens.add({ targets: pulse, scaleX: 1.4, scaleY: 1.4, alpha: 0, duration: 800, repeat: -1 });
-    } else {
-      circG.fillStyle(0xE0E0E0, 1); circG.fillCircle(cx, cy, 13);
-      circG.lineStyle(2, 0xB8B8B8, 1); circG.strokeCircle(cx, cy, 13);
-    }
-    all.push(circG);
-    all.push(this.add.text(cx, cy, done ? '✓' : `${i+1}`,
-      { fontSize: '11px', fontFamily: 'Arial Black', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 1 })
-      .setOrigin(0.5).setDepth(14));
-
-    // ── Prop icon (image or emoji) ────────────────────────────────────
-    // icon center at R_X+40 (after circle r=11, gap=13)
-    const propKeys = ['stethoscope','water_bowl','towels','blanket','lamp','nursery'];
-    const iconKey  = this._propTextures[propKeys[i]];
-    const iconX    = R_X + 40, iconSize = 20;
-    const iconAlpha = locked ? 0.4 : 1;
-
-    let iconObj;
-    if (iconKey && this.textures.exists(iconKey)) {
-      iconObj = this.add.image(iconX, ry, iconKey).setDisplaySize(iconSize, iconSize).setDepth(13).setAlpha(iconAlpha);
-    } else {
-      const EMOJI_MAP = { 'stethoscope': '🩺', 'water_bowl': '💧', 'towels': '🧺',
-        'blanket': '🧣', 'lamp': '💡', 'nursery': '🧸' };
-      const emoji = EMOJI_MAP[iconKey] || def.emoji || '✨';
-      iconObj = this.add.text(iconX, ry, emoji, { fontSize: '16px' }).setOrigin(0.5).setDepth(13).setAlpha(iconAlpha);
-    }
-    all.push(iconObj);
-
-    // ── Label text ───────────────────────────────────────────────────
-    const lblColor = locked ? '#BFBFBF' : done ? '#2EA856' : active ? '#6B4423' : '#8A8A8A';
-    const lblWeight = active ? 600 : done ? 500 : 400;
-    const lbl = this.add.text(R_X + 56, ry, def.label,
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: lblColor,
-        fontStyle: active ? 'italic' : 'normal', fontWeight: lblWeight, wordWrap: { width: 130 } })
-      .setOrigin(0, 0.5).setDepth(13).setAlpha(locked ? 0.6 : 1);
-    all.push(lbl);
-
-    // ── Right icon (lock / done star / arrow) ────────────────────────
-    const iconRX = R_X + R_W - 16;
-    if (locked) {
-      const lkG = this.add.graphics().setDepth(13);
-      lkG.fillStyle(0xE8E8E8, 1); lkG.fillCircle(iconRX, ry, 13);
-      lkG.lineStyle(2.5, 0xB0B0B0, 1); lkG.strokeCircle(iconRX, ry, 13);
-      all.push(lkG);
-      all.push(this.add.text(iconRX, ry, '🔒', { fontSize: '11px' }).setOrigin(0.5).setDepth(14).setAlpha(0.7));
-    } else if (done) {
-      all.push(this.add.text(iconRX, ry, '⭐', { fontSize: '16px' }).setOrigin(0.5).setDepth(14));
-    } else if (active) {
-      const arrG = this.add.graphics().setDepth(13);
-      arrG.fillStyle(0xE8B450, 1);
-      arrG.fillTriangle(iconRX - 6, ry - 8, iconRX - 6, ry + 8, iconRX + 8, ry);
-      all.push(arrG);
-    }
-
-    return { all };
+    return `
+      <div class="l5-sidebar">
+        <div class="l5-sidebar-hdr">Care Journey</div>
+        <div class="l5-sidebar-rows">${rows}</div>
+      </div>`;
   }
 
   _updateJourney() {
-    this._rowObjs.forEach(r => r.all?.forEach(o => { try { this.tweens.killTweensOf(o); o?.destroy(); } catch(_){} }));
-    this._rowObjs = [];
-    TASKS.forEach((t, i) => this._rowObjs.push(this._buildJourneyRow(i, t)));
+    if (this._sidebarDom) this._sidebarDom.setHTML(this._sidebarHTML());
   }
 
   // kept for backward-compat calls
@@ -436,38 +280,26 @@ export class Level5Scene extends Phaser.Scene {
   // BOTTOM BAR
   // ═══════════════════════════════════════════════════════════════════════
   _buildBottomBar() {
-    const g = this.add.graphics().setDepth(35);
-    g.fillStyle(C.PINK_BG, 1); g.fillRect(0, BOT_Y, W, BOT_H);
-    g.lineStyle(1, 0xDCC8C8, 1); g.lineBetween(0, BOT_Y, W, BOT_Y);
-
-    this._phaseLbl = this.add.text(28, BOT_Y + 9, 'Preparation Phase',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#E08060', fontStyle: 'bold' }).setDepth(36);
-
-    // Track
-    this._bX = 28; this._bY = BOT_Y + 26; this._bW = W - 56; this._bHH = 13;
-    const track = this.add.graphics().setDepth(36);
-    track.fillStyle(0xFFFFFF, 0.85); track.fillRoundedRect(this._bX, this._bY, this._bW, this._bHH, 7);
-    track.lineStyle(1, 0xDDCCCC, 1); track.strokeRoundedRect(this._bX, this._bY, this._bW, this._bHH, 7);
-
-    this.add.text(this._bX, this._bY + this._bHH + 5, '0%', { fontSize: '8px', color: '#C09090' }).setOrigin(0, 0).setDepth(36);
-    this._progEndLbl = this.add.text(this._bX + this._bW, this._bY + this._bHH + 5, '60%', { fontSize: '8px', color: '#C09090' }).setOrigin(1, 0).setDepth(36);
-
-    this._progFill = this.add.graphics().setDepth(37);
-    this._drawBar(0);
-
-    // Shimmer
-    this._shimmer = this.add.rectangle(this._bX + 8, this._bY + this._bHH/2, 24, this._bHH - 4, 0xFFFFFF, 0.55).setDepth(38);
-    this.tweens.add({ targets: this._shimmer, x: this._bX + this._bW - 14, duration: 1700, repeat: -1, ease: 'Sine.easeInOut',
-      onRepeat: () => { this._shimmer.x = this._bX + 8; } });
-
-    // Confetti dots (decorative, static)
-    const confG = this.add.graphics().setDepth(36);
     const cc = [0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF, 0xFF6BFF];
-    for (let i = 0; i < 12; i++) {
-      confG.fillStyle(cc[i % cc.length], 0.7);
-      confG.fillRect(this._bX + 8 + i * (this._bW / 13), this._bY + (i%2 === 0 ? -5 : this._bHH + 2), 5, 5);
-    }
+    const dots = Array.from({ length: 12 }, (_, i) =>
+      `<span style="background:#${cc[i % cc.length].toString(16).padStart(6, '0')}"></span>`).join('');
 
+    this._bottomDom = this.add.dom(W / 2, BOT_Y + BOT_H / 2).createFromHTML(`
+      <div class="l5-bottombar">
+        <div class="l5-phase" id="l5-phase-lbl">Preparation Phase</div>
+        <div class="l5-track">
+          <div class="l5-confetti">${dots}</div>
+          <div class="l5-fill" id="l5-fill"></div>
+          <div class="l5-pct start">0%</div>
+          <div class="l5-pct end" id="l5-pct-end">60%</div>
+        </div>
+      </div>
+    `).setDepth(35);
+
+    this._phaseLblEl = this._bottomDom.getChildByID('l5-phase-lbl');
+    this._fillEl     = this._bottomDom.getChildByID('l5-fill');
+    this._pctEndEl   = this._bottomDom.getChildByID('l5-pct-end');
+    this._drawBar(0);
   }
 
   // ── Persistent room decoration after each task ────────────────────────
@@ -497,13 +329,7 @@ export class Level5Scene extends Phaser.Scene {
         this._roomDecors.push(bl);
         this.tweens.add({ targets: bl, alpha: 0.18, duration: 1800, yoyo: true, repeat: -1 });
       },
-      // 4 lamp: warm glow circle persists
-      () => {
-        const gl = this.add.circle(380, MID_Y + MID_H * 0.38, 55, 0xFFDD88, 0.18).setDepth(7);
-        this._roomDecors.push(gl);
-        this.tweens.add({ targets: gl, alpha: 0.08, duration: 1600, yoyo: true, repeat: -1 });
-      },
-      // 5 nursery: stars & bear appear top-left
+      // 4 nursery: stars & bear appear top-left
       () => {
         ['⭐','🧸','✨'].forEach((em, j) => {
           const d = this.add.text(28 + j * 28, MID_Y + MID_H * 0.18, em, { fontSize: '14px' }).setDepth(8).setAlpha(0);
@@ -516,21 +342,14 @@ export class Level5Scene extends Phaser.Scene {
   }
 
   _drawBar(pct) {
-    this._progFill.clear();
-    const fw = this._bW * (pct / 100);
-    if (fw < 2) return;
-    this._progFill.fillGradientStyle(0x7DD3F0, 0xA8E8FF, 0x58C0E8, 0x88D8F8, 1);
-    this._progFill.fillRoundedRect(this._bX, this._bY, fw, this._bHH, 7);
+    if (this._fillEl) this._fillEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
   }
 
+  // The CSS `.l5-fill` transition animates the width change itself, so this
+  // just needs to set the target — no manual tween loop required.
   _setProgress(pct) {
     this._progress = pct;
-    const obj = { v: 0 };
-    const start = this._lastPct || 0;
-    this._lastPct = pct;
-    this.tweens.add({ targets: obj, v: 1, duration: 700, ease: 'Sine.easeOut',
-      onUpdate: (tw) => { this._drawBar(start + (pct - start) * tw.targets[0].v); }
-    });
+    this._drawBar(pct);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -592,7 +411,7 @@ export class Level5Scene extends Phaser.Scene {
 
     this.time.delayedCall(1400, () => {
       this._clearI();
-      if (idx < 5) this._activateTask(idx + 1);
+      if (idx < TASKS.length - 1) this._activateTask(idx + 1);
       else this._startPuppyPhase();
     });
   }
@@ -617,13 +436,13 @@ export class Level5Scene extends Phaser.Scene {
   // TASK 1 — Heart Check: drag stethoscope to Gamma's chest
   // ═══════════════════════════════════════════════════════════════════════
   _buildTask_heart() {
-    const cx = this._bedCX + 44, cy = this._bedCY - 16; // chest zone
+    const cx = this._bedCX + 20, cy = this._bedCY - 16; // chest zone (shifted left to align with chest art)
     let stabilized = 0; // 0-100 stabilization progress
 
     // Instruction
     this._io(this.add.text(240, BOT_Y - 20,
       '👆 Gently rub the chest to stabilize heartbeat',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#AA4488', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
+      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
 
     // ═══ HEART MONITOR DISPLAY (compact) ═══
     const monitorX = 220, monitorY = MID_Y + 90;
@@ -683,53 +502,47 @@ export class Level5Scene extends Phaser.Scene {
       stet = this._io(this.add.text(sx, sy, '🩺', { fontSize: '56px' }).setOrigin(0.5).setDepth(15));
     }
 
-    // Chest interactive tap/rub zone
+    // Chest interactive rub zone — requires actual back-and-forth motion
+    // (not just a click-and-hold) to stabilize the heartbeat.
     let isRubbing = false;
+    let lastX = 0, lastY = 0;
+    let rubDistance = 0;
+    const RUB_NEEDED = 640; // total px of hand motion for 100%
     const chestHit = this._io(this.add.rectangle(cx, cy, 100, 100, 0, 0).setDepth(12).setInteractive({ useHandCursor: true }));
 
-    chestHit.on('pointerdown', () => {
+    const finishStabilize = () => {
+      stabText.setText('Stabilized!').setColor('#44DD88');
+      percText.setColor('#44DD88').setText('100%');
+      heartIcon.setText('💚');
+      chestHit.disableInteractive();
+      this.cameras.main.flash(100, 91, 220, 91);
+      this.time.delayedCall(800, () => this._completeTask(0, '❤️ Gamma feels calm!'));
+    };
+
+    chestHit.on('pointerdown', (pointer) => {
       if (stabilized >= 100) return;
       isRubbing = true;
+      lastX = pointer.x; lastY = pointer.y;
       // Glow effect when rubbing
       const glow = this.add.circle(cx, cy, 50, 0xFF88AA, 0.25).setDepth(9);
       this.tweens.add({ targets: glow, scaleX: 1.6, scaleY: 1.6, alpha: 0, duration: 500, onComplete: () => glow.destroy() });
     });
 
+    chestHit.on('pointermove', (pointer) => {
+      if (!isRubbing || stabilized >= 100) return;
+      const d = Phaser.Math.Distance.Between(lastX, lastY, pointer.x, pointer.y);
+      lastX = pointer.x; lastY = pointer.y;
+      if (d < 1) return; // ignore jitter — must actually move to count as rubbing
+      rubDistance = Math.min(RUB_NEEDED, rubDistance + d);
+      stabilized = (rubDistance / RUB_NEEDED) * 100;
+
+      percText.setText(`${Math.round(stabilized)}%`);
+      drawEKG(stabilized);
+      if (stabilized >= 100) finishStabilize();
+    });
+
     chestHit.on('pointerup', () => { isRubbing = false; });
     chestHit.on('pointerout', () => { isRubbing = false; });
-
-    // Stabilization progress loop
-    const startStabilization = () => {
-      if (this._progressInterval) return;
-      this._progressInterval = setInterval(() => {
-        if (isRubbing && stabilized < 100) {
-          stabilized += 3.3; // 3% per ~100ms = 100% in ~3 seconds
-          if (stabilized > 100) stabilized = 100;
-
-          percText.setText(`${Math.round(stabilized)}%`);
-          drawEKG(stabilized);
-
-          // When fully stabilized
-          if (stabilized >= 100) {
-            clearInterval(this._progressInterval);
-            this._progressInterval = null;
-            stabText.setText('Stabilized!').setColor('#44DD88');
-            percText.setColor('#44DD88').setText('100%');
-            heartIcon.setText('💚');
-            chestHit.disableInteractive();
-            this.cameras.main.flash(100, 91, 220, 91);
-            this.time.delayedCall(800, () => this._completeTask(0, '❤️ Gamma feels calm!'));
-          }
-        }
-      }, 100);
-    };
-
-    // Start stabilization on first tap
-    chestHit.on('pointerdown', () => {
-      if (stabilized === 0) {
-        startStabilization();
-      }
-    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -741,7 +554,7 @@ export class Level5Scene extends Phaser.Scene {
 
     const instr = this._io(this.add.text(L_W / 2, BOT_Y - 20,
       'TAP the faucet 🚿 to start!',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#4488AA', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
+      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
 
     // Faucet (large, left-center area)
     const fx = 160, fy = MID_Y + MID_H * 0.42;
@@ -780,7 +593,7 @@ export class Level5Scene extends Phaser.Scene {
         const d = this.add.text(fx + (Math.random()-0.5)*14, fy + 38, '💧', { fontSize: '14px' }).setDepth(17).setAlpha(0.9);
         this.tweens.add({ targets: d, x: bwx + (Math.random()-0.5)*16, y: bwy - 8, alpha: 0.5, duration: 550, ease: 'Sine.easeIn', onComplete: () => d.destroy() });
       });
-      instr.setText('NOW: PRESS & HOLD the 🔥 button for 5 sec!').setStyle({ color: '#D06020', fontStyle: 'bold' });
+      instr.setText('NOW: PRESS & HOLD the 🔥 button for 5 sec!').setStyle({ color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 });
       // Show heat button
       heatBtn.setVisible(true);
       heatLabel.setVisible(true);
@@ -794,79 +607,64 @@ export class Level5Scene extends Phaser.Scene {
 
     const heatLabel = this._io(this.add.text(HBX, HBY, '🔥 HEAT', { fontSize: '14px', fontFamily: 'Arial', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(21).setVisible(false));
 
-    // Progress ring for 5-second hold
+    // Progress ring for 5-second hold — a fresh timer event drives it every
+    // time the button is pressed, so an early release (before 5s) always
+    // resets and re-displays cleanly on the next hold attempt.
     const heatProgress = this._io(this.add.graphics().setDepth(19).setVisible(false));
-    let holdTime = 0;
     let isHolding = false;
+    let holdStart = 0;
+    let holdEvent = null;
 
-    heatBtn.on('pointerup', () => {
-      if (isHolding) {
-        isHolding = false;
-        progressTween.stop();
-        heatBtn.setFillStyle(0xFF6B35, 0.8);
-        heatProgress.clear();
-        heatLabel.setText('🔥 HEAT');
-      }
-    });
+    const drawHoldProgress = (progress) => {
+      heatProgress.clear();
+      heatProgress.lineStyle(4, 0xFFDD44, 1);
+      heatProgress.beginPath();
+      heatProgress.arc(HBX, HBY, 68, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+      heatProgress.strokePath();
+      heatLabel.setText(`${Math.round(progress * 100)}%`);
+    };
 
-    heatBtn.on('pointerout', () => {
-      if (isHolding) {
-        isHolding = false;
-        progressTween.stop();
-        heatBtn.setFillStyle(0xFF6B35, 0.8);
-        heatProgress.clear();
-        heatLabel.setText('🔥 HEAT');
-      }
-    });
+    const stopHolding = () => {
+      isHolding = false;
+      if (holdEvent) { holdEvent.remove(); holdEvent = null; }
+      heatBtn.setFillStyle(0xFF6B35, 0.8);
+      heatProgress.clear();
+      heatLabel.setText('🔥 HEAT');
+    };
 
-    // Update loop for hold duration (controlled, non-looping)
-    const progressTween = this.tweens.add({
-      targets: { holdTime: 0 },
-      holdTime: 5000,
-      duration: 5000,
-      paused: true,
-      onUpdate: (tween) => {
-        if (!isHolding) return;
-        holdTime = Math.round(tween.targets[0].holdTime);
-        const progress = holdTime / 5000;
+    heatBtn.on('pointerup',  () => { if (isHolding) stopHolding(); });
+    heatBtn.on('pointerout', () => { if (isHolding) stopHolding(); });
 
-        // Draw progress arc
-        heatProgress.clear();
-        heatProgress.lineStyle(4, 0xFFDD44, 1);
-        heatProgress.beginPath();
-        heatProgress.arc(HBX, HBY, 68, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
-        heatProgress.strokePath();
-
-        // Update label with progress percent
-        heatLabel.setText(`${Math.round(progress * 100)}%`);
-      }
-    });
-
-    // Custom hold tracking
     heatBtn.on('pointerdown', () => {
-      if (step !== 1) return;
+      if (step !== 1 || isHolding) return;
       isHolding = true;
-      holdTime = 0;
-      progressTween.restart();
+      holdStart = this.time.now;
       heatBtn.setFillStyle(0xFF8B3D, 1);
+      drawHoldProgress(0);
 
-      // After 5 seconds, complete
-      const completeTimer = this.time.delayedCall(5000, () => {
-        if (isHolding && step === 1) {
-          isHolding = false;
-          step = 2;
-          heatBtn.disableInteractive();
-          heatLabel.setText('🔥 HOT!').setStyle({ color: '#FFDD44' });
-          heatProgress.clear();
-          progressTween.stop();
+      holdEvent = this.time.addEvent({
+        delay: 50, loop: true,
+        callback: () => {
+          if (!isHolding) return;
+          const progress = Math.min(1, (this.time.now - holdStart) / 5000);
+          drawHoldProgress(progress);
 
-          // Steam over bowl
-          for (let i = 0; i < 8; i++) this.time.delayedCall(i*90, () => {
-            const st = this.add.text(bwx + (Math.random()-0.5)*18, bwy - 10, '💨', { fontSize: '13px' }).setDepth(18).setAlpha(0.8);
-            this.tweens.add({ targets: st, y: st.y - 30, alpha: 0, duration: 620, onComplete: () => st.destroy() });
-          });
-          instr.setText('✅ Perfect warm water!').setStyle({ color: '#228844' });
-          this.time.delayedCall(800, () => this._completeTask(1, '💧 Warm water is ready!'));
+          if (progress >= 1) {
+            isHolding = false;
+            step = 2;
+            holdEvent.remove(); holdEvent = null;
+            heatBtn.disableInteractive();
+            heatLabel.setText('🔥 HOT!').setStyle({ color: '#FFDD44' });
+            heatProgress.clear();
+
+            // Steam over bowl
+            for (let i = 0; i < 8; i++) this.time.delayedCall(i*90, () => {
+              const st = this.add.text(bwx + (Math.random()-0.5)*18, bwy - 10, '💨', { fontSize: '13px' }).setDepth(18).setAlpha(0.8);
+              this.tweens.add({ targets: st, y: st.y - 30, alpha: 0, duration: 620, onComplete: () => st.destroy() });
+            });
+            instr.setText('✅ Perfect warm water!').setStyle({ color: '#FFFFFF', stroke: '#3A2412', strokeThickness: 2.5 });
+            this.time.delayedCall(800, () => this._completeTask(1, '💧 Warm water is ready!'));
+          }
         }
       });
     });
@@ -879,8 +677,8 @@ export class Level5Scene extends Phaser.Scene {
     let placed = 0;
 
     this._io(this.add.text(240, BOT_Y - 20,
-      'Rub the towel on Gamma 3 times to dry! 🧺',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#AA6622', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
+      'Drag the towel onto Gamma and rub back & forth — 3 times! 🧺',
+      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
 
     // Wet shine on Gamma
     const wetG = this._io(this.add.graphics().setDepth(7));
@@ -894,9 +692,24 @@ export class Level5Scene extends Phaser.Scene {
     const gammaLbl = this._io(this.add.text(this._bedCX, this._bedCY - 90, 'SOAKING WET!',
       { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#2266CC', fontStyle: 'bold' }).setOrigin(0.5).setDepth(8));
 
-    // Dog is the drop zone - rub towels ON Gamma
+    // Dog is the rub zone — towel must be actually rubbed back and forth
+    // over Gamma (not just dropped once) for a pass to count.
     const dogDropX = this._bedCX, dogDropY = this._bedCY;
+    const RUB_ZONE_R = 110;   // how close the towel must stay to count as "on Gamma"
+    const RUB_NEEDED = 240;   // px of back-and-forth motion needed per pass
     const ctr = this._io(this.add.text(dogDropX + 60, dogDropY + 80, '0 / 3', { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#AA6622', fontStyle: 'bold' }).setOrigin(0.5).setDepth(14));
+
+    // Per-pass rub progress ring — fills while the towel is actively being
+    // rubbed over Gamma, empties again once a pass completes or resets.
+    const rubRing = this._io(this.add.graphics().setDepth(16));
+    const drawRubRing = (progress) => {
+      rubRing.clear();
+      if (progress <= 0) return;
+      rubRing.lineStyle(4, 0xFFCC44, 0.95);
+      rubRing.beginPath();
+      rubRing.arc(dogDropX, dogDropY - 78, 16, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+      rubRing.strokePath();
+    };
 
     // Single towel that can be rubbed 3 times
     const tx = 120, ty = MID_Y + MID_H * 0.55;
@@ -913,11 +726,29 @@ export class Level5Scene extends Phaser.Scene {
       );
     }
     this.input.setDraggable(towel);
-    towel.on('drag', (_, x, y) => { towel.x = x; towel.y = y; });
+
+    let rubDistance = 0;
+    let lastX = null, lastY = null;
+
+    towel.on('dragstart', () => { rubDistance = 0; lastX = null; lastY = null; drawRubRing(0); });
+
+    towel.on('drag', (_, x, y) => {
+      towel.x = x; towel.y = y;
+      const onGamma = Phaser.Math.Distance.Between(x, y, dogDropX, dogDropY) < RUB_ZONE_R;
+      if (onGamma && lastX !== null) {
+        const d = Phaser.Math.Distance.Between(lastX, lastY, x, y);
+        if (d > 1) rubDistance = Math.min(RUB_NEEDED, rubDistance + d);
+        drawRubRing(rubDistance / RUB_NEEDED);
+      }
+      if (onGamma) { lastX = x; lastY = y; } else { lastX = null; lastY = null; }
+    });
+
     towel.on('dragend', () => {
-      // Check if towel is dragged near dog (rubbing motion)
-      if (Phaser.Math.Distance.Between(towel.x, towel.y, dogDropX, dogDropY) < 100) {
-        placed++; // Another rub!
+      const onGamma = Phaser.Math.Distance.Between(towel.x, towel.y, dogDropX, dogDropY) < RUB_ZONE_R;
+      if (onGamma && rubDistance >= RUB_NEEDED) {
+        placed++; // A full rubbing pass!
+        rubDistance = 0;
+        drawRubRing(0);
         // Towel snap back to start position for next rub
         this.tweens.add({ targets: towel, x: tx, y: ty, duration: 150 });
         drawWet(placed);
@@ -934,6 +765,9 @@ export class Level5Scene extends Phaser.Scene {
           this.time.delayedCall(500, () => this._completeTask(2, '🧺 Gamma is dry & happy!'));
         }
       } else {
+        // Dropped too soon (or off Gamma) — not rubbed enough, try again
+        rubDistance = 0;
+        drawRubRing(0);
         this.tweens.add({ targets: towel, x: tx, y: ty, duration: 260, ease: 'Back.easeOut' });
       }
     });
@@ -945,7 +779,7 @@ export class Level5Scene extends Phaser.Scene {
   _buildTask_blanket() {
     this._io(this.add.text(240, BOT_Y - 20,
       'Drag the blanket onto Gamma\'s bed 🧣',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#8844AA', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
+      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
 
     // Bed drop zone (visible outline)
     const bdx = this._bedCX, bdy = this._bedCY + 10;
@@ -1013,91 +847,14 @@ export class Level5Scene extends Phaser.Scene {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TASK 5 — Gentle Heat: tap the lamp switch
-  // ═══════════════════════════════════════════════════════════════════════
-  _buildTask_lamp() {
-    this._io(this.add.text(L_W / 2, BOT_Y - 20,
-      'Tap the lamp to switch it on! 💡',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#AA8820', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
-
-    const lx = 95, ly = 235;
-
-    // Small wooden surface for the lamp to sit on (left side of the bed)
-    const tableG = this._io(this.add.graphics().setDepth(11));
-    tableG.fillStyle(0x000000, 0.08); tableG.fillEllipse(lx + 3, ly + 56, 78, 16);
-    tableG.fillStyle(0xB07F50, 1); tableG.fillRect(lx - 30, ly + 50, 60, 14);
-    tableG.fillStyle(0xC89464, 1); tableG.fillRoundedRect(lx - 38, ly + 38, 76, 16, 4);
-    tableG.lineStyle(1, 0x90623A, 0.6); tableG.strokeRoundedRect(lx - 38, ly + 38, 76, 16, 4);
-
-    // Warm radial glow behind lamp (hidden until ON)
-    const bgGlow = this._io(this.add.graphics().setDepth(6));
-    bgGlow.fillStyle(0xFFEE88, 0); bgGlow.fillCircle(lx, ly, 85);
-
-    // Floor mirror reflection (ellipse below lamp)
-    const mirrorG = this._io(this.add.graphics().setDepth(7));
-    mirrorG.fillStyle(0xFFEEAA, 0); mirrorG.fillEllipse(lx, ly + 77, 100, 25);
-
-    // Warm cone of light (hidden until ON)
-    const coneG = this._io(this.add.graphics().setDepth(6));
-
-    // Lamp image — INTERACTIVE, click to turn on
-    let lamp;
-    if (this.textures.exists('heat_lamp_img')) {
-      lamp = this._io(this.add.image(lx, ly, 'heat_lamp_img')
-        .setDisplaySize(90, 108).setDepth(13)
-        .setInteractive({ useHandCursor: true }));
-    } else {
-      lamp = this._io(this.add.text(lx, ly, '💡', { fontSize: '60px' })
-        .setOrigin(0.5).setDepth(13).setInteractive({ useHandCursor: true }));
-    }
-
-    // Hover hint: lamp gently pulses
-    lamp.on('pointerover', () => this.tweens.add({ targets: lamp, alpha: 0.75, duration: 180 }));
-    lamp.on('pointerout',  () => this.tweens.add({ targets: lamp, alpha: 1,    duration: 180 }));
-
-    lamp.once('pointerdown', () => {
-      lamp.disableInteractive();
-      lamp.clearTint();
-
-      // Draw warm light cone downward from lamp
-      coneG.fillStyle(0xFFEE88, 0.18);
-      coneG.fillTriangle(lx - 14, ly + 46, lx + 14, ly + 46, lx + 62, ly + 92, lx - 62, ly + 92);
-
-      // Animate bgGlow in
-      this.tweens.add({ targets: bgGlow, alpha: 0.22, duration: 600, yoyo: true, repeat: -1 });
-
-      // Mirror floor reflection fades in
-      mirrorG.clear();
-      mirrorG.fillStyle(0xFFEEAA, 0.28); mirrorG.fillEllipse(lx, ly + 86, 108, 26);
-      mirrorG.lineStyle(1, 0xFFDD66, 0.4); mirrorG.strokeEllipse(lx, ly + 86, 108, 26);
-
-      // Lamp bounces once
-      this.tweens.add({ targets: lamp, y: ly - 6, duration: 120, yoyo: true, ease: 'Sine.easeOut' });
-
-      // Small sparkles
-      for (let s = 0; s < 6; s++) {
-        const ang = (s / 6) * Math.PI * 2;
-        const sp = this.add.text(lx + Math.cos(ang) * 42, ly + Math.sin(ang) * 42, '✨',
-          { fontSize: '13px' }).setOrigin(0.5).setDepth(25);
-        this.tweens.add({ targets: sp, alpha: 0, scaleX: 0.3, scaleY: 0.3, duration: 500, delay: s * 60,
-          onComplete: () => sp.destroy() });
-      }
-
-      this.cameras.main.flash(80, 255, 220, 80);
-      this.time.delayedCall(700, () => this._completeTask(4, '💡 Warm light for tiny paws!'));
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // ═══════════════════════════════════════════════════════════════════════
-  // TASK 6 — Nursery Setup: place 3 items into a wall display frame
+  // TASK 5 — Nursery Setup: place 3 items into a wall display frame
   // ═══════════════════════════════════════════════════════════════════════
   _buildTask_nursery() {
     let placed = 0;
 
     this._io(this.add.text(L_W / 2, BOT_Y - 20,
       'Drag each item into its spot in the nursery frame! 🧸',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#AA4488', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20));
+      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
 
     // ── WALL FRAME ───────────────────────────────────────────────────────
     const fx = L_W / 2 - 10;          // center of left area
@@ -1221,7 +978,7 @@ export class Level5Scene extends Phaser.Scene {
           if (placed === 3) {
             ctr.setText('✨ Nursery ready!').setStyle({ color: '#44AA44', fontSize: '10px' });
             this.cameras.main.flash(90, 255, 220, 100);
-            this.time.delayedCall(600, () => this._completeTask(5, '🧸 The nursery is perfect!'));
+            this.time.delayedCall(600, () => this._completeTask(4, '🧸 The nursery is perfect!'));
           }
         } else {
           // Snap back
@@ -1242,8 +999,8 @@ export class Level5Scene extends Phaser.Scene {
   _startPuppyPhase() {
     this._clearI();
     this._phase = 'puppies';
-    this._phaseLbl.setText('Puppy Arrival Phase 🐶');
-    this._progEndLbl.setText('100%');
+    if (this._phaseLblEl) this._phaseLblEl.textContent = 'Puppy Arrival Phase 🐶';
+    if (this._pctEndEl) this._pctEndEl.textContent = '100%';
 
 
     // Warm golden flash
@@ -1295,19 +1052,18 @@ export class Level5Scene extends Phaser.Scene {
     });
   }
 
-  // ── 7 individual small baskets — open floor area to the right of the bed ──
+  // ── 7 individual small baskets — a single row lined up at the foot of
+  // Gamma's bed, so the puppies visibly settle right below their mother. ──
   _buildSevenBaskets() {
     const bW = 56, bH = 46;
-    const colL = 410, colR = 495;
-    const rowYs = [252, 293, 334, 375];
-    const positions = [
-      { x: colL, y: rowYs[0] }, { x: colR, y: rowYs[0] },
-      { x: colL, y: rowYs[1] }, { x: colR, y: rowYs[1] },
-      { x: colL, y: rowYs[2] }, { x: colR, y: rowYs[2] },
-      { x: (colL + colR) / 2, y: rowYs[3] },
-    ];
-    this._finalBktX = (colL + colR) / 2;
-    this._finalBktY = rowYs[1];
+    const rowY = this._bedCY + 97;
+    const spacing = 68;
+    const positions = Array.from({ length: 7 }, (_, i) => ({
+      x: this._bedCX + (i - 3) * spacing,
+      y: rowY,
+    }));
+    this._finalBktX = this._bedCX;
+    this._finalBktY = rowY;
 
     this._baskets = positions.map((pos) => {
       // Empty-basket glow ring
@@ -1326,7 +1082,7 @@ export class Level5Scene extends Phaser.Scene {
       return { x: pos.x, y: pos.y, occupied: false, img, ringG };
     });
 
-    this._bktLbl = this.add.text((colL + colR) / 2, rowYs[3] + 23,
+    this._bktLbl = this.add.text(this._bedCX, rowY + 33,
       '0 / 7 puppies placed',
       { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#8A6030', fontStyle: 'bold' })
       .setOrigin(0.5).setDepth(16);
@@ -1457,50 +1213,16 @@ export class Level5Scene extends Phaser.Scene {
       }
     });
 
-    // Message panel
-    this.time.delayedCall(600, () => {
-      const panel = this.add.graphics().setDepth(58);
-      panel.fillStyle(C.WHITE, 0.97); panel.fillRoundedRect(W/2 - 248, H/2 - 106, 496, 212, 22);
-      panel.lineStyle(3.5, C.GOLD, 1); panel.strokeRoundedRect(W/2 - 248, H/2 - 106, 496, 212, 22);
-      // Rainbow top stripe
-      panel.fillStyle(C.GOLD, 1); panel.fillRoundedRect(W/2 - 248, H/2 - 106, 496, 22, { tl:22, tr:22, bl:0, br:0 });
-
-      const msgs = [
-        { t: '🎉 Amazing Job! 🎉',                    fs: '21px', col: '#F5C842', bold: true  },
-        { t: 'You helped Gamma welcome her puppies!',  fs: '12px', col: '#5A3A2A', bold: false },
-        { t: 'All 7 puppies are safe & warm!',         fs: '12px', col: '#5A3A2A', bold: false },
-        { t: '🐶  🐶  🐶  🐶  🐶  🐶  🐶',            fs: '20px', col: '#FF8844', bold: false },
-      ];
-      msgs.forEach((m, i) => {
-        const t = this.add.text(W/2, H/2 - 62 + i * 36, m.t,
-          { fontSize: m.fs, fontFamily: 'Georgia, serif', color: m.col, fontStyle: m.bold ? 'bold' : 'normal',
-            stroke: m.bold ? '#8A6000' : 'none', strokeThickness: 2 })
-          .setOrigin(0.5).setDepth(59).setAlpha(0);
-        this.tweens.add({ targets: t, alpha: 1, duration: 500, delay: 180 + i * 260 });
-      });
-
-      // FINISH button
-      this.time.delayedCall(1400, () => {
-        const bx = W/2, by = H/2 + 76;
-        const fg = this.add.graphics().setDepth(59);
-        const drawFin = (h) => {
-          fg.clear(); fg.fillStyle(h ? 0x44BB44 : C.GREEN, 1); fg.fillRoundedRect(bx-90, by-20, 180, 40, 20);
-          fg.lineStyle(2.5, 0x44AA44, 1); fg.strokeRoundedRect(bx-90, by-20, 180, 40, 20);
-        };
-        drawFin(false);
-        this.add.text(bx, by, 'FINISH! 🐾', { fontSize: '15px', fontFamily: 'Arial', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(60);
-        const fH = this.add.rectangle(bx, by, 180, 40, 0, 0).setDepth(61).setInteractive({ useHandCursor: true });
-        fH.on('pointerover', () => drawFin(true)); fH.on('pointerout', () => drawFin(false));
-        fH.on('pointerdown', () => {
-          const stars = this._stars + 3;
-          // All puppies born (the "🎉 Amazing Job!" panel above is the hurray
-          // moment) → conclusion cinematic → straight to the level's ending
-          // (skip the extra nursery-decorating mini-game).
-          playVideoOverlay(this, 'l5_conclusion', () => {
-            this.cameras.main.fadeOut(800, 0, 0, 0);
-            this.time.delayedCall(850, () => this.scene.start('L5_Nursery', { stars, skipFinale: true }));
-          });
-        });
+    // No "Amazing Job!" popup / FINISH button — let the confetti and hearts
+    // play out, then go straight into the conclusion cinematic and the
+    // Level Complete modal, same as every other level's ending.
+    this.time.delayedCall(2200, () => {
+      this._hideHUD(); // so the video (and the modal after it) render truly full-screen
+      playVideoOverlay(this, 'l5_conclusion', () => {
+        try { this.registry.set('points', (this.registry.get('points') || 0) + 1000); } catch (_) {}
+        try { localStorage.setItem('shadowgamma_level5_done', '1'); } catch (_) {}
+        const points = this.registry.get('points') || 0;
+        showLevelCompleteModal(this, points, { nextLevelKey: 'Level6' });
       });
     });
   }

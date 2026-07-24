@@ -13,11 +13,15 @@ import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 
 const WORLD_W   = 13000;
 const GROUND_Y  = 408;
+// Same H (450) is shared game-wide, so this is the EXACT same seam line/percentage
+// Level 2 uses (see L2_Scenery.js's GROUND_TOP) — background ends here, ground art
+// starts here, no gap and no overlap between the two images.
+const GROUND_TOP = 404;
 const RUN_SPEED = 200; // matches Level 2's BaseLevelScene.updateMovement() speed
 const JUMP_V    = -430; // matches Level 2's BaseLevelScene.updateMovement() jump velocity
 // Obstacles sit flush on the stone path section of the surface image.
 // OBS_BASE_DROP shifts obstacle bases below GROUND_Y to match visual character feet.
-const OBS_BASE_DROP = 18;
+const OBS_BASE_DROP = 28;   // nudged down a bit further so obstacles read as properly grounded
 
 const TOKENS = [
   { name: 'Tahoe',    x: 900,   mini: null },
@@ -71,13 +75,12 @@ export class Level6Scene extends Phaser.Scene {
         this.load.image(k, `assets/images/Level%204/${k}.png`);
     });
     if (!this.textures.exists('l6_bg'))
-      this.load.image('l6_bg', 'assets/images/level%206/background.png');
+      this.load.image('l6_bg', 'assets/images/level 6/level-06-bg.jpg');
     if (!this.textures.exists('l6_surface'))
-      this.load.image('l6_surface', 'assets/images/level%206/surface.png');
-    // Obstacle artwork
+      this.load.image('l6_surface', 'assets/images/level 6/level-06-bottom.jpg');
+    // Obstacle artwork (pit.png no longer used — pits are now drawn procedurally,
+    // Level-2 style, in _buildGround()).
     const obsKeys = ['pot', 'crate', 'ball', 'branch', 'banner', 'sign', 'flower_hedge'];
-    if (!this.textures.exists('l6_pit'))
-      this.load.image('l6_pit', 'assets/images/level%206/pit.png');
     obsKeys.forEach(k => {
       if (!this.textures.exists(`l6_${k}`))
         this.load.image(`l6_${k}`, `assets/images/level%206/${k}.png`);
@@ -102,10 +105,6 @@ export class Level6Scene extends Phaser.Scene {
     this._rollers       = [];
     this._pits          = [];         // pit graphics for flash effect
     this._fallingIntoPit = false;
-    this._lastGroundT = -1e9;   // advanced-jump timers
-    this._jumpBufferT = -1e9;
-    this._jumpPrev    = false;
-    this._isJumping   = false;
     this._stunUntil   = 0;
     this._lastCP     = { x: 80, score: 0 };
     this._checkpoints = [
@@ -116,7 +115,11 @@ export class Level6Scene extends Phaser.Scene {
       { x: 11000, reached: false },
     ];
 
-    this.physics.world.setBounds(0, 0, WORLD_W, H);
+    // Physics world extends 600px below the visible camera bounds — same
+    // technique BaseLevelScene uses — so a pup that falls into a pit actually
+    // drops out of view before _checkPits() finishes the fall, instead of
+    // being stopped dead by an invisible floor at the bottom of the screen.
+    this.physics.world.setBounds(0, 0, WORLD_W, H + 600);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
@@ -163,8 +166,9 @@ export class Level6Scene extends Phaser.Scene {
   _buildSky() {
     // ── Background image as parallax tileSprite ──────────────────────────
     // Sits behind everything. Scrolls at 25% of camera speed for depth.
-    // Height covers sky down to where the surface image begins to overlap.
-    const bgDisplayH = GROUND_Y + 5; // extends slightly past physics ground
+    // Ends EXACTLY at GROUND_TOP — same seam technique as Level 2 — so the
+    // ground art picks up right where the background stops, no gap/overlap.
+    const bgDisplayH = GROUND_TOP;
 
     if (this.textures.exists('l6_bg')) {
       // Get source texture size so we can scale the tile to exactly fill bgDisplayH
@@ -197,18 +201,22 @@ export class Level6Scene extends Phaser.Scene {
   }
 
   _buildGround() {
-    // ── Invisible physics floor — segmented with gaps at every pit (flat) obstacle ──
+    // ── Pit gaps — used for physics floor segmentation, the visual ground
+    // segmentation below, the pit graphics, and the fall-through check. ──────
     const pits = OBSTACLES.filter(o => o.flat).map(o => ({
       x: o.x, hw: o.w / 2 + 36   // wide enough for the 60px player body to fall cleanly
     }));
     this._pitZones = pits;   // used in _checkPits()
-
     const sorted = [...pits].sort((a, b) => a.x - b.x);
+
+    // ── Invisible physics floor — segmented with gaps at every pit ──────────
     this._floorSegs = [];
+    const segments = [];   // solid-ground spans, reused for the visual ground below
     let cursor = 0;
     sorted.forEach(pit => {
       const segEnd = pit.x - pit.hw;
       if (segEnd > cursor) {
+        segments.push({ start: cursor, end: segEnd });
         const w = segEnd - cursor, cx = cursor + w / 2;
         const r = this.add.rectangle(cx, GROUND_Y + 20, w, 40, 0x000000, 0).setDepth(-9);
         this.physics.add.existing(r, true);
@@ -218,37 +226,94 @@ export class Level6Scene extends Phaser.Scene {
     });
     const lastW = WORLD_W - cursor;
     if (lastW > 0) {
+      segments.push({ start: cursor, end: WORLD_W });
       const r = this.add.rectangle(cursor + lastW / 2, GROUND_Y + 20, lastW, 40, 0x000000, 0).setDepth(-9);
       this.physics.add.existing(r, true);
       this._floorSegs.push(r);
     }
     this._ground = this._floorSegs;
 
-    // ── Surface image as screen-locked tileSprite ─────────────────────────
-    // Surface positioned so stone path aligns with character's standing level
-    // and obstacles sit on the same level as the character's feet.
-    const surfaceY  = GROUND_Y - 65;             // surface top (grass) sits higher up
-    const surfaceH  = H - surfaceY;              // fills remainder of screen
+    // ── Ground surface art — WORLD-SPACE tileSprites, one per solid segment
+    // (same technique Level 2 uses for its ground: scrolls naturally with the
+    // camera at 1:1, no manual tilePositionX bookkeeping, and actually stops
+    // at each pit gap instead of a continuous strip with an image pasted over
+    // the hole). ─────────────────────────────────────────────────────────────
+    const surfaceY = GROUND_TOP;      // starts exactly where the background ends (no seam)
+    const surfaceH = H - surfaceY;    // fills remainder of screen, same % as Level 2
 
-    if (this.textures.exists('l6_surface')) {
-      const src   = this.textures.get('l6_surface').getSourceImage();
-      const srcW  = src.naturalWidth  || src.width  || 800;
-      const srcH  = src.naturalHeight || src.height || 380;
-      const tileScaleY = surfaceH / srcH;         // scale tile to fill display height
-      const tileScaleX = tileScaleY;              // uniform scale
-
-      this._surfTile = this.add.tileSprite(0, surfaceY, W, surfaceH, 'l6_surface')
-        .setOrigin(0, 0)
-        .setScrollFactor(0)   // locked to camera viewport
-        .setDepth(-8);
-
-      this._surfTile.setTileScale(tileScaleX, tileScaleY);
-    } else {
-      // Fallback: plain green strip if image not loaded
-      const fg = this.add.graphics().setDepth(-8).setScrollFactor(0);
-      fg.fillStyle(0x70B030, 1);
-      fg.fillRect(0, surfaceY, W, surfaceH);
+    this._surfTiles = [];
+    const hasSurf = this.textures.exists('l6_surface');
+    let srcH = 380, tileScale = 1;
+    if (hasSurf) {
+      const src = this.textures.get('l6_surface').getSourceImage();
+      srcH = src.naturalHeight || src.height || srcH;
+      tileScale = surfaceH / srcH;
     }
+    segments.forEach(seg => {
+      const w = seg.end - seg.start;
+      if (w <= 0) return;
+      if (hasSurf) {
+        const ts = this.add.tileSprite(seg.start + w / 2, surfaceY + surfaceH / 2, w, surfaceH, 'l6_surface')
+          .setDepth(-8);
+        ts.tileScaleX = ts.tileScaleY = tileScale;
+        this._surfTiles.push(ts);
+      } else {
+        // Fallback: plain green strip if image not loaded
+        const fg = this.add.graphics().setDepth(-8);
+        fg.fillStyle(0x70B030, 1);
+        fg.fillRect(seg.start, surfaceY, w, surfaceH);
+      }
+    });
+
+    // ── Pit visuals — Level 2's procedural "broken ground" style (dark void +
+    // jagged edges + bouncing jump-hint arrow), replacing the old pit.png image. ──
+    sorted.forEach(pit => this._buildPitVisual(pit.x - pit.hw, pit.hw * 2));
+  }
+
+  // Level-2-style broken-ground pit (matches Level2Scene.js's Zone-1 potholes),
+  // adapted to Level 6's ground line. gx = gap's LEFT edge, gw = gap's full width.
+  _buildPitVisual(gx, gw) {
+    const top = GROUND_TOP;   // where the ground surface actually sits
+    const gr = this.add.graphics().setDepth(4);
+
+    // Dark void fills the entire gap column
+    gr.fillStyle(0x050302, 1);
+    gr.fillRect(gx, top, gw, H - top + 20);
+    // Faint dirt floor for depth illusion
+    gr.fillStyle(0x2a1608, 0.55);
+    gr.fillRect(gx + 4, H - 10, gw - 8, 14);
+
+    // Left broken edge chunks
+    gr.fillStyle(0x3d3d4a, 1);
+    gr.fillTriangle(gx, top,      gx + 11, top,      gx,      top + 11);
+    gr.fillTriangle(gx, top + 15, gx + 7,  top + 13, gx,      top + 24);
+    gr.fillStyle(0x2a2a38, 1);
+    gr.fillTriangle(gx, top + 9,  gx + 8,  top + 9,  gx + 3,  top + 19);
+    // Right broken edge chunks
+    gr.fillStyle(0x3d3d4a, 1);
+    gr.fillTriangle(gx + gw, top,      gx + gw - 11, top,      gx + gw, top + 11);
+    gr.fillTriangle(gx + gw, top + 15, gx + gw - 7,  top + 13, gx + gw, top + 24);
+    gr.fillStyle(0x2a2a38, 1);
+    gr.fillTriangle(gx + gw, top + 9,  gx + gw - 8,  top + 9,  gx + gw - 3, top + 19);
+
+    // Crack lines radiating from the edges
+    gr.lineStyle(1.5, 0x18182a, 1);
+    gr.lineBetween(gx - 18, top + 2,  gx,     top + 8);
+    gr.lineBetween(gx - 11, top - 3,  gx,     top + 3);
+    gr.lineBetween(gx - 22, top + 9,  gx - 4, top + 7);
+    gr.lineBetween(gx + gw + 16, top + 2,  gx + gw,     top + 8);
+    gr.lineBetween(gx + gw +  9, top - 3,  gx + gw,     top + 3);
+    gr.lineBetween(gx + gw + 20, top + 9,  gx + gw + 4, top + 7);
+
+    // Bouncing JUMP hint above the hole
+    const cx = gx + gw / 2;
+    const arrow = this.add.text(cx, top - 32, '⬆', {
+      fontSize: '18px', color: '#ffee44',
+      stroke: '#1a1008', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(9);
+    this.tweens.add({ targets: arrow, y: top - 44, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    this._pits.push({ gfx: gr, arrow, x: cx });
   }
 
   _buildProps() {
@@ -283,7 +348,7 @@ export class Level6Scene extends Phaser.Scene {
   _buildObstacles() {
     this._obsObjs = OBSTACLES.map((o, idx) => {
       if (o.rolling) return this._buildRollingObstacle(o);
-      if (o.flat)    return this._buildPuddle(o);   // returns null — pit, not an obstacle
+      if (o.flat)    return null;   // pit — visuals already built once in _buildGround()
       if (o.theme)   return this._buildHurdle(o);
       return this._buildJumpObstacle(o, idx);
     }).filter(Boolean);   // remove nulls from pit entries
@@ -300,21 +365,6 @@ export class Level6Scene extends Phaser.Scene {
     const img = this.add.image(o.x, obsY - o.h / 2, key).setOrigin(0.5, 0.5).setDepth(7);
     img.setDisplaySize(o.w, o.h);
     return { ...o, img, clearY: GROUND_Y - o.h - 12 };
-  }
-
-  // ── Pit hazard: uses pit.png image placed at the gap in the ground ──
-  _buildPuddle(o) {
-    const dispW = o.w + 60;    // display width — slightly wider than the physics gap
-    const dispH = 80;          // display height — shows enough depth of the pit image
-
-    // Place image so its top edge aligns with the stone-path surface level
-    const img = this.add.image(o.x, GROUND_Y + dispH / 2 - 8, 'l6_pit')
-      .setOrigin(0.5, 0.5)
-      .setDisplaySize(dispW, dispH)
-      .setDepth(9);
-
-    this._pits.push({ img, x: o.x, dispW });
-    return null;
   }
 
   // ── Moving hazard: striped rolling ball with separate flat shadow ──
@@ -542,10 +592,21 @@ export class Level6Scene extends Phaser.Scene {
     const ts = window._touchState || {};
     const p  = this.player;
     const onGround = p.body.blocked.down || p.body.touching.down;
-    const stunned = this.time.now < (this._stunUntil || 0);
+    // While sinking into a pit, freeze input so the pup just drops straight
+    // down under gravity (no sideways drift, no re-jump) until the fall is
+    // fully shown off-screen — see _checkPits()/_fallIntoPit().
+    const stunned = this.time.now < (this._stunUntil || 0) || this._fallingIntoPit;
     const left  = !stunned && (this.cursors.left.isDown  || this.keys.A.isDown || ts.left);
     const right = !stunned && (this.cursors.right.isDown || this.keys.D.isDown || ts.right);
-    const jump  = !stunned && (this.cursors.up.isDown    || this.keys.W.isDown || this.keys.SPACE.isDown || ts.jump);
+    // Plain jump — same trigger style as Level 2's BaseLevelScene.updateMovement():
+    // edge-triggered (JustDown) and only while grounded. No coyote-time, input
+    // buffering, or variable jump-height — matches Level 2's feel exactly.
+    const jumpPressed = !stunned && (
+      Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.W) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.SPACE) ||
+      (ts.jump && onGround)
+    );
     const slide = !stunned && (this.cursors.down.isDown  || this.keys.S.isDown || ts.slide);
 
     this._checkJumpHint(p, onGround);
@@ -562,41 +623,23 @@ export class Level6Scene extends Phaser.Scene {
     let vx = 0;
     if (left)  { vx = -RUN_SPEED; p.setFlipX(true);  }
     if (right) { vx =  RUN_SPEED; p.setFlipX(false); }
-    if (this._sliding && vx === 0) vx = RUN_SPEED * (p.flipX ? -1 : 1) * 0.5; // gentle glide
     p.setVelocityX(vx);
 
-    // ── Advanced jump: coyote-time + input buffering + variable height ──
-    // Coyote-time: you can still jump for a few ms after walking off an edge.
-    // Buffer: a jump pressed just before landing still fires on touchdown.
-    // Variable height: release early for a small hop, hold for a full jump.
-    const now = this.time.now;
-    if (onGround) this._lastGroundT = now;
-    if (jump && !this._jumpPrev) this._jumpBufferT = now;   // rising-edge press
-    this._jumpPrev = jump;
-
-    const coyoteOK   = (now - this._lastGroundT) <= 110;
-    const bufferedOK = (now - this._jumpBufferT) <= 130;
-    if (bufferedOK && coyoteOK && !this._sliding && p.body.velocity.y > -20) {
+    if (jumpPressed && onGround && !this._sliding) {
       p.setVelocityY(JUMP_V);
-      this._jumpBufferT = -1e9;   // consume buffer
-      this._lastGroundT = -1e9;   // consume coyote window
-      this._isJumping   = true;
     }
-    if (this._isJumping && !jump && p.body.velocity.y < 0) {
-      p.setVelocityY(p.body.velocity.y * 0.45);   // cut the rise → short hop
-      this._isJumping = false;
-    }
-    if (p.body.velocity.y >= 0) this._isJumping = false;
+    if (ts.jump) ts.jump = false;
 
     if (this._sliding) p.play('gleeda_idle_anim', true);
     else if (!onGround) p.play('gleeda_jump_anim', true);
     else if (vx !== 0)  p.play('gleeda_walk', true);
     else                p.play('gleeda_idle_anim', true);
 
-    // Scroll background (parallax 25%) and surface (1:1 with camera)
+    // Scroll background (parallax 25%). Ground segments are world-space
+    // tileSprites now (Level 2's technique) — they scroll with the camera
+    // automatically, no manual tilePositionX bookkeeping needed.
     const camX = this.cameras.main.scrollX;
-    if (this._bgTile)   this._bgTile.tilePositionX   = camX * 0.25;
-    if (this._surfTile) this._surfTile.tilePositionX  = camX;
+    if (this._bgTile) this._bgTile.tilePositionX = camX * 0.25;
 
     this._checkTokens();
     this._checkObstacles(onGround);
@@ -786,28 +829,42 @@ export class Level6Scene extends Phaser.Scene {
   }
 
   // ── Pit fall detection ────────────────────────────────────────────────────
+  // Two-phase, matching Level 2/BaseLevelScene's fall-death technique: once
+  // the pup steps over open ground with nothing beneath it, let gravity carry
+  // it all the way down out of view (input frozen via `stunned` in update())
+  // so the fall is shown COMPLETELY, THEN apply the full life loss and
+  // respawn at the last checkpoint — instead of an instant flash+teleport
+  // the moment it touches the pit edge.
   _checkPits() {
-    if (this._done || this._paused || this._miniActive || this._fallingIntoPit) return;
+    if (this._done || this._paused || this._miniActive) return;
     const p = this.player;
-    // Trigger when the physics body bottom has dropped into the pit gap (no floor)
+
+    if (this._fallingIntoPit) {
+      if (p.y > H + 80) this._fallIntoPit();   // fully off-screen — finish the fall
+      return;
+    }
+
     const onGround = p.body.blocked.down || p.body.touching.down;
     if (!onGround && p.body.bottom > GROUND_Y + 6) {
       const inPit = this._pitZones && this._pitZones.some(z => Math.abs(p.body.x - z.x) < z.hw);
       if (inPit) {
-        this._fallingIntoPit = true;
-        this._fallIntoPit();
+        this._fallingIntoPit = true;   // freezes input in update(); drops straight down
+        p.setVelocityX(0);
       }
     }
   }
 
   _fallIntoPit() {
+    this._fallingIntoPit = false;
+
     if (this._damageCD) { this._respawnAtCheckpoint(); return; }
     this._damageCD = true;
 
     // Flash the screen dark to signal the pit fall (safe — no world-space rectangle)
     this.cameras.main.flash(320, 0, 0, 0, true);
 
-    // Direct life loss — skip HP
+    // Direct, complete life loss (not partial HP damage) — matches the
+    // instant hazard-death behaviour used everywhere else in the game.
     this._lives--;
     this._hdr?.setLives(this._lives);
     this._hp = 3;
@@ -828,11 +885,16 @@ export class Level6Scene extends Phaser.Scene {
   }
 
   _respawnAtCheckpoint() {
+    this._fallingIntoPit = false;
     this._score = this._lastCP.score;
     this._scoreTxt.setText(`${this._score}`);
     const p = this.player;
-    p.setPosition(this._lastCP.x, GROUND_Y - 42);
-    p.setVelocity(0, 0);
+    // body.reset() (not setPosition + setVelocity) — teleporting a dynamic
+    // Arcade body needs the body's own position/velocity forced directly,
+    // otherwise a high fall speed built up over a long pit-drop can carry it
+    // straight through the new spot for another frame or two before the
+    // sprite/body re-sync, which looked like the checkpoint reset "missing".
+    p.body.reset(this._lastCP.x, GROUND_Y - 42);
     this.cameras.main.centerOnX(this._lastCP.x);
     this._toast('💫 Back to checkpoint!');
     this.time.delayedCall(1400, () => { this._damageCD = false; });

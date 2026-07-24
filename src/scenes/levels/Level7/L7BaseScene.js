@@ -65,14 +65,17 @@ export class L7BaseScene extends Phaser.Scene {
     this.time.delayedCall(Phaser.Math.Between(3500, 7000), flash);
   }
 
-  // ── HUD: unified Level-2 header (health · banner · coin · menu) + objectives ──
+  // ── HUD: unified Level-2 header (health · banner · coin · menu) ────────────
+  // stageNum/objectives are accepted for call-site compatibility but unused —
+  // the banner shows "LEVEL 7" only (no per-stage label) and the objectives
+  // checklist panel is no longer shown.
   buildStageHUD(stageNum, stageName, objectives) {
     generatePremiumHudTextures(this);
     this._lives  = this.registry.get('lives') ?? 3;
     this._points = this.registry.get('points') ?? 0;
 
     this._hdr = buildStandardHeader(this, {
-      chapterLabel: `STAGE ${stageNum}`, title: stageName,
+      chapterLabel: 'LEVEL 7', title: stageName,
       timer: null,                       // L7 stages are puzzle/exploration — no timer
       coinValue: this._points,
       lives: this._lives, hp: 3,
@@ -82,24 +85,6 @@ export class L7BaseScene extends Phaser.Scene {
     this._pointsTxt = this._hdr.coinTxt;
     this._banMidY   = this._hdr.midY;
     this._hdr.setLives(this._lives);
-
-    // Objective checklist (checkpoint module) — just below the banner
-    this._objectives = objectives.map(o => ({ label: o, done: false }));
-    this._objPanel = this.add.graphics().setScrollFactor(0).setDepth(60);
-    this._objTexts = [];
-    const panelW = 230, panelX = W / 2 - panelW / 2, panelY = this._hdr.bottom + 4;
-    const panelH = 22 + objectives.length * 18;
-    this._objPanel.fillStyle(0x0a0f1a, 0.7); this._objPanel.fillRoundedRect(panelX, panelY, panelW, panelH, 8);
-    this._objPanel.lineStyle(1, 0x3a5070, 0.6); this._objPanel.strokeRoundedRect(panelX, panelY, panelW, panelH, 8);
-    this.add.text(panelX + 10, panelY + 8, '🎯 OBJECTIVES', {
-      fontSize: '10px', fontFamily: 'Georgia, serif', color: '#7fb0e0'
-    }).setScrollFactor(0).setDepth(61);
-    this._objectives.forEach((o, i) => {
-      const t = this.add.text(panelX + 12, panelY + 26 + i * 18, `○ ${o.label}`, {
-        fontSize: '11px', fontFamily: 'Georgia, serif', color: '#cdd8e6'
-      }).setScrollFactor(0).setDepth(61);
-      this._objTexts.push(t);
-    });
 
     this._escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this._escKey.on('down', () => this.togglePause());
@@ -278,9 +263,16 @@ export class L7BaseScene extends Phaser.Scene {
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setScrollFactor(0).setDepth(110);
       this.time.delayedCall(400, () => {
         this.registry.set('lives', 3);
-        showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(450, 0, 0, 0);
-          this.time.delayedCall(480, () => this.scene.restart());
+        this.registry.set('l7_checkpoint', 'L7_Stage1');
+        // V8 plays whenever the player runs out of lives, in any stage,
+        // before the try-again screen (same cinematic Stage 4 uses). Lives
+        // are shared across all 5 stages, so running out anywhere sends the
+        // player back to the start of Level 7, not just this stage.
+        this.playStoryVideos(['l7_v8'], () => {
+          showTryAgainModal(this, () => {
+            this.cameras.main.fadeOut(450, 0, 0, 0);
+            this.time.delayedCall(480, () => this._forceSceneStart('L7_Stage1'));
+          });
         });
       });
     } else {
