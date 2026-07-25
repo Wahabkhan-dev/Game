@@ -75,7 +75,10 @@ export class L9_GiftRunScene extends L9BaseScene {
     // Guarded real-PNG loading — any missing file falls back to procedural art.
     const B = 'assets/images/level9/';
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
-    ['l9_sky', 'l9_hills', 'l9_ground', 'l9_room_bg', 'l9_tree', 'l9_lights', 'l9_house', 'l9_door']
+    // Real bg/ground art — same fit-height/tile technique as Level 4/8.
+    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+    ['l9_hills', 'l9_room_bg', 'l9_tree', 'l9_lights', 'l9_house', 'l9_door']
       .forEach(k => load(k, `${B}bg/${k}.png`));
     ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe', 'l9_gift_open']
       .forEach(k => load(k, `${B}gift/${k}.png`));

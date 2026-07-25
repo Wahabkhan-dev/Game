@@ -5,7 +5,7 @@ import { L1HUD } from '../hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from '../L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from '../L1_Scenery.js';
 import { pickRandomGame } from '../../../../utils/MiniGamePicker.js';
-import { showStoryCard } from '../../../../utils/VideoOverlay.js';
+import { showStoryCard, addLoopingVideo } from '../../../../utils/VideoOverlay.js';
 import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
 
 // Bonus round — collect 5 pieces of meat across the world, solve puzzles, then
@@ -95,9 +95,14 @@ export class L1_FoodScene extends BaseLevelScene {
     const cageW = 100;
     const cageL = this._gemmaX - cageW / 2;   // = 5
 
-    // Gemma in her cage — real-art image (dog + cage baked into one picture)
-    this._gemmaImg = this.add.image(this._gemmaX, this._gemmaY, 'l1_gemma_cage')
-      .setDisplaySize(110, 110).setOrigin(0.5, 1).setDepth(8);
+    // Gemma in her cage — looping video (dog + cage baked in, continuously
+    // animated), sized to match Shadow's own on-screen size (122×66) + 10%.
+    // Centered at a 5px-margin x (not _gemmaX=55) — the video is wider than
+    // the old 110px image, so centering on 55 pushed its left edge past the
+    // screen's x=0 and clipped it out of frame.
+    this._gemmaImg = addLoopingVideo(this, 5 + 134 / 2, this._gemmaY, 'gemma_cage_loop', {
+      originY: 1, depth: 8, width: 134, height: 73,
+    });
     this.tweens.add({
       targets: this._gemmaImg, y: this._gemmaY - 4,
       duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'

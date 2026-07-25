@@ -24,30 +24,22 @@ const GROUND_Y = 380;
 // line up with the character's visual feet (same trick as Level 6).
 const OBS_BASE_DROP = 16;
 
-// 8 collectibles — alternating ground / high positions across the longer world
+// 8 collectibles — alternating ground / high positions across the longer world.
+// Mini-activities fire on collecting specific items (not on walking past a
+// position marker) — `activity` names which one, see L8_Activities.ACTIVITY_META.
 const FOOD = [
   { x: 520,  tex: 'l8_food_bag',       label: 'Puppy Food Bag',  high: false },
-  { x: 1200, tex: 'l8_food_milk',      label: 'Puppy Milk',      high: true  },
+  { x: 1200, tex: 'l8_food_milk',      label: 'Puppy Milk',      high: true,  activity: 'good_food'   },
   { x: 1900, tex: 'l8_food_bone',      label: 'Dog Biscuit',     high: false },
-  { x: 2700, tex: 'l8_food_bowl',      label: 'Food Bowl',       high: true  },
+  { x: 2700, tex: 'l8_food_bowl',      label: 'Food Bowl',       high: true,  activity: 'count_pups'  },
   { x: 3400, tex: 'l8_food_can',       label: 'Healthy Treat',   high: false },
-  { x: 4200, tex: 'l8_food_jar',       label: 'Water Jar',       high: true  },
+  { x: 4200, tex: 'l8_food_jar',       label: 'Water Jar',       high: true,  activity: 'spell_puppy' },
   { x: 4950, tex: 'l8_food_meat',      label: 'Fresh Meat',      high: false },
-  { x: 5900, tex: 'l8_item_toybasket', label: 'Puppy Toy',       high: true  },
+  { x: 5900, tex: 'l8_item_toybasket', label: 'Puppy Toy',       high: true,  activity: 'match_food'  },
 ];
 
 // Auto-checkpoint markers every ~1000–1500 units over the longer course
 const CP_XS = [1000, 2000, 3500, 5000, 6300];
-
-// ── Mini-activity gates (same pattern as Level 2 checkpoints) ─────────────
-// Placed between food collectibles to avoid overlapping with obstacles.
-// Change `key` to swap which activity runs — see L8_Activities.ACTIVITY_META.
-const ACTIVITY_GATES = [
-  { x: 1380, key: 'good_food'  },   // Pet-shop stop — pick safe puppy foods
-  { x: 2950, key: 'count_pups' },   // Park stop — count 7 hungry puppies
-  { x: 4550, key: 'spell_puppy'},   // Market stop — spell P-U-P-P-Y
-  { x: 6300, key: 'match_food' },   // Final stretch — memory match food pairs
-];
 
 // ALL hurdles sit ON the surface and are cleared by JUMPING (same as Level 6).
 // 9 obstacles across the longer 7000-unit world for tighter difficulty, plus
@@ -147,7 +139,6 @@ export class L8_FoodRunScene extends L8BaseScene {
     this._buildCPs();
     this._buildFood();
     this._buildObstacles();
-    this._buildGates();
 
     // ── player (Level 6 manual movement via L8BaseScene) ────────────────────
     this.buildPlayer(80, GROUND_Y, 250, -470);
@@ -308,7 +299,6 @@ export class L8_FoodRunScene extends L8BaseScene {
     const onG = this.runMovement();  // L8BaseScene manual left/right + jump/slide
     this.updateParallax();
     this._emitDust(onG);
-    this._checkGates();
     this._checkCPs();
     this._checkFood();
     this._checkObstacles(onG);
@@ -330,37 +320,6 @@ export class L8_FoodRunScene extends L8BaseScene {
     });
   }
 
-  // ── Mini-activity gates — pause the run, play activity, resume ──────────────
-  _buildGates() {
-    this._gates = ACTIVITY_GATES.map(g => {
-      // visible paw-print marker so player sees the stop coming
-      const marker = this.add.text(g.x, GROUND_Y - 100, '🐾', { fontSize: '24px' })
-        .setOrigin(0.5).setDepth(8);
-      this.tweens.add({ targets: marker, y: marker.y - 8, duration: 720, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.add.text(g.x, GROUND_Y - 66, 'STOP HERE', {
-        fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 3
-      }).setOrigin(0.5).setDepth(8);
-      return { ...g, done: false, marker };
-    });
-  }
-
-  _checkGates() {
-    if (this._busy) return;
-    for (const g of this._gates) {
-      if (g.done) continue;
-      if (this.player.x >= g.x) {
-        g.done = true;
-        this.player.setVelocityX(0);
-        this.registry.set('l8_checkpointX', Math.max(80, g.x - 80));
-        this.registry.set('l8_checkpointY', GROUND_Y);
-        this.tweens.add({ targets: g.marker, alpha: 0, duration: 220 });
-        this.runActivity(g.key, () =>
-          this.toast('🐾 Great job! Keep collecting food! A/D to move', 1600)
-        );
-        break;
-      }
-    }
-  }
 
   // ── Auto-checkpoints: trigger once when player crosses each x ──────────────
   _checkCPs() {
@@ -434,8 +393,19 @@ export class L8_FoodRunScene extends L8BaseScene {
         this._flyToCounter(f, i);
         // streak popup for a sense of momentum
         if (this._streak >= 2) this._popText(f.x, f.img.y - 30, `COMBO x${this._streak}!`, '#ffd23a');
-        if (this._collected >= FOOD.length) this._allCollected();
-        else this.toast(`✓ ${f.label}!  (${this._collected} / ${FOOD.length})`, 1100);
+        // Mini-activity fires on collecting specific items (never by walking
+        // past a position marker) — see FOOD's `activity` field above.
+        if (f.activity) {
+          this.player.setVelocityX(0);
+          this.runActivity(f.activity, () => {
+            if (this._collected >= FOOD.length) this._allCollected();
+            else this.toast('🐾 Great job! Keep collecting food! A/D to move', 1600);
+          });
+        } else if (this._collected >= FOOD.length) {
+          this._allCollected();
+        } else {
+          this.toast(`✓ ${f.label}!  (${this._collected} / ${FOOD.length})`, 1100);
+        }
       }
     }
   }

@@ -1,5 +1,29 @@
 import { W, H } from '../config/GameConfig.js';
 
+// A small, continuously-looping IN-PLACE video (as opposed to every other
+// video helper here, which is a full-screen one-shot cutscene) — used to
+// replace a static image with an animated clip sitting at a fixed spot in
+// the scene, e.g. "Gemma idling in her cage". Loops natively via Phaser's
+// own Video.play(loop) — no manual restart-on-'complete' wiring, so there's
+// no gap/flash between cycles. Muted by default so autoplay isn't blocked
+// by the browser (this is ambient background motion, not a cutscene with
+// dialogue/sound).
+export function addLoopingVideo(scene, x, y, key, opts = {}) {
+  const vid = scene.add.video(x, y, key)
+    .setOrigin(opts.originX ?? 0.5, opts.originY ?? 0.5)
+    .setDepth(opts.depth ?? 8);
+  if (opts.mute !== false) vid.setMute(true);
+  // MUST wait for 'created' — a Video's natural width/height are 0 until its
+  // metadata loads, so calling setDisplaySize() any earlier computes scale
+  // against 0 (broken) and Phaser never re-applies it once the real frame
+  // size lands, which renders the clip at its raw, unscaled pixel size.
+  if (opts.width && opts.height) {
+    vid.on('created', () => vid.setDisplaySize(opts.width, opts.height));
+  }
+  vid.play(true); // native loop — starts immediately, no delay between cycles
+  return vid;
+}
+
 // Full-screen story text card — a dark overlay with centered message, held for a
 // few seconds then dismissed (or tap to skip), calling onDone. Used to give
 // story context (e.g. a death beat) right before a cinematic plays.

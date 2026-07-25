@@ -7,6 +7,7 @@ import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { showTryAgainModal, showLevelCompleteModal } from '../../../utils/EndModals.js';
+import { addLoopingVideo } from '../../../utils/VideoOverlay.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
@@ -425,14 +426,22 @@ export class Level2Scene extends BaseLevelScene {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 2
     }).setScrollFactor(0).setDepth(40).setVisible(false);
 
-    // ── Gemma's cage (Zone 3 end) — real-art image (dog + cage baked in).
+    // ── Gemma's cage (Zone 3 end) — looping video (dog + cage baked in,
+    // continuously animated) in place of the old static image.
     // gy=420 matches the ground-contact line other bottom-anchored Zone 3
     // props use (see cactus_thorn below) — 404 (background/ground seam)
     // left the cage floating above the ground instead of resting on it.
     {
       const gx = 17800, gy = 420;
-      this.gemmaInCage = this.physics.add.staticImage(gx, gy, 'l2_gemma_cage')
-        .setDisplaySize(110, 110).setDepth(8).setOrigin(0.5, 1).refreshBody();
+      // Sized to match Shadow/Gleeda's own on-screen size (122×66) + 10%.
+      this.gemmaInCage = addLoopingVideo(this, gx, gy, 'gemma_cage_loop', {
+        originY: 1, depth: 8, width: 134, height: 73,
+      });
+      // Static physics body sized to match the display footprint (video
+      // dimensions aren't known synchronously, so set it explicitly rather
+      // than relying on refreshBody()'s auto-detection from natural size).
+      this.physics.add.existing(this.gemmaInCage, true);
+      this.gemmaInCage.body.setSize(134, 73);
       this.tweens.add({ targets: this.gemmaInCage, y: gy - 5, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 

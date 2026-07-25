@@ -143,8 +143,44 @@ async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
   const frame = document.createElement('iframe');
   frame.src   = `/mini-games/${folder}/index.html?t=${Date.now()}`;
   frame.title = folder;
-  frame.style.cssText = 'width:100%;height:100%;border:0;background:transparent;';
+  frame.style.cssText = 'width:100%;height:100%;border:0;background:transparent;opacity:0;transition:opacity .25s ease;';
   overlay.appendChild(frame);
+
+  // Loading spinner — the iframe's own page (HTML/CSS/JS, uncached, freshly
+  // fetched every time via the cache-busting `?t=` above) takes a beat to
+  // load, and until now that showed as a blank/frozen overlay with nothing on
+  // it. Shown immediately, removed the moment the iframe finishes loading (or
+  // after a 6s safety cap so it can never get stuck showing forever).
+  if (!document.getElementById('mg-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'mg-spin-style';
+    style.textContent = '@keyframes mg-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+  const spinnerWrap = document.createElement('div');
+  spinnerWrap.style.cssText =
+    'position:absolute;inset:0;z-index:61;display:flex;flex-direction:column;' +
+    'align-items:center;justify-content:center;gap:14px;pointer-events:none;';
+  const spinner = document.createElement('div');
+  spinner.style.cssText =
+    'width:44px;height:44px;border-radius:50%;' +
+    'border:4px solid rgba(245,200,122,0.25);border-top-color:#f5c87a;' +
+    'animation:mg-spin .7s linear infinite;';
+  const spinnerLabel = document.createElement('div');
+  spinnerLabel.textContent = 'Loading…';
+  spinnerLabel.style.cssText = 'font:bold 13px Georgia,serif;color:#f5c87a;text-shadow:0 2px 4px rgba(0,0,0,.6);';
+  spinnerWrap.appendChild(spinner);
+  spinnerWrap.appendChild(spinnerLabel);
+  overlay.appendChild(spinnerWrap);
+
+  let spinnerGone = false;
+  const hideSpinner = () => {
+    if (spinnerGone) return; spinnerGone = true;
+    frame.style.opacity = '1';
+    try { spinnerWrap.remove(); } catch (_) {}
+  };
+  frame.addEventListener('load', hideSpinner, { once: true });
+  setTimeout(hideSpinner, 6000);   // safety cap — never leave it stuck spinning
 
   // Mirror the level countdown on top of the overlay if the scene runs a timer.
   let timerInt = null;

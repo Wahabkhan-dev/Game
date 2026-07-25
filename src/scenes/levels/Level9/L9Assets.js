@@ -72,13 +72,9 @@ export function generateL9Assets(scene) {
   // ══════════════════════════════════════════════════════════════════════════
   // BACKGROUNDS
   // ══════════════════════════════════════════════════════════════════════════
-  // Snowy evening sky 800×450 — deep blue → soft mauve, moon + stars
-  grad(800, 450, 0x14224a, 0x3a3a66);
-  g.fillStyle(0xfff6d8, 0.5); g.fillCircle(650, 90, 60);   // moon glow
-  g.fillStyle(0xfff8e6, 1);   g.fillCircle(650, 90, 34);   // moon
-  g.fillStyle(0x2a2a52, 1);   g.fillCircle(636, 82, 30);   // crescent shadow
-  g.fillStyle(0xffffff, 0.9); for (let i = 0; i < 40; i++) g.fillCircle(Phaser.Math.Between(0, 800), Phaser.Math.Between(0, 240), Phaser.Math.Between(1, 2));
-  gen('l9_sky', 800, 450);
+  // 'l9_sky' and 'l9_ground' now always come from real art (bg-l9.jpg /
+  // bottom-l9.jpg, loaded by every Level 9 scene's preload()) — no procedural
+  // fallback for these two anymore.
 
   // Snowy hills band 400×240 (tileable) — rolling snow + pine silhouettes
   g.fillStyle(0xdfeaff, 1); g.fillRect(0, 120, 400, 120);
@@ -93,13 +89,6 @@ export function generateL9Assets(scene) {
     g.fillStyle(0xffffff, 0.75); g.fillTriangle(x - 16, 150, x - 8, 150, x - 12, 138); // snow cap
   }
   gen('l9_hills', 400, 240);
-
-  // Snow ground tile 128×80 (tileable)
-  grad(128, 80, 0xf4f8ff, 0xd8e4f6);
-  g.fillStyle(0xffffff, 1); g.fillRect(0, 0, 128, 8);
-  g.fillStyle(0xe6eefc, 0.8); for (let i = 0; i < 6; i++) g.fillEllipse(Phaser.Math.Between(0, 128), Phaser.Math.Between(16, 70), Phaser.Math.Between(14, 30), 8);
-  g.fillStyle(0x9ab0d8, 0.4); for (let i = 0; i < 5; i++) g.fillCircle(Phaser.Math.Between(0, 128), Phaser.Math.Between(20, 70), 2); // sparkle specks
-  gen('l9_ground', 128, 80);
 
   // Cosy living-room bg 800×450 (screen-locked) — warm wall, window w/ snow, fireplace, rug, tree
   grad(800, 450, 0xf6ddb8, 0xecc999);

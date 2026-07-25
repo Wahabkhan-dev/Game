@@ -21,6 +21,15 @@ const SURPRISES = ['l9_toy_ball', 'l9_toy_bone', 'l9_candy', 'l9_ornament', 'l9_
 export class L9_UnwrapScene extends L9BaseScene {
   constructor() { super('L9_Unwrap'); }
 
+  // Real bg/ground art (see L9_GiftRunScene/L9_BowRunScene) — loaded here too
+  // so a debug-menu jump straight into this scene can't beat the other Level 9
+  // scenes to generateL9Assets() and lock in the procedural fallback instead.
+  preload() {
+    const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
+    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+  }
+
   create() {
     generateL9Assets(this);
     this.cameras.main.fadeIn(600, 0, 0, 0);

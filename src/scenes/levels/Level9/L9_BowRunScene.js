@@ -56,6 +56,11 @@ export class L9_BowRunScene extends L9BaseScene {
 
   preload() {
     preloadGlendaSkin(this);
+    // Real bg/ground art — same fit-height/tile technique as Level 4/8. Loaded
+    // here too (not just in L9_GiftRunScene) since this scene can run first.
+    const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
+    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
   }
 
   create() {

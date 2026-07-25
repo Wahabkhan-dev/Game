@@ -73,6 +73,7 @@ import { SpriteSimulator }  from './scenes/SpriteSimulator.js';
 import { GlendaAnimSimulator } from './scenes/GlendaAnimSimulator.js';
 import { ShadowAnimSimulator } from './scenes/ShadowAnimSimulator.js';
 import { FolderFrameSimulator } from './scenes/FolderFrameSimulator.js';
+import { SnakeAnimSimulator } from './scenes/SnakeAnimSimulator.js';
 import { CarSimulator } from './scenes/CarSimulator.js';
 import { ThemeDesignScene } from './scenes/ThemeDesignScene.js';
 import { W, H }                  from './config/GameConfig.js';
@@ -266,6 +267,7 @@ const config = {
     GlendaAnimSimulator,
     ShadowAnimSimulator,
     FolderFrameSimulator,
+    SnakeAnimSimulator,
     CarSimulator,
     // Theme design showcase (Dev/QA)
     ThemeDesignScene,

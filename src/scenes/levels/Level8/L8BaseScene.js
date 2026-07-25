@@ -17,13 +17,22 @@ import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 // handling, and the freeze-proof scene transition (fadeOut → _wakeLoop → start).
 // Every Level 8 scene extends this. Themed deliberately apart from Level 7.
 // ════════════════════════════════════════════════════════════════════════════
+
+// Fixed bg/ground seam line, matching Level 4's own ground line exactly
+// (GROUND_Y 408 - 16 = 392) — NOT Level 8's own (higher) groundY. Level 8's
+// bottom band was sitting noticeably taller on screen than Level 4's simply
+// because groundY (380) leaves more vertical room below it; pinning the seam
+// here matches Level 4's band height while leaving groundY itself (and every
+// obstacle/item/physics position tuned around it) untouched.
+const GROUND_SEAM_Y = 392;
+
 export class L8BaseScene extends Phaser.Scene {
 
   // ── Background — same seam technique as Level 4: ends EXACTLY where the
   // ground band begins (groundY - 16), so the two meet with no gap and no
   // overlap, and the ground doesn't eat more of the screen than Level 4's. ───
   buildSky(bgKey = 'l8_bg') {
-    const bgDisplayH = (this._groundY || 380) - 16;
+    const bgDisplayH = GROUND_SEAM_Y;
     if (this.textures.exists(bgKey)) {
       const src  = this.textures.get(bgKey).getSourceImage();
       const srcH = src.naturalHeight || src.height || 700;
@@ -55,7 +64,7 @@ export class L8BaseScene extends Phaser.Scene {
     this._worldW = worldW; this._groundY = groundY;
     this._pitZones = pits;
 
-    const surfaceY = groundY - 16;
+    const surfaceY = GROUND_SEAM_Y;
     const surfaceH = H - surfaceY;
     const hasSurf = this.textures.exists(surfKey);
     let tileScale = 1;
@@ -164,26 +173,45 @@ export class L8BaseScene extends Phaser.Scene {
 
   // Fall-through pit detection — call once per frame from a scene's update(),
   // after runMovement(). No-op if buildGround() wasn't given any pits.
+  //
+  // Two-phase, matching Level 4/5/6: once the player steps over a gap with
+  // nothing beneath it, freeze horizontal drift and let gravity carry it
+  // down — visible for a beat, then hidden once it's sunk into the hole —
+  // before finishing the fall with a COMPLETE life loss and a checkpoint
+  // respawn (not the usual partial-HP hit a regular obstacle bump gives).
   _checkPits() {
     if (!this._pitZones || !this._pitZones.length) return;
-    if (this._paused || this._busy || this._done || this._fallingIntoPit) return;
+    if (this._paused || this._busy || this._done) return;
     const p = this.player;
     if (!p) return;
+
+    if (this._fallingIntoPit) {
+      if (!this._hiddenInHole && p.y - this._fallStartY > 40) {
+        p.setVisible(false);
+        this._hiddenInHole = true;
+      }
+      if (p.y > H + 80) this._fallIntoPit();
+      return;
+    }
+
     const onG = p.body.blocked.down || p.body.touching.down;
     if (!onG && p.body.bottom > this._groundY + 6) {
       const inPit = this._pitZones.some(z => Math.abs(p.body.x - z.x) < z.hw);
       if (inPit) {
         this._fallingIntoPit = true;
-        this._fallIntoPit();
+        this._fallStartY = p.y;
+        this._hiddenInHole = false;
+        p.setVelocityX(0);
       }
     }
   }
 
   _fallIntoPit() {
+    this._fallingIntoPit = false;
     this.cameras.main.flash(320, 0, 0, 0, true);
     this.cameras.main.shake(200, 0.012);
     this.toast('💧 Fell in a hole!');
-    this.loseLife(() => { this._fallingIntoPit = false; });
+    this.loseLife(null, { fullLife: true });
   }
 
   // ── Gleeda character (Glenda): JUMP + SLIDE ───────────────────────────────────
@@ -490,18 +518,23 @@ export class L8BaseScene extends Phaser.Scene {
   }
 
   // ── HP / Lives / damage ─────────────────────────────────────────────────────────
-  loseLife(onRespawn) {
+  // opts.fullLife: skip the partial-HP step and lose a whole life outright —
+  // used for pit falls (matches Level 4/5/6: falling in a hole always costs a
+  // complete life, not just one HP pip like a regular obstacle bump).
+  loseLife(onRespawn, opts = {}) {
     if (this._invuln || this._done) return;
     // If the timer ran out to 0 while a mini-activity overlay was open, close
     // it before respawning — otherwise the iframe stays visible on top while
     // the player is silently teleported back to the checkpoint underneath it.
     if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
     this._invuln = true;
-    this._hp--;
-    this.registry.set('l8_hp', this._hp);
-    // fade this heart out
-    const lost = this._hearts?.[this._hp];
-    if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, scale: { from: 0.8, to: 0.55 }, duration: 300 }); }
+    if (!opts.fullLife) {
+      this._hp--;
+      this.registry.set('l8_hp', this._hp);
+      // fade this heart out
+      const lost = this._hearts?.[this._hp];
+      if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, scale: { from: 0.8, to: 0.55 }, duration: 300 }); }
+    }
     this.cameras.main.shake(300, 0.012);
     // brief red flash on player
     if (this.player) {
@@ -512,7 +545,7 @@ export class L8BaseScene extends Phaser.Scene {
     } else {
       this.time.delayedCall(900, () => { this._invuln = false; });
     }
-    if (this._hp <= 0) {
+    if (opts.fullLife || this._hp <= 0) {
       // HP gone — lose a life and respawn
       this._lives--;
       this.registry.set('lives', this._lives);
@@ -554,6 +587,7 @@ export class L8BaseScene extends Phaser.Scene {
     this._busy    = false;
     this._invuln  = false;
     this._fallingIntoPit = false;
+    this._hiddenInHole = false;
     if (this.physics?.world) this.physics.resume();
     // restore hearts HUD
     this._refreshHeartsHUD();
@@ -563,8 +597,13 @@ export class L8BaseScene extends Phaser.Scene {
     if (this.player) {
       this.player.clearTint();
       this.player.setAlpha(1);
-      this.player.setPosition(cpX, cpY - 50);
-      this.player.setVelocity(0, 0);
+      this.player.setVisible(true);   // undo the pit-fall hide, if any
+      // body.reset() (not setPosition + setVelocity) — teleporting a dynamic
+      // Arcade body needs the body's own position/velocity forced directly,
+      // otherwise a high fall speed built up over a long pit-drop can carry
+      // it through the new spot for another frame or two before the
+      // sprite/body re-sync, which looks like the checkpoint reset "missing".
+      this.player.body.reset(cpX, cpY - 50);
     }
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.time.delayedCall(600, () => this.toast('💪 Continue! Use A/D to move'));

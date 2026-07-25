@@ -5,9 +5,10 @@ import { L1HUD } from './hud/L1_HUD.js';
 import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from './L1_Scenery.js';
 import { pickRandomGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
-import { showStoryCard } from '../../../utils/VideoOverlay.js';
+import { showStoryCard, addLoopingVideo } from '../../../utils/VideoOverlay.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
+import { preloadSnakeSkin, ensureSnakeAnim, SNAKE_ANIM_KEY, SNAKE_FIRST_KEY } from '../SnakeSkin.js';
 
 // Chapter 1 — Three zones: Easy → Medium → Boss → Free Gemma
 export class Level1Scene extends BaseLevelScene {
@@ -24,6 +25,7 @@ export class Level1Scene extends BaseLevelScene {
   preload() {
     preloadDogSkin(this);
     preloadPorcupineSkin(this);
+    preloadSnakeSkin(this);
   }
 
   // ── Premium fantasy HUD (Level 1 only) ──────────────────────────────────────
@@ -326,9 +328,12 @@ export class Level1Scene extends BaseLevelScene {
       this._porcupines.push({ img, x: d.x, y: d.y, dir: d.dir, min: d.min, max: d.max, zone: d.zone, hitCD: false });
     });
 
-    // ── Zone 3 boss snake ──────────────────────────────────────────────────
-    this.snake = this.physics.add.sprite(16200, 385, 'snake')
+    // ── Zone 3 boss snake — same physics body/HP/attack logic as before, now
+    // with the looping 24-frame slither animation instead of a static image.
+    ensureSnakeAnim(this);
+    this.snake = this.physics.add.sprite(16200, 385, SNAKE_FIRST_KEY)
       .setDisplaySize(110, 36).setDepth(9);
+    this.snake.play(SNAKE_ANIM_KEY);
     this.snake.body.setSize(90, 30, true);
     this.snake.body.setAllowGravity(false);
     this._snakeHP            = 3;
@@ -351,24 +356,15 @@ export class Level1Scene extends BaseLevelScene {
     }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(46).setVisible(false);
 
     // ── Gemma cage (Zone 3 far end — x=16700, solid ground past last gap 16390+155=16545)
+    // Looping video (dog + cage baked in, continuously animated) replaces the
+    // old procedural back-wall/bars + static gemma_idle sprite combo.
     {
-      const gx = 16700, gy = 406, cW = 100, cH = 70;
-      const cL = gx - cW / 2, cT = gy - cH;
-      // Back wall + back bars (depth 7, behind Gemma)
-      const cageBack = this.add.graphics().setDepth(7);
-      cageBack.fillStyle(0x1a1208, 1);
-      cageBack.fillRect(cL, cT, cW, cH);
-      cageBack.lineStyle(2, 0x3a2e10, 1);
-      cageBack.strokeRect(cL, cT, cW, cH);
-      cageBack.lineStyle(3, 0x2a2010, 0.9);
-      for (let r = 1; r <= 3; r++) {
-        const by = cT + (cH / 4) * r;
-        cageBack.lineBetween(cL + 4, by, cL + cW - 4, by);
-      }
-      this.gemmaGoal = this.add.image(gx, gy, 'gemma_idle')
-        .setDisplaySize(90, 50).setDepth(9).setOrigin(0.5, 1);
+      const gx = 16700, gy = 406;
+      // Sized to match Shadow/Gleeda's own on-screen size (122×66) + 10%.
+      this.gemmaGoal = addLoopingVideo(this, gx, gy, 'gemma_cage_loop', {
+        originY: 1, depth: 9, width: 134, height: 73,
+      });
       this.tweens.add({ targets: this.gemmaGoal, y: gy - 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this._drawCage(gx, gy); // draws front bars at depth 11 over Gemma
     }
 
     // ── Bark handler ───────────────────────────────────────────────────────
@@ -565,7 +561,9 @@ export class Level1Scene extends BaseLevelScene {
       });
     }
 
-    this.gemmaGoal.setTexture('gemma_happy');
+    // Video game objects can't texture-swap like an image — cue the "happy"
+    // moment with a warm tint + bounce instead, video keeps looping underneath.
+    this.gemmaGoal.setTint(0xfff2c0);
     this.tweens.killTweensOf(this.gemmaGoal);
     this.tweens.add({ targets: this.gemmaGoal, y: '-=12', duration: 260, yoyo: true, repeat: 4 });
 
@@ -654,28 +652,6 @@ export class Level1Scene extends BaseLevelScene {
     this._gemmaBarFill  = null;
     this._gemmaBarPanel = null;
     this._gemmaBarBG    = null;
-  }
-
-  _drawCage(cx, groundY) {
-    const cageW = 100, cageH = 90;
-    const cageL = cx - cageW / 2, cageT = groundY - cageH;
-    const g = this.add.graphics().setDepth(11);
-    const barCount = 6, barGap = cageW / (barCount + 1);
-    g.lineStyle(5, 0x4a3a18, 1);
-    for (let b = 1; b <= barCount; b++) {
-      const bx = cageL + barGap * b;
-      g.lineBetween(bx, cageT + 3, bx, groundY - 2);
-    }
-    g.lineStyle(6, 0x4a3a18, 1);
-    g.lineBetween(cageL, cageT + 3,            cageL + cageW, cageT + 3);
-    g.lineBetween(cageL, cageT + cageH * 0.45, cageL + cageW, cageT + cageH * 0.45);
-    g.lineBetween(cageL, groundY - 2,           cageL + cageW, groundY - 2);
-    g.lineStyle(2, 0xc8a040, 0.35);
-    for (let b = 1; b <= barCount; b++) {
-      const bx = cageL + barGap * b - 1;
-      g.lineBetween(bx, cageT + 3, bx, groundY - 2);
-    }
-    this._cageGraphics = g;
   }
 
   _startGauntlet() {

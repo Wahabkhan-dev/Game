@@ -25,6 +25,10 @@ export class BootScene extends Phaser.Scene {
     // fruit part and Level 2's cage scene.
     this.load.image('l1_gemma_cage', 'assets/images/level1/gemma-in-cage.png');
     this.load.image('l2_gemma_cage', 'assets/images/Level 2/gemma-in-cage.png');
+    // Short looping "Gemma in cage" video — replaces the static gemma-in-cage
+    // image/drawn-bars combo at Level 1's end-zone, Level 1's fruit part, and
+    // Level 2's end-zone (already H.264, no transcode needed).
+    this.load.video('gemma_cage_loop', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784949837/shadow-gamma/video/all/gemma-cage-loop.mp4');
     this.load.image('shadow_idle',   'assets/images/shadow/shadow_idle.png');
     this.load.image('shadow_run1',   'assets/images/shadow/shadow_run1.png');
     this.load.image('shadow_run2',   'assets/images/shadow/shadow_run2.png');

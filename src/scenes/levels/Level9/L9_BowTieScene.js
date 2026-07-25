@@ -29,6 +29,15 @@ const BOW_TEX = ['l9_bow_red', 'l9_bow_green', 'l9_bow_gold', 'l9_bow_blue', 'l9
 export class L9_BowTieScene extends L9BaseScene {
   constructor() { super('L9_BowTie'); }
 
+  // Real bg/ground art (see L9_GiftRunScene/L9_BowRunScene) — loaded here too
+  // so a debug-menu jump straight into this scene can't beat the other Level 9
+  // scenes to generateL9Assets() and lock in the procedural fallback instead.
+  preload() {
+    const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
+    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+  }
+
   create() {
     generateL9Assets(this);
     this.cameras.main.fadeIn(600, 0, 0, 0);

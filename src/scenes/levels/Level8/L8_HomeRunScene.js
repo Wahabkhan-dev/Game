@@ -13,14 +13,16 @@ const GROUND_Y = 380;
 // the puppies' new home needs. Collect them all, then head home to decorate.
 // (The 8 items map 1:1 to the decorate slots, matching the ITEMS COLLECTED panel.)
 // ════════════════════════════════════════════════════════════════════════════
+// Mini-activities fire on collecting specific items (not on walking past a
+// position marker) — `activity` names which one, see L8_Activities.ACTIVITY_META.
 const ITEMS = [
   { x: 480,  tex: 'l8_item_bed',          label: 'Bed',           high: false },
-  { x: 1100, tex: 'l8_item_foodstation',  label: 'Food Station',  high: true  },
+  { x: 1100, tex: 'l8_item_foodstation',  label: 'Food Station',  high: true,  activity: 'where_goes' },
   { x: 1780, tex: 'l8_item_waterstation', label: 'Water Station', high: false },
   { x: 2600, tex: 'l8_item_toybasket',    label: 'Toy Basket',    high: true  },
-  { x: 3300, tex: 'l8_item_picture',      label: 'Wall Picture',  high: false },
+  { x: 3300, tex: 'l8_item_picture',      label: 'Wall Picture',  high: false, activity: 'clean_home' },
   { x: 4000, tex: 'l8_item_plant',        label: 'Plant',         high: true  },
-  { x: 4750, tex: 'l8_item_rug',          label: 'Rug',           high: false },
+  { x: 4750, tex: 'l8_item_rug',          label: 'Rug',           high: false, activity: 'build_bed'  },
   { x: 5500, tex: 'l8_item_tunnel',       label: 'Play Tunnel',   high: true  },
 ];
 
@@ -40,15 +42,6 @@ const OBSTACLES = [
 // and you lose a life, same as Level 6's pits. hw = half-width of the gap.
 const PITS = [
   { x: 2900, hw: 80 },
-];
-
-// ── Mid-run mini-activity gates ─────────────────────────────────────────────
-// Change `key` or move `x` — nothing else needs to change.
-// Keys reference L8_Activities.ACTIVITY_META.
-const ACTIVITY_GATES = [
-  { x: 1450, key: 'where_goes' },   // Home-design stop — match item to room spot
-  { x: 3200, key: 'clean_home' },   // Cleaning stop — tap mud blobs before timer
-  { x: 5100, key: 'build_bed'  },   // Bed-building stop — tap parts in order
 ];
 
 export class L8_HomeRunScene extends L8BaseScene {
@@ -100,7 +93,6 @@ export class L8_HomeRunScene extends L8BaseScene {
     this._buildDecor();
     this._buildItems();
     this._buildObstacles();
-    this._buildGates();
     this.buildPlayer(80, GROUND_Y, 250, -470);
     this._groundY = GROUND_Y;
     this.registry.set('l8_checkpointX', 80);
@@ -161,41 +153,10 @@ export class L8_HomeRunScene extends L8BaseScene {
     if (this._done || this._paused || this._miniGameOpen) return;
     const onG = this.runMovement();
     this.updateParallax();
-    this._checkGates();
     this._checkItems();
     this._checkObstacles(onG);
     this._checkPits();
     if (this.player.x > WORLD_W - 240) this._finish();
-  }
-
-  _buildGates() {
-    this._gates = ACTIVITY_GATES.map(g => {
-      // a little "care stop" flag so the player can see it coming
-      const flag = this.add.text(g.x, GROUND_Y - 96, '🐾', { fontSize: '26px' })
-        .setOrigin(0.5).setDepth(8);
-      this.tweens.add({ targets: flag, y: flag.y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.add.text(g.x, GROUND_Y - 64, 'CARE STOP', {
-        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 3
-      }).setOrigin(0.5).setDepth(8);
-      return { ...g, done: false, flag };
-    });
-  }
-
-  _checkGates() {
-    if (this._busy) return;
-    for (const g of this._gates) {
-      if (g.done) continue;
-      if (this.player.x >= g.x) {
-        g.done = true;
-        this.player.setVelocity(0, 0);
-        this.registry.set('l8_checkpointX', Math.max(80, g.x - 100));
-        this.registry.set('l8_checkpointY', this._groundY);
-        this.tweens.add({ targets: g.flag, scale: 0, alpha: 0, duration: 250 });
-        // launch the swappable activity; resume the run when it's done
-        this.runActivity(g.key, () => this.toast('💪 Nice! Keep collecting — A/D to move', 1600));
-        break;
-      }
-    }
   }
 
   _checkItems() {
@@ -213,8 +174,19 @@ export class L8_HomeRunScene extends L8BaseScene {
         this._setCount(this._collected);
         const endSc = it.img.scaleX * 0.4;
         this.tweens.add({ targets: it.img, y: it.img.y - 50, scale: endSc, alpha: 0, duration: 420, onComplete: () => it.img.destroy(), ease: 'Cubic.easeIn' });
-        if (this._collected >= ITEMS.length) this._finish();
-        else this.toast(`✓ ${it.label}! (${this._collected}/${ITEMS.length})`, 1200);
+        // Mini-activity fires on collecting specific items (never by walking
+        // past a position marker) — see ITEMS' `activity` field above.
+        if (it.activity) {
+          this.player.setVelocity(0, 0);
+          this.runActivity(it.activity, () => {
+            if (this._collected >= ITEMS.length) this._finish();
+            else this.toast('💪 Nice! Keep collecting — A/D to move', 1600);
+          });
+        } else if (this._collected >= ITEMS.length) {
+          this._finish();
+        } else {
+          this.toast(`✓ ${it.label}! (${this._collected}/${ITEMS.length})`, 1200);
+        }
       }
     }
   }

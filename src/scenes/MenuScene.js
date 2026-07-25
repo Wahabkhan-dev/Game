@@ -301,6 +301,7 @@ export class MenuScene extends Phaser.Scene {
       ['👧  GLENDA SIMULATOR',    () => this._go('GlendaAnimSimulator')],
       ['🐕  SHADOW SIMULATOR',    () => this._go('ShadowAnimSimulator')],
       ['�  FOLDER FRAME SIM',    () => this._go('FolderFrameSimulator')],
+      ['🐍  SNAKE SIMULATOR',     () => this._go('SnakeAnimSimulator')],
       ['🚗  CAR SIMULATOR',       () => this._go('CarSimulator')],
       ['�🐾  L1 — Run (levers)',   () => this._go('Level1',  { lives: 3, points: 0 })],
       ['🍓  L1 — Fruit Collect',  () => this._go('L1_Food', { lives: 3, points: 0 })],
