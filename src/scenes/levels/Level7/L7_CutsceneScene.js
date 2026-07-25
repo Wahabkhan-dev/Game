@@ -35,7 +35,7 @@ export class L7_CutsceneScene extends Phaser.Scene {
 
   create() {
     generateL7Assets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#05080f');
 
     // Hide the gameplay footer. (We deliberately do NOT call canvas.focus()/

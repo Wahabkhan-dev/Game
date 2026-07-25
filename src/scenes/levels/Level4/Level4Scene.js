@@ -62,7 +62,7 @@ export class Level4Scene extends Phaser.Scene {
 
     this.physics.world.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = {};
     this._lives = 3;              // 3 lives (hearts) — same model as Level 2
@@ -183,19 +183,26 @@ export class Level4Scene extends Phaser.Scene {
 
     // ── Finish line — checkered marker just before the home stretch, so the
     // run has a clear "you made it!" visual right before reaching home.
-    const finishX = WORLD_W - 260;
-    const fW = 56, fRows = 4, fCols = 3, cs = fW / fCols;
+    // Spans the FULL ground-band height (bg/ground seam down to the screen
+    // bottom) — it used to float upward from GY (already inside the ground
+    // band) way past that seam, so half the checkers overlapped the
+    // background art instead of sitting only on the ground/road strip.
+    const finishX   = WORLD_W - 260;
+    const groundTop = GROUND_Y - 16;   // must match _buildRoad's topY (bg/ground seam)
+    const fRows = 4, fCols = 3;
+    const cs = (H - groundTop) / fRows;   // fills the ground band exactly, top to bottom
+    const fW = cs * fCols;
     const flG = this.add.graphics().setDepth(4);
     for (let r = 0; r < fRows; r++) {
       for (let c = 0; c < fCols; c++) {
         const dark = (r + c) % 2 === 0;
         flG.fillStyle(dark ? 0x141414 : 0xf5f5f5, 1);
-        flG.fillRect(finishX - fW / 2 + c * cs, GY - (r + 1) * cs, cs, cs);
+        flG.fillRect(finishX - fW / 2 + c * cs, groundTop + r * cs, cs, cs);
       }
     }
     flG.lineStyle(2, 0x000000, 0.6);
-    flG.strokeRect(finishX - fW / 2, GY - fRows * cs, fW, fRows * cs);
-    this.add.text(finishX, GY - fRows * cs - 22, '🏁 FINISH LINE', {
+    flG.strokeRect(finishX - fW / 2, groundTop, fW, H - groundTop);
+    this.add.text(finishX, groundTop - 14, '🏁 FINISH LINE', {
       fontSize: '13px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3,
       backgroundColor: '#00000088', padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(6);
@@ -424,8 +431,9 @@ export class Level4Scene extends Phaser.Scene {
         // HUD
         const h = this._itemHud[it.key];
         h.icon.setAlpha(1); h.chk.setText('✓').setColor('#66ff88').setFontSize(13);
-        this._addPoints(50);
-        this._toast(`✓ ${it.label} Collected!  +50`);
+        // Item pickups no longer award coins — coins come ONLY from solving
+        // mini-games now (see MiniGamePicker.js), everywhere in the game.
+        this._toast(`✓ ${it.label} Collected!`);
         // Check if all items in this checkpoint are collected
         const cpItems = ITEMS.filter(i => i.cp === it.cp);
         const cpDone = cpItems.every(i => this._collected[i.key]);
@@ -492,7 +500,7 @@ export class Level4Scene extends Phaser.Scene {
 
   // ── ROLLING BALL HAZARD — rolls toward the player; jump it or get knocked back ──
   _spawnBall(x) {
-    const r = 23;
+    const r = 17;   // was 23 — 25% smaller
     const tex = this.textures.exists('l4_ball') ? 'l4_ball' : 'l4_coin';
     const img = this.add.image(x, GROUND_Y - r, tex).setDisplaySize(r * 2, r * 2).setDepth(9);
     this._balls.push({ img, r, speed: 3.4 });
@@ -537,8 +545,8 @@ export class Level4Scene extends Phaser.Scene {
       // Reach-home cinematic (opaque overlay, no fade needed beforehand) —
       // then fade to the build/decorate scene once it finishes.
       playVideoOverlay(this, 'l4_after_home', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('L4_Decorate'));
+        this.cameras.main.fadeOut(200, 0, 0, 0);
+        this.time.delayedCall(210, () => this.scene.start('L4_Decorate'));
       });
     }
   }
@@ -754,7 +762,7 @@ export class Level4Scene extends Phaser.Scene {
       this.player.setPosition(rx, GROUND_Y - 40);
       this.player.setVelocity(0, 0);
       this.cameras.main.scrollX = Math.max(0, rx - W / 2);
-      this.cameras.main.fadeIn(400, 0, 0, 0);
+      this.cameras.main.fadeIn(220, 0, 0, 0);
       this.tweens.killTweensOf(this.player);
       this.tweens.add({
         targets: this.player, alpha: { from: 0.3, to: 1 },
@@ -771,7 +779,7 @@ export class Level4Scene extends Phaser.Scene {
     this.time.delayedCall(400, () => {
       showTryAgainModal(this, () => {
         this.cameras.main.fadeOut(400, 0, 0, 0);
-        this.time.delayedCall(450, () => this.scene.restart());
+        this.time.delayedCall(210, () => this.scene.restart());
       });
     });
   }
@@ -804,8 +812,8 @@ export class Level4Scene extends Phaser.Scene {
     this._paused = true; this.physics.pause();
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
-      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); },
-      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); },
+      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(210, () => this.scene.restart()); },
+      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

@@ -35,7 +35,7 @@ export class L4_DecorateScene extends Phaser.Scene {
   create(data) {
     generateL4Assets(this);
     generateL4StreetAssets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._coins = (data && data.coins) || 0;
 
     // ── Home garage background (real image if added, vector fallback otherwise) ──
@@ -281,7 +281,7 @@ export class L4_DecorateScene extends Phaser.Scene {
   // ── ENDING — no popup modal. Gamma settles into her new home and falls
   // asleep; once that beat plays out, we quietly fade back to the main menu.
   _reward() {
-    try { this.registry.set('points', (this.registry.get('points') || 0) + 500); } catch (_) {}
+    // Decorating awards NO coins — coins come ONLY from solving mini-games.
     try { localStorage.setItem('shadowgamma_level4_done', '1'); } catch (_) {}
 
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0a0820, 0).setDepth(50);

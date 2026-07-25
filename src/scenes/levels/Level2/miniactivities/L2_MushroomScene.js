@@ -221,10 +221,10 @@ export class L2_MushroomScene extends BaseLevelScene {
     this.cameras.main.shake(300, 0.01);
     this.cameras.main.flash(700, 20, 180, 60);
     this._showMessage('Path lit! 🍄 Gemma can see the jungle now! 🌑', 3000);
-    this._givePoints(3);
+    // No coins here — coins come ONLY from solving mini-games now.
 
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
+      this.cameras.main.fadeOut(200, 0, 0, 0);
       this.time.delayedCall(650, () => {
         this.registry.set('l2_resumeZone', 3);
         this.scene.start('Level2');

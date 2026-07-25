@@ -8,22 +8,21 @@ const WORLD_W = 6200;
 const GROUND_Y = 380;
 
 // ════════════════════════════════════════════════════════════════════════════
-// STAGE 5+6 — RUN & COLLECT HOME ITEMS  →  RETURN HOME
-// A second sunny run. Same JUMP/SLIDE skills, this time gathering the 8 things
-// the puppies' new home needs. Collect them all, then head home to decorate.
-// (The 8 items map 1:1 to the decorate slots, matching the ITEMS COLLECTED panel.)
+// STAGE 5+6 — RUN & COLLECT CHRISTMAS PROPS  →  RETURN HOME
+// A second sunny run. Same JUMP/SLIDE skills, this time gathering the 6
+// Christmas decorations for the puppies' home. Collect them all, then head
+// home — the Magic Bag Reveal (L8_Decorate) unpacks them one by one.
 // ════════════════════════════════════════════════════════════════════════════
 // Mini-activities fire on collecting specific items (not on walking past a
 // position marker) — `activity` names which one, see L8_Activities.ACTIVITY_META.
+const PROPS_DIR = 'christmas props/';
 const ITEMS = [
-  { x: 480,  tex: 'l8_item_bed',          label: 'Bed',           high: false },
-  { x: 1100, tex: 'l8_item_foodstation',  label: 'Food Station',  high: true,  activity: 'where_goes' },
-  { x: 1780, tex: 'l8_item_waterstation', label: 'Water Station', high: false },
-  { x: 2600, tex: 'l8_item_toybasket',    label: 'Toy Basket',    high: true  },
-  { x: 3300, tex: 'l8_item_picture',      label: 'Wall Picture',  high: false, activity: 'clean_home' },
-  { x: 4000, tex: 'l8_item_plant',        label: 'Plant',         high: true  },
-  { x: 4750, tex: 'l8_item_rug',          label: 'Rug',           high: false, activity: 'build_bed'  },
-  { x: 5500, tex: 'l8_item_tunnel',       label: 'Play Tunnel',   high: true  },
+  { x: 480,  tex: 'l8_prop_garland',   label: 'Garland',        high: false },
+  { x: 1100, tex: 'l8_prop_tree',      label: 'Christmas Tree', high: true,  activity: 'bonus_1' },
+  { x: 1780, tex: 'l8_prop_wreath',    label: 'Wreath',         high: false },
+  { x: 2600, tex: 'l8_prop_stockings', label: 'Stockings',      high: true  },
+  { x: 3300, tex: 'l8_prop_lights',    label: 'Fairy Lights',   high: false, activity: 'bonus_2' },
+  { x: 4000, tex: 'l8_prop_lantern',   label: 'Lantern',        high: true  },
 ];
 
 const OBSTACLES = [
@@ -44,31 +43,47 @@ const PITS = [
   { x: 2900, hw: 80 },
 ];
 
+// Each ground-obstacle PNG has a chunk of transparent canvas padding below
+// the actual visible art (measured from the source alpha channel — the real
+// artwork ends well above the canvas edge), as a fraction of the image's
+// native height. Anchoring these sprites bottom-first via setDisplaySize
+// alone puts that padding at the very bottom of the display box, so the
+// object visibly floats above the path; nudging each one down by
+// (fraction × its display height) puts its real base flush on the ground.
+// Overhead obstacles (branch/balloon/banner) hang from the top by design and
+// don't need this.
+const OBS_BOTTOM_PAD = {
+  l8_obs_pot:   0.060,
+  l8_obs_crate: 0.134,
+};
+
 export class L8_HomeRunScene extends L8BaseScene {
   constructor() { super('L8_HomeRun'); }
 
   preload() {
     preloadGlendaSkin(this);
     const B  = 'assets/images/level8/';
-    const HI = `${B}home-item/`;
+    const CP = `${B}${PROPS_DIR}`;
     const OB = `${B}obstacle/`;
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
 
-    // background + surface — same real-art technique as Level 4 (fit-height,
-    // horizontally tiling images), swapped in for the old procedural-style art.
+    // background + surface — reuses Level 9's sky/ground art. The old
+    // `bg-l8.jpg` / `bottom-l8.jpg` here were byte-for-byte the SAME as Level 9's
+    // huge unoptimized "-original" files (14.5MB / 1.97MB — a leftover from when
+    // L9's raw art was copied in as a placeholder), so this scene was silently
+    // downloading a ~16MB duplicate every time. Pointing at L9's actual final,
+    // compressed art (718KB / 94KB) fixes the bloat AND matches Level 9's look.
     // Unique keys (not the shared l8_bg/l8_surface L8_FoodRunScene uses) so
     // this scene's own art always loads, regardless of preload order.
-    load('l8_home_bg',      `${B}bg-l8.jpg`);
-    load('l8_home_surface', `${B}bottom-l8.jpg`);
+    load('l8_home_bg',      'assets/images/level 09/bg-l9.jpg');
+    load('l8_home_surface', 'assets/images/level 09/bottom-l9.jpg');
 
-    load('l8_item_bed',          `${HI}l8_item_bed.png`);
-    load('l8_item_foodstation',  `${HI}l8_item_foodstation.png`);
-    load('l8_item_waterstation', `${HI}l8_item_waterstation.png`);
-    load('l8_item_toybasket',    `${HI}l8_item_toybasket.png`);
-    load('l8_item_picture',      `${HI}l8_item_picture.png`);
-    load('l8_item_plant',        `${HI}l8_item_plant.png`);
-    load('l8_item_rug',          `${HI}l8_item_rug.png`);
-    load('l8_item_tunnel',       `${HI}l8_item_tunnel.png`);
+    load('l8_prop_garland',   `${CP}03.png`);
+    load('l8_prop_tree',      `${CP}04.png`);
+    load('l8_prop_wreath',    `${CP}05.png`);
+    load('l8_prop_stockings', `${CP}06.png`);
+    load('l8_prop_lights',    `${CP}07.png`);
+    load('l8_prop_lantern',   `${CP}08.png`);
 
     load('l8_obs_pot',     `${OB}l8_obs_pot.png`);
     load('l8_obs_branch',  `${OB}l8_obs_branch.png`);
@@ -82,7 +97,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     generateL8Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = 0;
     this._done = false;
@@ -99,20 +114,70 @@ export class L8_HomeRunScene extends L8BaseScene {
     this.registry.set('l8_checkpointY', GROUND_Y);
     this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
 
-    this.buildTopBanner(5, 'Run & Collect Home Items', 'JUMP & SLIDE — grab all 8 home things!', { timer: 90 });
-    this._setCount = this.buildCounterPill('🧺', 'ITEMS COLLECTED', ITEMS.length);
+    this.buildTopBanner(5, 'Run & Collect Christmas Props', 'JUMP & SLIDE — grab all 6 decorations!', { timer: 90 });
+    this._buildPropPanel();
 
-    this.time.delayedCall(400, () => this.toast('🏡 Collect 8 home items! A/D or ←/→ = Move, W/↑/SPACE = Jump, S/↓ = Slide'));
+    this.time.delayedCall(400, () => this.toast('🎁 Collect 6 Christmas props! A/D or ←/→ = Move, W/↑/SPACE = Jump, S/↓ = Slide'));
+  }
+
+  // ── HUD: prop collection panel — same "collecting modal" look as the Food
+  // Run's food panel (dark rounded bar, dimmed icon slots that light up with
+  // a ✓ as each one is collected), so both runs share one consistent theme.
+  _buildPropPanel() {
+    const PW = 320, PH = 68;
+    const px = W / 2 - PW / 2, py = (this._hdr?.bottom ?? 68) + 6;
+    const bg = this.add.graphics().setScrollFactor(0).setDepth(60);
+    bg.fillStyle(0x1a0904, 0.88); bg.fillRoundedRect(px, py, PW, PH, 11);
+    bg.lineStyle(2, 0xf5c87a, 0.85); bg.strokeRoundedRect(px, py, PW, PH, 11);
+    this.add.text(W / 2, py + 13, '🎄  Collect 6 Christmas Props!', {
+      fontSize: '11px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#1a0904', strokeThickness: 2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
+    // centred prop slots
+    const spacing = 58;
+    const startX = px + PW / 2 - ((ITEMS.length - 1) * spacing) / 2;
+    this._slots = ITEMS.map((it, i) => {
+      const ix = startX + i * spacing, iy = py + 48;
+      const icon = this.add.image(ix, iy, it.tex).setDisplaySize(30, 26)
+        .setScrollFactor(0).setDepth(61).setAlpha(0.32);
+      const chk = this.add.text(ix, iy + 16, '·', {
+        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#7a8898'
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(62);
+      return { icon, chk };
+    });
+  }
+
+  // ── Fly the collected prop from world-space into its HUD slot — same
+  // flourish as the Food Run's _flyToCounter, for a matching feel.
+  _flyToCounter(it, i) {
+    const cam = this.cameras.main;
+    const sl = this._slots[i];
+    const flyer = this.add.image(it.x - cam.scrollX, it.img.y - cam.scrollY, it.tex)
+      .setScrollFactor(0).setDepth(115).setDisplaySize(60, 60);
+    try { it.img.destroy(); } catch (_) {}
+    const tx = sl ? sl.icon.x : W / 2;
+    const ty = sl ? sl.icon.y : 40;
+    const endScale = flyer.scale * (30 / 60);
+    this.tweens.add({
+      targets: flyer, y: flyer.y - 40, duration: 180, ease: 'Quad.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: flyer, x: tx, y: ty, scale: endScale, duration: 380, ease: 'Cubic.easeIn',
+        onComplete: () => {
+          flyer.destroy();
+          if (sl) {
+            sl.icon.setAlpha(1);
+            sl.chk.setText('✓').setColor('#66ff88').setFontSize('13px');
+            const sx = sl.icon.scaleX, sy = sl.icon.scaleY;
+            this.tweens.add({ targets: sl.icon, scaleX: { from: sx * 1.7, to: sx }, scaleY: { from: sy * 1.7, to: sy }, duration: 320, ease: 'Back.easeOut' });
+          }
+        }
+      })
+    });
   }
 
   _buildDecor() {
-    const place = (x, tex, h, depth = 4) => {
-      const img = this.textures.get(tex).getSourceImage();
-      const w = h * (img.width / img.height);
-      this.add.image(x, GROUND_Y + 8, tex).setOrigin(0.5, 1).setDisplaySize(w, h).setDepth(depth);
-    };
-    [320, 1180, 2050, 2950, 3760, 4680, 5400].forEach((x, i) => place(x, i % 2 ? 'l8_item_plant' : 'l8_obs_pot', 64, 3));
-    place(6000, 'l8_house', 178, 3);
+    const img = this.textures.get('l8_house').getSourceImage();
+    const w = 178 * (img.width / img.height);
+    this.add.image(6000, GROUND_Y + 8, 'l8_house').setOrigin(0.5, 1).setDisplaySize(w, 178).setDepth(3);
     this.add.text(6000, GROUND_Y - 188, '🏠 HOME', {
       fontSize: '13px', fontFamily: 'Georgia, serif', color: '#6a3fa0', stroke: '#fff', strokeThickness: 3
     }).setOrigin(0.5).setDepth(6);
@@ -125,9 +190,9 @@ export class L8_HomeRunScene extends L8BaseScene {
       this.tweens.add({ targets: glow, alpha: 0.45, scale: 1.25, duration: 800, yoyo: true, repeat: -1 });
       const img = this.add.image(it.x, y, it.tex).setDepth(9).setDisplaySize(60, 60);
       this.tweens.add({ targets: img, y: y - 10, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.add.text(it.x, y - 38, it.label, {
-        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#3a1a5a', strokeThickness: 3
-      }).setOrigin(0.5).setDepth(9);
+      // No name label above the prop — keep it a surprise until the Magic Bag
+      // reveals it back at the Decorate scene. Jump hint stays (it's a control
+      // cue, not a spoiler of which prop this is).
       if (it.high) this.add.text(it.x, y + 34, '⬆ jump', { fontSize: '9px', color: '#fff', stroke: '#6a3fa0', strokeThickness: 2 }).setOrigin(0.5).setDepth(9);
       return { ...it, img, glow, taken: false };
     });
@@ -144,7 +209,8 @@ export class L8_HomeRunScene extends L8BaseScene {
         return { ...o, spr };
       }
       const y = GROUND_Y + 16;
-      const spr = this.add.image(o.x, y, o.tex).setOrigin(0.5, 1).setDisplaySize(w, o.h).setDepth(11);
+      const pad = (OBS_BOTTOM_PAD[o.tex] || 0) * o.h;
+      const spr = this.add.image(o.x, y + pad, o.tex).setOrigin(0.5, 1).setDisplaySize(w, o.h).setDepth(11);
       return { ...o, spr, clearY: y - o.h - 6, w };
     });
   }
@@ -161,7 +227,8 @@ export class L8_HomeRunScene extends L8BaseScene {
 
   _checkItems() {
     const p = this.player;
-    for (const it of this._itemObjs) {
+    for (let i = 0; i < this._itemObjs.length; i++) {
+      const it = this._itemObjs[i];
       if (it.taken) continue;
       if (Math.abs(p.x - it.x) < 50 && Math.abs(p.y - it.img.y) < 70) {
         it.taken = true;
@@ -171,9 +238,7 @@ export class L8_HomeRunScene extends L8BaseScene {
         this.tweens.killTweensOf(it.img); this.tweens.killTweensOf(it.glow); it.glow.destroy();
         this.sparkleBurst(it.x, it.img.y, 10);
         this.addScore(120);
-        this._setCount(this._collected);
-        const endSc = it.img.scaleX * 0.4;
-        this.tweens.add({ targets: it.img, y: it.img.y - 50, scale: endSc, alpha: 0, duration: 420, onComplete: () => it.img.destroy(), ease: 'Cubic.easeIn' });
+        this._flyToCounter(it, i);
         // Mini-activity fires on collecting specific items (never by walking
         // past a position marker) — see ITEMS' `activity` field above.
         if (it.activity) {
@@ -224,7 +289,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     this.add.text(W / 2, H / 2 - 20, '🏡 Back Home!', {
       fontSize: '26px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#3a1a5a', strokeThickness: 5
     }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
-    this.add.text(W / 2, H / 2 + 18, 'Time to decorate the puppy home! 🎨', {
+    this.add.text(W / 2, H / 2 + 18, 'Time to unpack the magic bag! 🎄', {
       fontSize: '15px', fontFamily: 'Georgia, serif', color: '#fff3d0', stroke: '#3a1a5a', strokeThickness: 3
     }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
     this.time.delayedCall(1700, () =>

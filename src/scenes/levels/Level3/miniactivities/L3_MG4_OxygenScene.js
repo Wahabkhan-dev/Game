@@ -12,7 +12,7 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
   create() {
     generateL3Assets(this);
     this.cameras.main.setBackgroundColor('#0d1620');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     const l3Frame = applyL3Frame(this);
@@ -170,8 +170,8 @@ export class L3_MG4_OxygenScene extends Phaser.Scene {
     this.time.delayedCall(2000, () => {
       showStoryCard(this, '💛 Gemma is safely recovered now!', () => {
         playVideoOverlay(this, 'l3_recovery_video', () => {
-          this.cameras.main.fadeOut(600, 0, 0, 0);
-          this.time.delayedCall(650, () => this.scene.start('L3_End'));
+          this.cameras.main.fadeOut(200, 0, 0, 0);
+          this.time.delayedCall(210, () => this.scene.start('L3_End'));
         });
       });
     });

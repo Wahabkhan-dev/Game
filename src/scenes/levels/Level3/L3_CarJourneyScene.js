@@ -27,11 +27,21 @@ const CFG = {
   CAR_W:        _CAR_W,
 
   MAX_SPEED:    6,
-  ACCEL:        0.25,
+  // Was 0.25 (0→max in ~24 frames, ~0.4s — read as an instant snap to top
+  // speed). Slower ramp so picking up speed is a visible, smooth build —
+  // ~75 frames (~1.25s) to reach MAX_SPEED at 60fps.
+  ACCEL:        0.08,
   FRICTION:     0.10,
   BRAKE_DECEL:  0.35,
 
-  SLOW_THRESHOLD: 1.5,   // speed > 1.5 u/fr = hit bump too fast
+  // The speedometer dial reads 0–80 in tens (see _buildSpeedGauge). Internal
+  // physics still run on the original 0–MAX_SPEED scale — DISPLAY_MAX_SPEED
+  // is only the conversion factor for what's drawn/compared in "dial" terms.
+  DISPLAY_MAX_SPEED: 80,
+  // Crossing a speed breaker below 30 on the dial never costs health —
+  // 30/80 of DISPLAY_MAX_SPEED converted back to the internal 0–MAX_SPEED
+  // scale = (30/80)*6 = 2.25.
+  SLOW_THRESHOLD: 2.25,
   HEALTH_PENALTY: 32,
   BUMP_ZONE:      40,
   BUMP_W:         80,
@@ -82,7 +92,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
   create() {
     generateL3Assets(this);
     this.cameras.main.setBackgroundColor('#060a10');
-    this.cameras.main.fadeIn(800, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     const startZone = this.registry.get('l3_startZone') || 1;
     this.registry.remove('l3_startZone');
@@ -1041,22 +1051,80 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._timerFull = 90; this._timeLeft = 90;
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
 
-    // Trip readout (distance + speed) — the checkpoint-module slot, just below the banner
+    // Trip readout (distance remaining) — the checkpoint-module slot, just below
+    // the banner. Speed now lives in its own analog gauge (_buildSpeedGauge)
+    // instead of a number crammed in here — no hospital icon anymore either.
     const ry = this._hdr.bottom + 8, rw = 300, rx = W / 2 - rw / 2, rh = 30;
     const rg = this.add.graphics().setScrollFactor(0).setDepth(48);
     rg.fillStyle(0x0a0f1a, 0.75); rg.fillRoundedRect(rx, ry, rw, rh, 8);
     rg.lineStyle(1, THEME.GOLD_DK, 0.6); rg.strokeRoundedRect(rx, ry, rw, rh, 8);
-    this.add.text(rx + 16, ry + rh / 2, '🏥', { fontSize: '13px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this._distTxt = this.add.text(rx + 40, ry + rh / 2, '16.2 km', {
+    this._distTxt = this.add.text(rx + rw / 2, ry + rh / 2, '16.2 km', {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
-    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this.add.text(rx + rw - 66, ry + rh / 2, '🚗', { fontSize: '13px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this._speedTxt = this.add.text(rx + rw - 16, ry + rh / 2, '0.0', {
-      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#1a0f04', strokeThickness: 2
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(49);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+
+    this._buildSpeedGauge();
 
     this._escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this._escKey.on('down', () => this._togglePause());
+  }
+
+  // ── Speedometer — analog radial gauge, 0–80 in tens, needle sweeps left
+  // (0, stationary) up over the top to right (80, DISPLAY_MAX_SPEED). Sits
+  // fixed in the bottom-right corner, clear of the progress bar (H-10) and
+  // the world scenery scrolling underneath (scrollFactor 0, high depth).
+  _buildSpeedGauge() {
+    const cx = 745, cy = 378, R = 38;
+    this._spdCX = cx; this._spdCY = cy; this._spdR = R;
+
+    const bg = this.add.graphics().setScrollFactor(0).setDepth(48);
+    bg.fillStyle(0x0a0f1a, 0.8);
+    bg.fillCircle(cx, cy, R + 9);
+    bg.lineStyle(2, THEME.GOLD_DK, 0.85);
+    bg.strokeCircle(cx, cy, R + 9);
+
+    this.add.text(cx, cy - R - 17, 'SPEED', {
+      fontSize: '8px', fontFamily: 'Georgia, serif', color: '#c9956b',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+
+    // Ticks + labels every 10, from 0 (left) sweeping over the top to 80 (right).
+    const tickG = this.add.graphics().setScrollFactor(0).setDepth(49);
+    tickG.lineStyle(2, 0xf5c87a, 0.9);
+    for (let s = 0; s <= CFG.DISPLAY_MAX_SPEED; s += 10) {
+      const theta = Math.PI - (s / CFG.DISPLAY_MAX_SPEED) * Math.PI;
+      const x0 = cx + (R - 7) * Math.cos(theta), y0 = cy - (R - 7) * Math.sin(theta);
+      const x1 = cx + R * Math.cos(theta),       y1 = cy - R * Math.sin(theta);
+      tickG.lineBetween(x0, y0, x1, y1);
+      const lx = cx + (R + 12) * Math.cos(theta), ly = cy - (R + 12) * Math.sin(theta);
+      this.add.text(lx, ly, `${s}`, {
+        fontSize: '7px', fontFamily: 'Georgia, serif', color: '#c9956b',
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+    }
+
+    this._spdNeedle = this.add.graphics().setScrollFactor(0).setDepth(50);
+    this._spdReadout = this.add.text(cx, cy + 15, '0', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#88ccff',
+      stroke: '#1a0f04', strokeThickness: 2,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
+
+    this._updateSpeedGauge();
+  }
+
+  // Called every frame from _updateHUD — sweeps the needle to the current
+  // speed converted onto the 0–80 dial, and updates the numeric readout.
+  _updateSpeedGauge() {
+    if (!this._spdNeedle) return;
+    const display = (this._speed / CFG.MAX_SPEED) * CFG.DISPLAY_MAX_SPEED;
+    const t = Phaser.Math.Clamp(display / CFG.DISPLAY_MAX_SPEED, 0, 1);
+    const theta = Math.PI - t * Math.PI;
+    const cx = this._spdCX, cy = this._spdCY, R = this._spdR;
+
+    this._spdNeedle.clear();
+    this._spdNeedle.lineStyle(3, 0xff4444, 1);
+    this._spdNeedle.lineBetween(cx, cy, cx + (R - 6) * Math.cos(theta), cy - (R - 6) * Math.sin(theta));
+    this._spdNeedle.fillStyle(0xf5c87a, 1);
+    this._spdNeedle.fillCircle(cx, cy, 4);
+
+    this._spdReadout.setText(`${Math.round(display)}`);
   }
 
   // Countdown tick — at 0, lose a full life and refill (matches every other runner)
@@ -1114,7 +1182,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
       onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.tweens.resumeAll(); this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
-      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => this.scene.start('Menu')); },
+      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 
@@ -1164,7 +1232,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._zpFill.width = Math.max(2, pct * this._zpWidth);
     this._zpRunner.x   = this._zpLeft + pct * this._zpWidth;
     if (this._distTxt)  this._distTxt.setText(`${((CFG.TOTAL_DIST - this._distance) / 1000).toFixed(1)} km`);
-    if (this._speedTxt) this._speedTxt.setText(this._speed.toFixed(1));
+    this._updateSpeedGauge();
   }
 
   // ── BUMP EVENTS ───────────────────────────────────────────────────────────────
@@ -1220,8 +1288,8 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     showStoryCard(this, '💔  Gamma didn\'t survive.\nShe couldn\'t reach the hospital in time…', () => {
       playVideoOverlay(this, 'l3_exception_video', () => {
         showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(600, 0, 0, 0);
-          this.time.delayedCall(650, () => this.scene.start('L3_Drive'));
+          this.cameras.main.fadeOut(200, 0, 0, 0);
+          this.time.delayedCall(210, () => this.scene.start('L3_Drive'));
         });
       });
     });
@@ -1240,8 +1308,8 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this.registry.set('l3_safe_driver', this._health === 100);
 
     playVideoOverlay(this, 'l3_reaching_video', () => {
-      this.cameras.main.fadeOut(800, 0, 0, 0);
-      this.time.delayedCall(850, () => this.scene.start('L3_MG1'));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L3_MG1'));
     });
   }
 

@@ -15,7 +15,7 @@
     {a:'star',  b:'fish',   img:'assets/starfish.png',   emo:'⭐'},
     {a:'butter',b:'fly',    img:'assets/butterfly.png',  emo:'🦋'},
     {a:'cup',   b:'cake',   img:'assets/cupcake.png',    emo:'🧁'},
-    {a:'tooth', b:'brush',  img:'assets/toothbrush.png', emo:'🪥'}
+    {a:'pop',   b:'corn',   img:'assets/popcorn.png',    emo:'🍿'}
   ];
   const G = mountGame({icon:'🔗', title:'Compound Words'});
   let queue=[], idx=0, mistakes=0, cur=null, placed=0;

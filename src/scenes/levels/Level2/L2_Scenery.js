@@ -145,3 +145,22 @@ export function transitionToL1Visuals(scene, duration = 1100) {
     scene.tweens.add({ targets: newTargets, alpha: 1, duration, ease: 'Sine.easeInOut' });
   }
 }
+
+// Instantly completes the road→jungle crossfade started by transitionToL1Visuals,
+// killing any in-flight tween first. Called when the transition video's overlay
+// closes (skip, complete, or safety timeout) so the background is always fully
+// swapped by the time the black overlay lifts, no matter how the video ended.
+export function forceFinishL1Transition(scene) {
+  const oldTargets = [];
+  if (scene._l2Bg) oldTargets.push(scene._l2Bg);
+  if (scene._l2Grounds?.length) oldTargets.push(...scene._l2Grounds);
+
+  const newTargets = [];
+  if (scene._l1Bg) newTargets.push(scene._l1Bg);
+  if (scene._l1TopOverlay) newTargets.push(scene._l1TopOverlay);
+  if (scene._l1Grounds?.length) newTargets.push(...scene._l1Grounds);
+
+  scene.tweens.killTweensOf([...oldTargets, ...newTargets]);
+  oldTargets.forEach(t => t.setAlpha(0));
+  newTargets.forEach(t => t.setAlpha(1));
+}

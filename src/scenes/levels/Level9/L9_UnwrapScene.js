@@ -7,14 +7,15 @@ import { showStoryCard } from '../../../utils/VideoOverlay.js';
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 9 — PART 1 · STAGE 2: "Unwrapping!"  🎀
 //
-// A cosy living room. The gifts Gleeda collected sit under the tree. Tap each one
-// to unwrap it — the wrapped box pops open with confetti and a surprise (toy,
-// treat, candy cane, ornament) springs out. Gamma and a couple of puppies watch.
-// When every gift is open → celebration → the Bow Run (Part 2).
+// A cosy living room. The 7 puppies (same roster as the Bow-Tie finale) each
+// wait with their own wrapped gift in front of them. Tap a gift to unwrap it —
+// it pops open with confetti and a surprise (toy, treat, candy cane, ornament)
+// springs out. When every gift is open → celebration → the Bow Run (Part 2).
 //
 // A calm tap-interaction scene (no running), mirroring the Level-8 Feeding scene.
 // ════════════════════════════════════════════════════════════════════════════
 
+const PUPS = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
 const WRAP_TEX = ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe'];
 const SURPRISES = ['l9_toy_ball', 'l9_toy_bone', 'l9_candy', 'l9_ornament', 'l9_star'];
 
@@ -26,25 +27,21 @@ export class L9_UnwrapScene extends L9BaseScene {
   // scenes to generateL9Assets() and lock in the procedural fallback instead.
   preload() {
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
-    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
-    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+    load('l9_sky',          'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground',       'assets/images/level 09/bottom-l9.jpg');
+    load('l9_puppy_real',   'assets/images/level 09/puppy-without-bow.png');
+    load('l9_room_bg_real', 'assets/images/level 09/after-decoration.png');
   }
 
   create() {
     generateL9Assets(this);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._done = false;
 
     this.buildRoomBg();
 
-    // how many gifts were collected in the run (default to full set)
-    this._total = Phaser.Math.Clamp(this.registry.get('l9_gifts') ?? WRAP_TEX.length, 1, WRAP_TEX.length);
+    this._total = PUPS.length;
     this._opened = 0;
-
-    // watchers: Gamma + two eager puppies
-    this.add.image(150, 300, 'l9_gamma').setDisplaySize(150, 106).setDepth(4);
-    this.add.image(250, 320, 'l9_puppy').setDisplaySize(70, 62).setDepth(4).setTint(0xf0d0a0);
-    this.add.image(310, 326, 'l9_puppy').setDisplaySize(64, 56).setDepth(4).setTint(0xd8b088);
 
     this.buildTopBanner('LEVEL 9 · PART 1', '🎀 Unwrapping Time!', 'Tap each gift to open it');
     this.buildHearts();
@@ -56,33 +53,44 @@ export class L9_UnwrapScene extends L9BaseScene {
     this.time.delayedCall(400, () => this.toast('🎀 Tap each wrapped gift to open it!', 2600));
   }
 
+  // Same row placement as Level 8's Feeding scene / the Bow-Tie finale (fixed
+  // 92px gap, anchored near the bottom, real puppy art at 51×96) — each puppy
+  // gets its own gift floating in front of it, ready to be tapped open.
   _buildGifts() {
-    // lay the gifts out in a tidy 2-row grid on the floor / rug
-    const cols = Math.min(4, this._total);
-    const rows = Math.ceil(this._total / cols);
-    const gapX = 120, gapY = 96;
-    const startX = W / 2 - ((cols - 1) * gapX) / 2 + 60;   // nudge right of the watchers
-    const startY = 230;
+    const startX = 130, gap = 92, py = H - 96;
+    const pupSrc = this.textures.get('l9_puppy_real').getSourceImage();
+    const pupRatio = pupSrc.width / pupSrc.height;
+    const pupH = 96, pupW = pupH * pupRatio;
 
     this._gifts = [];
-    for (let i = 0; i < this._total; i++) {
-      const col = i % cols, row = Math.floor(i / cols);
-      const gx = startX + col * gapX, gy = startY + row * gapY;
-      const tex = WRAP_TEX[i % WRAP_TEX.length];
+    PUPS.forEach((name, i) => {
+      const x = startX + i * gap;
 
+      // the waiting puppy
+      this.add.ellipse(x, py + 34, 62, 14, 0x000000, 0.14).setDepth(4);
+      const pup = this.add.image(x, py, 'l9_puppy_real').setDisplaySize(pupW, pupH).setDepth(6);
+      this.tweens.add({ targets: pup, y: py - 4, duration: 900 + i * 70, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const plate = this.add.graphics().setDepth(6);
+      plate.fillStyle(0x1c4a2e, 0.9); plate.fillRoundedRect(x - 34, py + 30, 68, 18, 6);
+      plate.lineStyle(1.5, L9.GOLD, 0.8); plate.strokeRoundedRect(x - 34, py + 30, 68, 18, 6);
+      this.add.text(x, py + 39, name, { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#0a1a0e', strokeThickness: 2 }).setOrigin(0.5).setDepth(7);
+
+      // its gift, floating in front of it
+      const gx = x, gy = py - pupH / 2 - 34;
+      const tex = WRAP_TEX[i % WRAP_TEX.length];
       const glow = this.add.image(gx, gy, 'l9_glow').setScale(0.5).setAlpha(0.3).setDepth(9).setTint(0xffe6a0);
       this.tweens.add({ targets: glow, alpha: 0.55, scale: 0.7, duration: 900, yoyo: true, repeat: -1 });
-      const box = this.add.image(gx, gy, tex).setDisplaySize(64, 64).setDepth(10);
+      const box = this.add.image(gx, gy, tex).setDisplaySize(52, 52).setDepth(10);
       this.tweens.add({ targets: box, y: gy - 6, duration: 800 + i * 60, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const tap = this.add.text(gx, gy + 40, '👆 open', { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#7a5a3a' }).setOrigin(0.5).setDepth(10);
+      const tap = this.add.text(gx, gy - 36, '👆 open', { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#7a5a3a' }).setOrigin(0.5).setDepth(10);
 
       const gift = { gx, gy, box, glow, tap, opened: false };
-      const hit = this.add.rectangle(gx, gy, 70, 80, 0, 0).setDepth(11).setInteractive({ useHandCursor: true });
+      const hit = this.add.rectangle(gx, gy, 58, 66, 0, 0).setDepth(11).setInteractive({ useHandCursor: true });
       hit.on('pointerover', () => { if (!gift.opened) box.setScale(box.scaleX * 1.06); });
-      hit.on('pointerout',  () => { if (!gift.opened) box.setDisplaySize(64, 64); });
+      hit.on('pointerout',  () => { if (!gift.opened) box.setDisplaySize(52, 52); });
       hit.on('pointerdown', () => this._openGift(gift, i, hit));
       this._gifts.push(gift);
-    }
+    });
   }
 
   _openGift(gift, i, hit) {
@@ -95,7 +103,7 @@ export class L9_UnwrapScene extends L9BaseScene {
 
     // little shake, then pop to the opened box + surprise springing out
     this.tweens.add({ targets: gift.box, angle: 8, duration: 60, yoyo: true, repeat: 2, onComplete: () => {
-      gift.box.setTexture('l9_gift_open').setDisplaySize(64, 64).setAngle(0);
+      gift.box.setTexture('l9_gift_open').setDisplaySize(52, 52).setAngle(0);
       this.confetti(gift.gx, gift.gy - 10);
       this.sparkleBurst(gift.gx, gift.gy, 14);
       this.cameras.main.shake(120, 0.004);

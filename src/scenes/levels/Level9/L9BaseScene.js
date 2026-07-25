@@ -34,35 +34,48 @@ export const L9 = {
   creamS:'#fff3d8',
 };
 
+// Fixed bg/ground seam line — same technique AND value as Level 8's own
+// buildSky()/buildGround() (L8BaseScene.js). The old background here was a
+// single static, screen-locked image that never scrolled at all while the
+// ground/road beneath it scrolled normally — that mismatch (a frozen backdrop
+// behind a moving world) was the visible "jiggle". Using one tileSprite tied
+// to camera scroll, seam-matched to the ground so the two meet with no gap
+// and no overlap, fixes it exactly the way Level 8 already does it.
+const GROUND_SEAM_Y = 392;
+
 export class L9BaseScene extends Phaser.Scene {
 
-  // ── Snowy outdoor background (runs) — sky + parallax hills + snowfall ────────
+  // ── Snowy outdoor background (runs) — single scrolling tileSprite, seam-
+  // matched to the ground (see GROUND_SEAM_Y above) — same art technique as
+  // Level 8's buildSky(), just pointed at Level 9's own bg-l9.jpg art.
   buildSnowyBg(worldW) {
+    const bgDisplayH = GROUND_SEAM_Y;
     if (this.textures.exists('l9_sky')) {
-      this.add.image(W / 2, H / 2, 'l9_sky').setDisplaySize(W, H).setScrollFactor(0).setDepth(-30);
+      const src  = this.textures.get('l9_sky').getSourceImage();
+      const srcH = src.naturalHeight || src.height || 700;
+      const scale = bgDisplayH / srcH;
+      this._bgTile = this.add.tileSprite(0, 0, W, bgDisplayH, 'l9_sky')
+        .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
+      this._bgTile.setTileScale(scale, scale);
     } else {
-      this.add.rectangle(W / 2, H / 2, W, H, L9.SKY).setScrollFactor(0).setDepth(-30);
-    }
-    if (this.textures.exists('l9_hills')) {
-      this._hills = this.add.tileSprite(0, H - 240, W, 240, 'l9_hills')
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(-20).setAlpha(0.95);
-    }
-    // string lights across the top
-    if (this.textures.exists('l9_lights')) {
-      this._lights = this.add.tileSprite(0, 10, W, 30, 'l9_lights').setOrigin(0, 0).setScrollFactor(0).setDepth(-18).setAlpha(0.9);
+      this.add.rectangle(W / 2, bgDisplayH / 2, W, bgDisplayH, L9.SKY).setScrollFactor(0).setDepth(-30);
     }
     this._startSnow();
   }
 
   // ── Cosy room background (unwrap / bow-tie) — screen-locked ──────────────────
+  // Prefers the real fully-decorated room photo (l9_room_bg_real) when a scene
+  // has preloaded it; it already has its own tree/garland/lights baked in, so
+  // the separate procedural tree overlay only draws for the older fallbacks.
   buildRoomBg() {
-    if (this.textures.exists('l9_room_bg')) {
+    if (this.textures.exists('l9_room_bg_real')) {
+      this.add.image(W / 2, H / 2, 'l9_room_bg_real').setDisplaySize(W, H).setScrollFactor(0).setDepth(-30);
+    } else if (this.textures.exists('l9_room_bg')) {
       this.add.image(W / 2, H / 2, 'l9_room_bg').setDisplaySize(W, H).setScrollFactor(0).setDepth(-30);
+      if (this.textures.exists('l9_tree')) this.add.image(700, 250, 'l9_tree').setDisplaySize(150, 220).setDepth(-10);
     } else {
       this.add.rectangle(W / 2, H / 2, W, H, 0xf3ddc0).setScrollFactor(0).setDepth(-30);
     }
-    // a decorated tree in the corner
-    if (this.textures.exists('l9_tree')) this.add.image(700, 250, 'l9_tree').setDisplaySize(150, 220).setDepth(-10);
     this._startSnow(true);
   }
 
@@ -87,8 +100,7 @@ export class L9BaseScene extends Phaser.Scene {
 
   updateParallax() {
     const camX = this.cameras.main.scrollX;
-    if (this._hills)    this._hills.tilePositionX    = camX * 0.28;
-    if (this._lights)   this._lights.tilePositionX   = camX * 0.5;
+    if (this._bgTile)   this._bgTile.tilePositionX   = camX * 0.25;
     if (this._surfTile) this._surfTile.tilePositionX = camX;
   }
 
@@ -98,7 +110,7 @@ export class L9BaseScene extends Phaser.Scene {
     const body = this.add.rectangle(worldW / 2, groundY + 20, worldW, 40, 0, 0).setDepth(-9);
     this.physics.add.existing(body, true);
     this._ground = body;
-    const surfaceY = groundY - 12;
+    const surfaceY = GROUND_SEAM_Y;
     const surfaceH = H - surfaceY;
     if (this.textures.exists('l9_ground')) {
       const src = this.textures.get('l9_ground').getSourceImage();
@@ -251,7 +263,13 @@ export class L9BaseScene extends Phaser.Scene {
   buildScore()      { if (!this._scoreTxt) this.buildHearts(); }
   buildScorePause() { if (!this._scoreTxt) this.buildHearts(); }
 
-  addScore(n) {
+  // Coins are awarded ONLY by solving mini-games now. Themed activities
+  // (gift runs, unwrapping, bow runs, bow-tying) still call addScore(...) but
+  // it's a no-op — none of that grants coins. MiniGamePicker routes the flat
+  // mini-game reward through _addPoints below instead.
+  addScore(_n) { /* no coins from gameplay activities — mini-games only */ }
+
+  _addPoints(n) {
     if (this._score == null) this._score = this.registry.get('l9_score') ?? 0;
     this._score += n;
     this.registry.set('l9_score', this._score);
@@ -427,8 +445,16 @@ export class L9BaseScene extends Phaser.Scene {
     this._invuln = true;
     this._hp--;
     this.registry.set('l9_hp', this._hp);
-    const lost = this._hearts?.[this._hp];
-    if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, scale: { from: 0.8, to: 0.55 }, duration: 300 }); }
+    // Dim an HP-bar segment (sub-life damage), NOT a heart — hearts represent
+    // whole LIVES and must stay full until this._hp actually reaches 0 below.
+    // Indexing into this._hearts here (the old bug) dimmed a life icon on
+    // every ordinary hit, before any life was lost.
+    const lost = this._hpBars?.[this._hp];
+    // Fade only (no scale tween here) — the bar is a thin non-square icon
+    // (26×8) built via setDisplaySize, so tweening a uniform `scale` would
+    // distort its aspect ratio the way it wouldn't for the roughly-square
+    // heart icon this tween used to target.
+    if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, duration: 300 }); }
     this.cameras.main.shake(300, 0.012);
     if (this.player) {
       this.player.setTint(0xff7070);
@@ -465,7 +491,7 @@ export class L9BaseScene extends Phaser.Scene {
     const cpX = this.registry.get('l9_checkpointX') ?? 80;
     const cpY = this.registry.get('l9_checkpointY') ?? (this._groundY ?? 380);
     if (this.player) { this.player.clearTint(); this.player.setAlpha(1); this.player.setPosition(cpX, cpY - 50); this.player.setVelocity(0, 0); }
-    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.time.delayedCall(600, () => this.toast('💪 Keep going! A/D move · W jump · S slide'));
   }
 
@@ -475,7 +501,32 @@ export class L9BaseScene extends Phaser.Scene {
     this.registry.set('lives', this._lives ?? 3);
     this.registry.set('l9_checkpoint', nextScene);
     this.cameras.main.fadeOut(fadeMs, 0, 0, 0);
-    this.time.delayedCall(fadeMs + 30, () => { this._wakeLoop(); this.scene.start(nextScene, data); });
+    this._wakeLoop();
+    // DOM timer (NOT this.time.delayedCall): after a video the RAF loop can be
+    // asleep, freezing the Phaser clock — a scene-clock callback would never fire
+    // and the screen would stay black. setTimeout always fires; _forceSceneStart
+    // then wakes the loop and pumps game.step() until the next scene is running.
+    setTimeout(() => this._forceSceneStart(nextScene, data), fadeMs + 30);
+  }
+
+  // Start a scene and GUARANTEE it takes effect even if the RAF loop stalled the
+  // instant it fired (scene.start() is only processed on a loop tick; if that
+  // tick never comes, the game silently sits on a black screen). Pumps
+  // game.step() until the target scene is confirmed active, then stops.
+  _forceSceneStart(nextScene, data = {}) {
+    this._wakeLoop();
+    try { this.scene.start(nextScene, data); } catch (_) {}
+    let tries = 0;
+    const iv = setInterval(() => {
+      const s = this.game.scene.getScene(nextScene);
+      const status = s ? s.sys.settings.status : -1;
+      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
+      if (status === 8 || status === 9) { clearInterval(iv); return; }
+      this._wakeLoop();
+      try { const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()); this.game.step(t, 16); } catch (_) {}
+      if (++tries >= 300) clearInterval(iv);
+    }, 50);
+    this.events.once('shutdown', () => clearInterval(iv));
   }
 
   _wakeLoop() {

@@ -5,160 +5,254 @@ import { generateL8Assets } from './L8Assets.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 7+8 — DECORATE THE HOME  →  HAPPY PUPPY HOME!
-// Drag each collected item from the tray into its glowing slot in the room.
-// Place all 8 to reveal the finished home, the whole family, and LEVEL COMPLETE.
+// Magic Bag Reveal: tap the enchanted sack to reveal each collected Christmas
+// prop one at a time. Once all six have appeared, tap the center of the
+// screen to cast the final spell — an instant full-screen transformation
+// swaps the bare room for the fully decorated Christmas scene.
 // ════════════════════════════════════════════════════════════════════════════
-const SLOTS = [
-  { key: 'picture',      tex: 'l8_item_picture',      label: 'Picture', x: 210, y: 150, w: 70,  h: 62 },
-  { key: 'plant',        tex: 'l8_item_plant',        label: 'Plant',   x: 736, y: 250, w: 64,  h: 64 },
-  { key: 'bed',          tex: 'l8_item_bed',          label: 'Bed',     x: 165, y: 352, w: 100, h: 62 },
-  { key: 'foodstation',  tex: 'l8_item_foodstation',  label: 'Food',    x: 300, y: 372, w: 84,  h: 52 },
-  { key: 'waterstation', tex: 'l8_item_waterstation', label: 'Water',   x: 398, y: 372, w: 84,  h: 52 },
-  { key: 'tunnel',       tex: 'l8_item_tunnel',       label: 'Tunnel',  x: 560, y: 360, w: 100, h: 62 },
-  { key: 'toybasket',    tex: 'l8_item_toybasket',    label: 'Toys',    x: 662, y: 346, w: 84,  h: 60 },
-  { key: 'rug',          tex: 'l8_item_rug',          label: 'Rug',     x: 432, y: 404, w: 110, h: 50 },
+const PROPS_DIR = 'assets/images/level8/christmas props/';
+const PROPS = [
+  { tex: 'l8_prop_garland',   file: '03.png', label: '🎄 Garland' },
+  { tex: 'l8_prop_tree',      file: '04.png', label: '🎄 Christmas Tree' },
+  { tex: 'l8_prop_wreath',    file: '05.png', label: '🎄 Wreath' },
+  { tex: 'l8_prop_stockings', file: '06.png', label: '🧦 Stockings' },
+  { tex: 'l8_prop_lights',    file: '07.png', label: '✨ Fairy Lights' },
+  { tex: 'l8_prop_lantern',   file: '08.png', label: '🏮 Lantern' },
 ];
-const PUP_TINTS = [0xffffff, 0xeccaa2, 0xcf9d6a, 0xf3ddc0, 0xc68a55, 0xa9794a, 0x8a6240];
+const MAGIC_TAPS_NEEDED = 5;
 
 export class L8_DecorateScene extends L8BaseScene {
   constructor() { super('L8_Decorate'); }
 
   preload() {
-    const HI = 'assets/images/level8/home-item/';
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
-    load('l8_item_bed',          `${HI}l8_item_bed.png`);
-    load('l8_item_foodstation',  `${HI}l8_item_foodstation.png`);
-    load('l8_item_waterstation', `${HI}l8_item_waterstation.png`);
-    load('l8_item_toybasket',    `${HI}l8_item_toybasket.png`);
-    load('l8_item_picture',      `${HI}l8_item_picture.png`);
-    load('l8_item_plant',        `${HI}l8_item_plant.png`);
-    load('l8_item_rug',          `${HI}l8_item_rug.png`);
-    load('l8_item_tunnel',       `${HI}l8_item_tunnel.png`);
+    load('l8_deco_bg_before', `${PROPS_DIR}before-decoration.png`);
+    load('l8_deco_bg_after',  `${PROPS_DIR}after-decoration.png`);
+    load('l8_magic_bag',      'assets/images/level8/bag.png');
+    PROPS.forEach(p => load(p.tex, `${PROPS_DIR}${p.file}`));
   }
 
   create() {
     generateL8Assets(this);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
-    this.add.image(W / 2, H / 2, 'l8_room_bg').setDisplaySize(W, H).setDepth(-40);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
-    this._placed = 0;
+    this._revealIdx = 0;
+    this._revealing = false;
+    this._bagDone = false;
+    this._magicTaps = 0;
+    this._finished = false;
     this._done = false;
 
-    this.buildTopBanner(7, 'Decorate the Home', 'Drag each item to its glowing spot!');
+    this._bg = this.add.image(W / 2, H / 2, 'l8_deco_bg_before').setDisplaySize(W, H).setDepth(-40);
+
+    this.buildTopBanner(7, 'Decorate the Home', 'Tap the magic bag to reveal each decoration!');
     this.buildHearts();
-    this._setCount = this.buildCounterPill('🏠', 'HOME DECORATED', SLOTS.length);
+    this._setCount = this.buildCounterPill('🎁', 'PROPS REVEALED', PROPS.length);
 
-    this._buildSlots();
-    this._buildTray();
+    this._buildBag();
 
-    this.time.delayedCall(400, () => this.toast('🎨 Drag the items into the dashed slots!'));
+    this.time.delayedCall(400, () => this.toast('✨ Tap the magic bag to reveal a decoration!'));
   }
 
-  _buildSlots() {
-    this._slots = SLOTS.map(s => {
-      const ph = this.add.image(s.x, s.y, 'l8_slot').setDisplaySize(s.w + 14, s.h + 14).setDepth(4).setAlpha(0.9);
-      this.tweens.add({ targets: ph, alpha: 0.45, duration: 900, yoyo: true, repeat: -1 });
-      const lbl = this.add.text(s.x, s.y, s.label, {
-        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 3
-      }).setOrigin(0.5).setDepth(5);
-      return { ...s, ph, lbl, filled: false };
+  // ── Step 1: Magic Bag Reveal ─────────────────────────────────────────────
+  _buildBag() {
+    const bagSrc = this.textures.get('l8_magic_bag').getSourceImage();
+    const bagH = 190, bagW = bagH * (bagSrc.width / bagSrc.height);
+    const bx = W / 2, by = 265;
+
+    this._bagGlow = this.add.circle(bx, by, 95, 0xffe27a, 0.2).setDepth(9);
+    this.tweens.add({ targets: this._bagGlow, alpha: 0.36, scale: 1.15, duration: 850, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    this._bagImg = this.add.image(bx, by, 'l8_magic_bag').setDisplaySize(bagW, bagH).setDepth(10)
+      .setInteractive({ useHandCursor: true });
+    this.tweens.add({ targets: this._bagImg, y: by - 10, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this._bagImg.on('pointerdown', () => this._onBagTap());
+
+    this._bagLabel = this.add.text(bx, by + bagH / 2 + 30, '👆 Tap the Magic Bag!', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#3a1a5a', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(10);
+    this.tweens.add({ targets: this._bagLabel, alpha: 0.45, duration: 650, yoyo: true, repeat: -1 });
+
+    this._bagSparkleEvt = this.time.addEvent({ delay: 650, loop: true, callback: () => {
+      if (this._bagDone) { this._bagSparkleEvt.remove(); return; }
+      const s = this.add.image(bx + Phaser.Math.Between(-36, 36), by - bagH / 2 + 10, 'l8_spark')
+        .setScale(0.45).setAlpha(0.85).setDepth(11);
+      this.tweens.add({ targets: s, y: s.y - 26, alpha: 0, duration: 800, onComplete: () => s.destroy() });
+    }});
+  }
+
+  _onBagTap() {
+    if (this._revealing || this._bagDone || this._busy) return;
+    this._revealing = true;
+    this.tweens.add({ targets: this._bagImg, scaleX: this._bagImg.scaleX * 1.1, scaleY: this._bagImg.scaleY * 0.9, duration: 100, yoyo: true, ease: 'Quad.easeOut' });
+    this.cameras.main.flash(90, 255, 240, 190, false);
+    this.sparkleBurst(this._bagImg.x, this._bagImg.y - 60, 14, false);
+    this.time.delayedCall(160, () => this._revealProp());
+  }
+
+  _revealProp() {
+    const p = PROPS[this._revealIdx];
+    const src = this.textures.get(p.tex).getSourceImage();
+    const targetH = 210, targetW = targetH * (src.width / src.height);
+    const cx = W / 2, cy = H / 2 - 15;
+
+    const glow = this.add.rectangle(cx, cy, targetW + 40, targetH + 40, 0xfff3c4, 0.4).setDepth(29).setScale(0);
+    this.tweens.add({ targets: glow, scale: 1, alpha: 0, duration: 700, ease: 'Cubic.easeOut', onComplete: () => glow.destroy() });
+
+    const img = this.add.image(cx, cy, p.tex).setDepth(30).setAlpha(0).setScale(0);
+    this._revealImg = img;
+    this.sparkleBurst(cx, cy, 20, false);
+
+    const label = this.add.text(cx, cy + targetH / 2 + 24, p.label, {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#3a1a5a', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(31).setAlpha(0);
+    this._revealLabel = label;
+
+    this.tweens.add({
+      targets: img, alpha: 1, scaleX: targetW / src.width, scaleY: targetH / src.height,
+      duration: 420, ease: 'Back.easeOut',
+      onComplete: () => {
+        this.addScore(150);
+        this._revealIdx++;
+        this._setCount(this._revealIdx);
+        this.toast(`${p.label} revealed! (${this._revealIdx}/${PROPS.length})`, 1200);
+        this.time.delayedCall(950, () => this._dismissProp());
+      }
+    });
+    this.tweens.add({ targets: label, alpha: 1, duration: 300, delay: 320 });
+  }
+
+  _dismissProp() {
+    const img = this._revealImg, label = this._revealLabel;
+    if (!img) return;
+    this.sparkleBurst(img.x, img.y, 16, false);
+    this.tweens.add({
+      targets: [img, label], alpha: 0, scale: 0.5, y: '-=36', duration: 380, ease: 'Cubic.easeIn',
+      onComplete: () => {
+        img.destroy(); label?.destroy();
+        this._revealImg = null; this._revealLabel = null;
+        this._revealing = false;
+        if (this._revealIdx >= PROPS.length) this._finishBag();
+      }
     });
   }
 
-  _buildTray() {
-    const tg = this.add.graphics().setDepth(38);
-    tg.fillStyle(0x6a3fa0, 0.9); tg.fillRoundedRect(20, H - 52, W - 40, 44, 12);
-    tg.lineStyle(2, 0xffd23a, 0.8); tg.strokeRoundedRect(20, H - 52, W - 40, 44, 12);
+  _finishBag() {
+    this._bagDone = true;
+    this.toast('🎉 All decorations revealed!', 1400);
+    this.time.delayedCall(700, () => {
+      this._bagImg.disableInteractive();
+      this.tweens.add({
+        targets: [this._bagImg, this._bagGlow, this._bagLabel], alpha: 0, y: '-=40', duration: 500,
+        onComplete: () => {
+          this._bagImg.destroy(); this._bagGlow.destroy(); this._bagLabel.destroy();
+          this._startMagicCasting();
+        }
+      });
+    });
+  }
 
-    const order = Phaser.Utils.Array.Shuffle(SLOTS.slice());
-    const n = order.length, startX = 70, gap = (W - 140) / (n - 1), ty = H - 30;
-    this._tray = order.map((s, i) => {
-      const homeX = startX + i * gap;
-      const icon = this.add.image(homeX, ty, s.tex).setDisplaySize(46, 36).setDepth(40).setInteractive({ useHandCursor: true });
-      this.input.setDraggable(icon);
-      icon.setData('key', s.key); icon.setData('homeX', homeX); icon.setData('homeY', ty);
-      return icon;
+  // ── Step 2: Final Magic Decoration ───────────────────────────────────────
+  _startMagicCasting() {
+    this._magicTaps = 0;
+    this.toast('🪄 Tap anywhere to cast magic!', 1800);
+
+    this._castPrompt = this.add.text(W / 2, H - 46, '🪄 Tap anywhere to cast magic!', {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(15);
+    this.tweens.add({ targets: this._castPrompt, alpha: 0.45, duration: 700, yoyo: true, repeat: -1 });
+
+    this._castZone = this.add.rectangle(W / 2, H / 2, W, H, 0, 0).setDepth(14).setInteractive({ useHandCursor: true });
+    this._castZone.on('pointerdown', (pointer) => this._onMagicTap(pointer));
+  }
+
+  _onMagicTap(pointer) {
+    if (this._finished || this._busy) return;
+    const x = pointer?.x ?? W / 2, y = pointer?.y ?? H / 2;
+    this._magicTaps++;
+    this.addScore(40);
+
+    this.cameras.main.flash(90, 255, 245, 210, false);
+    this.sparkleBurst(x, y, 18, false);
+
+    const ring = this.add.circle(x, y, 14, 0xffe27a, 0).setDepth(16);
+    ring.setStrokeStyle(4, 0xffe27a, 0.9);
+    this.tweens.add({ targets: ring, scale: 6, alpha: 0, duration: 550, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const star = this.add.image(x, y, 'l8_star').setScale(0.5).setDepth(17)
+        .setTint([0xffe27a, 0xff9ec4, 0x9ecfff, 0xb0f0a0][i % 4]);
+      this.tweens.add({ targets: star, x: x + Math.cos(a) * 60, y: y + Math.sin(a) * 60, alpha: 0, scale: 0.9, angle: 180, duration: 600, ease: 'Cubic.easeOut', onComplete: () => star.destroy() });
+    }
+
+    if (this._magicTaps >= MAGIC_TAPS_NEEDED) this._triggerFinalTransformation();
+    else this.toast(`✨ Casting magic... (${this._magicTaps}/${MAGIC_TAPS_NEEDED})`, 800);
+  }
+
+  _triggerFinalTransformation() {
+    this._finished = true;
+    this._castZone?.disableInteractive();
+    this.time.delayedCall(150, () => {
+      this._castZone?.destroy(); this._castPrompt?.destroy();
+      this._playFinalTransition();
+    });
+  }
+
+  // ── Step 3: Full-Screen Decoration Reveal ────────────────────────────────
+  _playFinalTransition() {
+    this.cameras.main.shake(320, 0.01);
+    for (let i = 0; i < 3; i++) this.time.delayedCall(i * 110, () => this.sparkleBurst(W / 2, H / 2, 28, false));
+
+    for (let i = 0; i < 26; i++) {
+      this.time.delayedCall(i * 26, () => {
+        const sx = Phaser.Math.Between(0, W);
+        const star = this.add.image(sx, -20, 'l8_star').setScale(Phaser.Math.FloatBetween(0.35, 0.85)).setDepth(201).setAlpha(0.95);
+        this.tweens.add({ targets: star, y: H + 20, angle: 340, duration: Phaser.Math.Between(800, 1400), onComplete: () => star.destroy() });
+      });
+    }
+
+    const glow = this.add.rectangle(W / 2, H / 2, W, H, 0xfff3c4, 0).setDepth(200).setScrollFactor(0);
+    this.tweens.add({ targets: glow, alpha: 0.92, duration: 320, yoyo: true, onComplete: () => glow.destroy() });
+
+    this.cameras.main.flash(650, 255, 255, 255, false);
+
+    this.time.delayedCall(360, () => {
+      this._bg.setTexture('l8_deco_bg_after').setDisplaySize(W, H);
     });
 
-    this.input.on('dragstart', (p, obj) => { obj.setDepth(60).setScale(obj.scaleX * 1.2, obj.scaleY * 1.2); });
-    this.input.on('drag', (p, obj, dx, dy) => { obj.setPosition(dx, dy); });
-    this.input.on('dragend', (p, obj) => this._onDrop(obj));
+    this.time.delayedCall(1500, () => {
+      this.toast('🏠🎄 The home is beautifully decorated!', 1800);
+      this.time.delayedCall(1500, () => this._finish());
+    });
   }
 
-  _onDrop(icon) {
-    if (this._done) { this._snapBack(icon); return; }
-    const key = icon.getData('key');
-    let target = null, best = 9999;
-    for (const s of this._slots) {
-      if (s.filled) continue;
-      const d = Phaser.Math.Distance.Between(icon.x, icon.y, s.x, s.y);
-      if (d < 90 && d < best) { best = d; target = s; }
-    }
-    if (target && target.key === key) this._place(target, icon);
-    else {
-      if (target) { this.cameras.main.shake(120, 0.006); this.toast('🤔 That goes in a different spot!', 1200); }
-      this._snapBack(icon);
-    }
-  }
-
-  _snapBack(icon) {
-    icon.setDepth(40);
-    this.tweens.add({ targets: icon, x: icon.getData('homeX'), y: icon.getData('homeY'), displayWidth: 46, displayHeight: 36, duration: 220, ease: 'Back.easeOut' });
-  }
-
-  _place(slot, icon) {
-    slot.filled = true;
-    this._placed++;
-    this._setCount(this._placed);
-    icon.disableInteractive();
-    this.input.setDraggable(icon, false);
-    // fade the placeholder, snap the item into the slot at full size
-    this.tweens.add({ targets: [slot.ph, slot.lbl], alpha: 0, duration: 200, onComplete: () => { slot.ph.destroy(); slot.lbl.destroy(); } });
-    this.tweens.add({ targets: icon, x: slot.x, y: slot.y, displayWidth: slot.w, displayHeight: slot.h, depth: 6, duration: 280, ease: 'Back.easeOut' });
-    icon.setDepth(6);
-    this.sparkleBurst(slot.x, slot.y, 10);
-    this.addScore?.(100);
-    if (this._placed >= SLOTS.length) this.time.delayedCall(450, () => this._finish());
-    else this.toast(`✨ Placed! ${this._placed}/${SLOTS.length}`, 900);
-  }
-
+  // ── Celebration + level complete ──────────────────────────────────────────
   _finish() {
     if (this._done) return;
     this._done = true;
     this.toast('🎉 The home is ready!', 1400);
-    // family arrives
-    this.time.delayedCall(700, () => this._happyHome());
+    this.time.delayedCall(700, () => this._celebrate());
   }
 
-  _happyHome() {
+  _celebrate() {
     const ov = this.add.rectangle(W / 2, H / 2, W, H, 0xfff6e8, 0).setDepth(50);
     this.tweens.add({ targets: ov, alpha: 0.2, duration: 500 });
-    // Gleeda + Gamma + 7 puppies on the rug
-    const gleeda = this.add.image(150, H - 70, 'l8_runner_idle').setDisplaySize(70, 108).setDepth(55).setAlpha(0);
-    const gamma = this.add.image(250, H - 64, 'l8_gamma').setDisplaySize(150, 106).setDepth(55).setAlpha(0);
-    this.tweens.add({ targets: [gleeda, gamma], alpha: 1, duration: 500 });
-    for (let i = 0; i < 7; i++) {
-      const px = 340 + i * 60, py = H - 52;
-      const pup = this.add.image(px, py + 30, 'l8_puppy').setDisplaySize(58, 50).setDepth(55).setAlpha(0).setTint(PUP_TINTS[i]);
-      this.time.delayedCall(300 + i * 120, () => {
-        this.tweens.add({ targets: pup, alpha: 1, y: py, duration: 350, ease: 'Back.easeOut' });
-        this.sparkleBurst(px, py, 6);
-      });
-    }
-    // floating hearts
+
+    this.add.text(W / 2, 120, '🎄 Home Sweet Home! 🎄', {
+      fontSize: '26px', fontFamily: 'Georgia, serif', color: '#6a3fa0', stroke: '#fff', strokeThickness: 5
+    }).setOrigin(0.5).setDepth(57);
+    this.add.text(W / 2, 154, 'Merry & Bright, All Decorated!', {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#e0567a', stroke: '#fff', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(57);
+
+    // floating festive hearts
     this._heartTimer = this.time.addEvent({ delay: 260, loop: true, callback: () => {
       const h = this.add.image(Phaser.Math.Between(120, 700), H - 40, 'l8_heart').setScale(0.5).setDepth(56);
       this.tweens.add({ targets: h, y: h.y - 150, alpha: 0, duration: 1500, onComplete: () => h.destroy() });
     }});
 
-    this.add.text(W / 2, 120, '🐾 Happy Puppy Home! 🐾', {
-      fontSize: '26px', fontFamily: 'Georgia, serif', color: '#6a3fa0', stroke: '#fff', strokeThickness: 5
-    }).setOrigin(0.5).setDepth(57);
-    this.add.text(W / 2, 154, 'A Happy, Healthy Family!', {
-      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#e0567a', stroke: '#fff', strokeThickness: 3
-    }).setOrigin(0.5).setDepth(57);
-
-    this.time.delayedCall(2400, () => {
+    this.time.delayedCall(2000, () => {
       if (this._heartTimer) this._heartTimer.remove();
       this.playStoryVideos(['l8_end'], () => this._levelComplete());
     });
@@ -186,7 +280,7 @@ export class L8_DecorateScene extends L8BaseScene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103));
     this.panelButton(td, W / 2, py + ph - 36, '🐾  Finish', 0x6ad06a, () => {
       if (this._heartTimer) this._heartTimer.remove();
-      this.cameras.main.fadeOut(700, 0, 0, 0);
+      this.cameras.main.fadeOut(200, 0, 0, 0);
       this.time.delayedCall(740, () => { this._wakeLoop(); this.scene.start('EndScene'); });
     }, 200, 46);
   }

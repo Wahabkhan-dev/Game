@@ -3,7 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL7Assets } from './L7Assets.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
-import { playVideoSequence } from '../../../utils/VideoOverlay.js';
+import { playVideoSequence, showStoryCard } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 4 — DRIVE TO HOSPITAL  (rainy city highway)
@@ -30,6 +30,9 @@ const CFG = {
   DMG:      24,
   SLOW:     1.7,     // hit a speed-breaker faster than this = damage
   ZONE:     34,
+  // The speedometer dial reads 0–80 in tens, same conversion Level 3's car
+  // journey uses — internal physics stay on the 0–MAX scale.
+  DISPLAY_MAX_SPEED: 80,
   // ── Hurdles that make sense for a single-lane brake-driver ────────────────
   BREAKERS: [1500, 2900, 5400, 8600],   // Speed Breakers (brake!)
   SIGNALS:  [2100, 4400, 7700],         // Traffic Lights (stop on red)
@@ -68,9 +71,10 @@ export class L7_Stage4Scene extends Phaser.Scene {
   create() {
     generateL7Assets(this);
     this.cameras.main.setBackgroundColor('#0c1322');
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._lives    = this.registry.get('lives') ?? 3;
+    this._hp       = 3;
     this._distance = 0;
     this._speed    = 0;
     this._done     = false;
@@ -245,15 +249,30 @@ export class L7_Stage4Scene extends Phaser.Scene {
         sig.forced = true; this._setSig(sig, 'red'); this._toast('🚦 Red light ahead — brake to stop!', 2000);
         this.time.delayedCall(2800, () => { if (!this._done && !sig.passed) { this._setSig(sig, 'green'); this._completeObj(1); this._toast('🟢 Green — go!', 1400); } });
       }
-      if (sig.state === 'red' && !sig.passed) {
-        const stopX = sig.dist - 28;
-        if (this._distance >= stopX) {
-          if (this._speed > 1.6 && !this._invuln) this._hitObstacle('🚦 Ran the red!');
-          this._distance = stopX; this._speed = 0;   // car holds at the stop line
-        }
+      // Crossing the stop line while still red is an instant total fail — same
+      // severity/logic as Level 3's car journey (no bounce-back, no partial
+      // damage; running a red light ends the drive right there).
+      if (sig.state === 'red' && !sig.passed && this._distance >= sig.dist - 28) {
+        sig.passed = true;
+        this._runRedLight();
+        return;
       }
       if (sig.state === 'green' && !sig.passed && this._distance >= sig.dist) sig.passed = true;
     }
+  }
+
+  // ── RED LIGHT — instant total fail (same severity/flow as Level 3) ─────────
+  _runRedLight() {
+    if (this._done) return;
+    this.cameras.main.flash(600, 255, 0, 0);
+    this.cameras.main.shake(400, 0.018);
+    const border = this.add.graphics().setDepth(55).setScrollFactor(0);
+    border.lineStyle(10, 0xff0000, 0.92); border.strokeRect(5, 5, W - 10, H - 10);
+    this.tweens.add({ targets: border, alpha: 0.14, duration: 150, yoyo: true, repeat: 8, onComplete: () => border.destroy() });
+    this._lives = 0; this._hp = 0;
+    this._hdr?.setLives(0); this._hdr?.setHP(0);
+    this.registry.set('lives', 0);
+    this._gameOver("🚦 You crossed the red signal!\nThe puppies didn't make it...");
   }
 
   // ── HURDLE 2: ROAD BLOCKS (stop + mash to clear) ───────────────────────────
@@ -281,16 +300,18 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._climbSign = this.add.text(0, DRIVE_Y - 70, '⛰️ STEEP\nCLIMB', { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#ffd27a', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(8);
   }
 
-  // ── FINAL DRIVE: hospital ───────────────────────────────────────────────────
+  // ── FINAL DRIVE: finish line — no hospital signage, just a checkered line
+  // painted across the road (matches Level 3's own finish marker style). ─────
   _buildHospital() {
-    this._hosp = this.add.image(0, ROAD_TOP + 6, 'l7_hospital').setOrigin(0.5, 1).setDisplaySize(300, 170).setDepth(6);
-    this._hospTxt = this.add.text(0, ROAD_TOP - 96, '🏥 ANIMAL HOSPITAL', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(10);
     const endG = this.add.graphics().setDepth(3);
     for (let ci = 0; ci < 2; ci++) for (let bi = 0; bi < Math.ceil(ROAD_H / 10); bi++) {
       endG.fillStyle((ci + bi) % 2 === 0 ? 0x111118 : 0xffffff, 1);
       endG.fillRect(-12 + ci * 12, ROAD_TOP + bi * 10, 12, 10);
     }
     this._finishG = endG;
+    this._finishTxt = this.add.text(0, ROAD_TOP - 58, '🏁 FINISH', {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3
+    }).setOrigin(0.5, 1).setDepth(10);
   }
 
   // ── RAIN ────────────────────────────────────────────────────────────────────
@@ -315,30 +336,31 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._hdr = buildStandardHeader(this, {
       chapterLabel: 'LEVEL 7', title: 'Drive to the Hospital',
       timer: 90, coinValue: this._points,
-      lives: this._lives, hp: 3,
+      lives: this._lives, hp: this._hp,
       onMenu: () => this._togglePause(), depth: 48,
     });
     this._hearts    = this._hdr.hearts;
+    this._hpBars    = this._hdr.hpBars;
     this._pointsTxt = this._hdr.coinTxt;
     this._timerTxt  = this._hdr.timerTxt;
     this._hdr.setLives(this._lives);
+    this._hdr.setHP(this._hp);
 
     this._timerFull = 90; this._timeLeft = 90;
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
 
-    // Trip readout (distance + speed) — the checkpoint-module slot, just below the banner
-    const ry = this._hdr.bottom + 8, rw = 300, rx = W / 2 - rw / 2, rh = 28;
+    // Trip readout (distance remaining) — the checkpoint-module slot, just
+    // below the banner. Speed now lives in its own analog gauge
+    // (_buildSpeedGauge), same position/logic as Level 3's car journey.
+    const ry = this._hdr.bottom + 8, rw = 300, rx = W / 2 - rw / 2, rh = 30;
     const rg = this.add.graphics().setScrollFactor(0).setDepth(48);
     rg.fillStyle(0x0a0f1a, 0.75); rg.fillRoundedRect(rx, ry, rw, rh, 8);
     rg.lineStyle(1, THEME.GOLD_DK, 0.6); rg.strokeRoundedRect(rx, ry, rw, rh, 8);
-    this.add.text(rx + 14, ry + rh / 2, '🏥', { fontSize: '12px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this._distTxt = this.add.text(rx + 36, ry + rh / 2, '9.6 km', {
-      fontSize: '11px', fontFamily: 'Georgia, serif', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
-    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this.add.text(rx + rw - 62, ry + rh / 2, '🚗', { fontSize: '12px' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(49);
-    this._speedTxt = this.add.text(rx + rw - 14, ry + rh / 2, '0.0', {
-      fontSize: '11px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#1a0f04', strokeThickness: 2
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(49);
+    this._distTxt = this.add.text(rx + rw / 2, ry + rh / 2, '9.6 km', {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: THEME.goldTxt, stroke: '#1a0f04', strokeThickness: 2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+
+    this._buildSpeedGauge();
 
     const L = 80, BW = W - 160, TY = H - 12;
     this.add.rectangle(W / 2, TY, BW + 6, 12, 0x120904, 1).setScrollFactor(0).setDepth(30);
@@ -356,6 +378,64 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._escKey.on('down', () => this._togglePause());
   }
 
+  // ── Speedometer — analog radial gauge, same geometry/position/logic as
+  // Level 3's car journey: 0–80 dial, needle sweeps left (0) over the top to
+  // right (80). Fixed in the bottom-right corner, clear of the progress bar.
+  _buildSpeedGauge() {
+    const cx = 745, cy = 378, R = 38;
+    this._spdCX = cx; this._spdCY = cy; this._spdR = R;
+
+    const bg = this.add.graphics().setScrollFactor(0).setDepth(48);
+    bg.fillStyle(0x0a0f1a, 0.8);
+    bg.fillCircle(cx, cy, R + 9);
+    bg.lineStyle(2, THEME.GOLD_DK, 0.85);
+    bg.strokeCircle(cx, cy, R + 9);
+
+    this.add.text(cx, cy - R - 17, 'SPEED', {
+      fontSize: '8px', fontFamily: 'Georgia, serif', color: '#c9956b',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+
+    // Ticks + labels every 10, from 0 (left) sweeping over the top to 80 (right).
+    const tickG = this.add.graphics().setScrollFactor(0).setDepth(49);
+    tickG.lineStyle(2, 0xf5c87a, 0.9);
+    for (let s = 0; s <= CFG.DISPLAY_MAX_SPEED; s += 10) {
+      const theta = Math.PI - (s / CFG.DISPLAY_MAX_SPEED) * Math.PI;
+      const x0 = cx + (R - 7) * Math.cos(theta), y0 = cy - (R - 7) * Math.sin(theta);
+      const x1 = cx + R * Math.cos(theta),       y1 = cy - R * Math.sin(theta);
+      tickG.lineBetween(x0, y0, x1, y1);
+      const lx = cx + (R + 12) * Math.cos(theta), ly = cy - (R + 12) * Math.sin(theta);
+      this.add.text(lx, ly, `${s}`, {
+        fontSize: '7px', fontFamily: 'Georgia, serif', color: '#c9956b',
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(49);
+    }
+
+    this._spdNeedle = this.add.graphics().setScrollFactor(0).setDepth(50);
+    this._spdReadout = this.add.text(cx, cy + 15, '0', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#88ccff',
+      stroke: '#1a0f04', strokeThickness: 2,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
+
+    this._updateSpeedGauge();
+  }
+
+  // Called every frame from _updateHUD — sweeps the needle to the current
+  // speed converted onto the 0–80 dial, and updates the numeric readout.
+  _updateSpeedGauge() {
+    if (!this._spdNeedle) return;
+    const display = (this._speed / CFG.MAX) * CFG.DISPLAY_MAX_SPEED;
+    const t = Phaser.Math.Clamp(display / CFG.DISPLAY_MAX_SPEED, 0, 1);
+    const theta = Math.PI - t * Math.PI;
+    const cx = this._spdCX, cy = this._spdCY, R = this._spdR;
+
+    this._spdNeedle.clear();
+    this._spdNeedle.lineStyle(3, 0xff4444, 1);
+    this._spdNeedle.lineBetween(cx, cy, cx + (R - 6) * Math.cos(theta), cy - (R - 6) * Math.sin(theta));
+    this._spdNeedle.fillStyle(0xf5c87a, 1);
+    this._spdNeedle.fillCircle(cx, cy, 4);
+
+    this._spdReadout.setText(`${Math.round(display)}`);
+  }
+
   // Countdown tick — at 0, lose a life and refill (matches every other runner)
   _tickHudTimer() {
     if (this._done || this._paused) return;
@@ -367,7 +447,9 @@ export class L7_Stage4Scene extends Phaser.Scene {
     if (this._timeLeft <= 0) {
       this._timeLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
-      this._hitObstacle('⏱ Out of time!');
+      // Timer running out costs a FULL life outright, same as Level 3's car
+      // journey (not just partial HP).
+      this._loseLifeFull();
     }
   }
 
@@ -444,7 +526,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
     for (const b of this._blocks) { b.img.x = this._sX(b.dist); b.sign.x = b.img.x; }
     for (const q of this._qtes) { q.img.x = this._sX(q.dist); q.sign.x = q.img.x; }
     this._climbSign.x = this._sX(this._climb.dist);
-    this._hosp.x = this._sX(CFG.HOSPITAL + 80); this._hospTxt.x = this._hosp.x; this._finishG.x = this._sX(CFG.HOSPITAL);
+    this._finishG.x = this._sX(CFG.HOSPITAL); this._finishTxt.x = this._finishG.x;
   }
 
   // ── Road blocks: stop + mash to clear ───────────────────────────────────────
@@ -543,18 +625,35 @@ export class L7_Stage4Scene extends Phaser.Scene {
     return { fill, draw };
   }
 
-  // ── Damage shared by traffic + QTE fail — costs 1 life (same model as every
-  // other L7 stage) instead of a % health bar ─────────────────────────────────
+  // ── Damage shared by speed breakers + QTE fail — same health model as
+  // Level 3's car journey: 3 lives × 3 HP. A hit costs 1 HP pip; only losing
+  // all 3 HP costs a full life (and refills HP to 3, unless lives hit 0).
   _hitObstacle(msg) {
     if (this._invuln) return;
     this._invuln = true; this.time.delayedCall(900, () => this._invuln = false);
+    this.cameras.main.shake(240, 0.013); this.cameras.main.flash(220, 140, 0, 0);
+    this.tweens.add({ targets: this._carC, y: this._carGroundY - 12, duration: 150, yoyo: true });
+    this._floatTxt(`${msg}  -1 💛`, '#ff3355');
+    this._loseHP(1);
+  }
+
+  _loseHP(n = 1) {
+    this._hp = Math.max(0, this._hp - n);
+    this._hdr?.setHP(this._hp);
+    if (this._hp <= 0) this._loseLifeFull();
+  }
+
+  _loseLifeFull() {
     this._lives = Math.max(0, this._lives - 1);
     this._hdr?.setLives(this._lives);
     this.registry.set('lives', this._lives);
-    this.cameras.main.shake(240, 0.013); this.cameras.main.flash(220, 140, 0, 0);
-    this.tweens.add({ targets: this._carC, y: this._carGroundY - 12, duration: 150, yoyo: true });
-    this._floatTxt(`${msg}  -1 ❤`, '#ff3355');
-    if (this._lives <= 0) this._gameOver('The puppies got too shaken up!\nDrive more carefully.');
+    if (this._lives <= 0) {
+      this._hp = 0; this._hdr?.setHP(0);
+      this._gameOver('The puppies got too shaken up!\nDrive more carefully.');
+      return;
+    }
+    this._hp = 3;
+    this._hdr?.setHP(3);
   }
 
   _reachHospital() {
@@ -573,7 +672,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
       this.time.delayedCall(2000, () => {
         // V6 plays after reaching the hospital (end of Stage 4), then on to Stage 5.
         playVideoSequence(this, ['l7_v6'], () => {
-          this.cameras.main.fadeOut(700, 0, 0, 0);
+          this.cameras.main.fadeOut(200, 0, 0, 0);
           this.time.delayedCall(740, () => {
             this._forceSceneStart('L7_Stage5');
           });
@@ -619,16 +718,16 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._timerEvt?.remove();
     this.registry.set('lives', 3);
     this.registry.set('l7_checkpoint', 'L7_Stage1');
-    // V8 = the "exceptional" cinematic — plays when the player runs out of lives
-    // before reaching the hospital — then shows the try-again screen. Lives
-    // are shared across all 5 stages, so running out sends the player back
-    // to the start of Level 7, not just this stage.
-    playVideoSequence(this, ['l7_v8'], () => {
-      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 - 50, '💔', { fontSize: '50px' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 + 6, msg, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ff6677', align: 'center', stroke: '#000', strokeThickness: 3, lineSpacing: 6 }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 + 64, '↺ Tap to try again', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-      this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this._forceSceneStart('L7_Stage1')); });
+    // Story beat FIRST (same order as Level 3's car journey), THEN the V8
+    // "exceptional" cinematic, then the try-again screen. Lives are shared
+    // across all 5 stages, so running out sends the player back to Stage 1.
+    showStoryCard(this, msg, () => {
+      playVideoSequence(this, ['l7_v8'], () => {
+        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(60).setScrollFactor(0);
+        this.add.text(W / 2, H / 2 - 20, '💔', { fontSize: '50px' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
+        this.add.text(W / 2, H / 2 + 40, '↺ Tap to try again', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a' }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
+        this.input.once('pointerdown', () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this._forceSceneStart('L7_Stage1')); });
+      });
     });
   }
 
@@ -637,7 +736,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._progFill.width = Math.max(2, pct * this._progW);
     this._progRunner.x = this._progL + pct * this._progW;
     this._distTxt.setText(`${((CFG.TOTAL - this._distance) / 1000).toFixed(1)} km`);
-    this._speedTxt.setText(this._speed.toFixed(1));
+    this._updateSpeedGauge();
   }
   _floatTxt(t, color, size = 20) {
     const o = this.add.text(W / 2, H / 2 - 50, t, { fontSize: `${size}px`, fontFamily: 'Georgia, serif', color, stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(45).setScrollFactor(0);
@@ -686,7 +785,7 @@ export class L7_Stage4Scene extends Phaser.Scene {
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
       onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
-      onExit:    () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(420, () => this.scene.start('Menu')); },
+      onExit:    () => { this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

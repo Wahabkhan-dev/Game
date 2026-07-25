@@ -93,14 +93,29 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
 
   let video = null;
   let done = false;
+  let safetyTO = null;   // DOM timer — fires even when the Phaser clock is frozen
+  // Restore the RAF game loop if it went to sleep (webview focus loss sets
+  // loop.hasFocus=false, which makes TimeStep.step() a silent no-op — so any
+  // scene.start() queued by onDone() never gets processed → black screen).
+  const wakeLoop = () => {
+    try {
+      const l = scene.game?.loop; if (!l) return;
+      if (l.hasFocus === false) l.hasFocus = true;
+      if (l.running === false) { l.wake?.(); l.resume?.(); }
+    } catch (_) {}
+  };
   const finish = () => {
     if (done) return; done = true;
     scene._videoOverlayOpen = false;
     if (safety) safety.remove(false);
+    if (safetyTO) { clearTimeout(safetyTO); safetyTO = null; }
     try { video?.stop(); video?.destroy(); } catch (_) {}
     try { bg.destroy(); skip.destroy(); } catch (_) {}
     if (scene.physics?.world) scene.physics.resume();
     if (footer && footerWasVisible) footer.style.display = 'flex';
+    // Wake the loop BEFORE handing control back — otherwise the scene transition
+    // that onDone() is about to trigger would freeze on a black screen.
+    wakeLoop();
     if (onDone) onDone();
   };
 
@@ -110,9 +125,18 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
   video.on('created', () => {
     const scale = Math.min(W / video.width, H / video.height);
     video.setScale(scale);
+    // DOM safety net: some webviews / blocked-autoplay / cut streams never emit
+    // 'complete'. Auto-finish a bit after the clip's own length so the game can
+    // never hang on the black overlay. Uses setTimeout (not the Phaser clock,
+    // which may be frozen while the video plays).
+    let durMs = 0;
+    try { const d = video.getDuration?.(); if (Number.isFinite(d) && d > 0) durMs = d * 1000; } catch (_) {}
+    if (safetyTO) clearTimeout(safetyTO);
+    safetyTO = setTimeout(finish, (durMs || 45000) + 2000);
   });
-  video.play();
   video.on('complete', finish);
+  video.on('error', finish);
+  video.play();
 
   // Safety net: only use a timeout when explicitly requested. By default,
   // let the video play all the way through until the user skips it.
@@ -123,7 +147,21 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
   const skip = scene.add.text(W - 16, H - 12, 'SKIP  ›', {
     fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8a870',
     stroke: '#000', strokeThickness: 2
-  }).setOrigin(1, 1).setScrollFactor(0).setDepth(202)
-    .setInteractive({ useHandCursor: true });
+  }).setOrigin(1, 1).setScrollFactor(0).setDepth(202);
   skip.on('pointerup', finish);
+
+  // Minimum delay before the skip button appears/works — defaults to 3s on
+  // every video (same rule as BaseLevelScene's private copy of this pattern)
+  // so it can't be insta-skipped before it even registers. Any call site can
+  // override via opts.skipDelayMs.
+  const skipDelay = Number.isFinite(opts.skipDelayMs) && opts.skipDelayMs >= 0 ? opts.skipDelayMs : 3000;
+  if (skipDelay > 0) {
+    skip.setAlpha(0).disableInteractive();
+    scene.time.delayedCall(skipDelay, () => {
+      if (done) return;
+      skip.setAlpha(1).setInteractive({ useHandCursor: true });
+    });
+  } else {
+    skip.setInteractive({ useHandCursor: true });
+  }
 }

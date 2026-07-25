@@ -8,7 +8,7 @@
   const SHAPES = [
     {id:'circle',   emoji:'🔵', outline:'⭕'},
     {id:'square',   emoji:'🟦', outline:'⬜'},
-    {id:'triangle', emoji:'🔺', outline:'🔻'},
+    {id:'triangle', emoji:'🔺', outline:'△'},
     {id:'star',     emoji:'⭐', outline:'✩'}
   ];
   const G = mountGame({icon:'⭐', title:'Shape Sorter'});

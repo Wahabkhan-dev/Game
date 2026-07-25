@@ -5,6 +5,25 @@
 
 let gameMapCache = null;
 
+// ── COINS: single source of truth ──────────────────────────────────────────
+// Coins are awarded ONLY here, ONLY for solving a mini-game — never for item
+// pickups, decorating, feeding, building, treatment, gift-unwrapping, bow-tying,
+// or any other themed activity. Routing through the scene's OWN coin method
+// keeps that level's HUD counter and its Level-Complete modal (which reads that
+// same registry key) consistent. Scenes with no coin method fall back to the
+// canonical registry 'points' store + a best-effort HUD refresh.
+function awardMiniGameCoins(scene, amount) {
+  if (typeof scene._givePoints === 'function') { scene._givePoints(amount); return; }
+  if (typeof scene._addPoints  === 'function') { scene._addPoints(amount);  return; }
+  if (typeof scene.addScore    === 'function') { scene.addScore(amount);    return; }
+  const total = (scene.registry.get('points') || 0) + amount;
+  scene.registry.set('points', total);
+  if (typeof scene._points === 'number') scene._points = total;
+  if (typeof scene._score  === 'number') scene._score  = total;
+  const txt = scene._scoreTxt || scene._pointsTxt || (scene._hdr && scene._hdr.coinTxt);
+  if (txt && txt.setText) txt.setText(`${total}`);
+}
+
 // Load game map from JSON
 async function loadGameMap() {
   if (gameMapCache) return gameMapCache;
@@ -214,7 +233,12 @@ async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
   //   exit → player closed the game: NO points, but STILL run onComplete so the
   //          level never gets stuck (matches the old "skip and continue" flow)
   //   abort→ scene is shutting down: clean up only, do NOT run onComplete
-  const finish = (reason, stars) => {
+  // Flat 5 points for solving a mini-activity — nothing else. Used to award
+  // whatever `stars` (1-3) the individual mini-game reported, which made the
+  // payout inconsistent from one activity to the next; every mini-game win
+  // is worth exactly the same now, everywhere in the game.
+  const MINI_GAME_POINTS = 5;
+  const finish = (reason, won) => {
     if (done) return; done = true;
     if (timerInt) clearInterval(timerInt);
     window.removeEventListener('message', onMsg);
@@ -223,17 +247,16 @@ async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
     scene._miniGameClose = null;
     try { scene.physics?.resume?.(); } catch (_) {}
     if (reason === 'abort') return;
-    if (reason === 'win' && opts.awardPoints !== false &&
-        typeof stars === 'number' && stars > 0 && scene._givePoints) {
-      scene._givePoints(stars);
+    if (reason === 'win' && opts.awardPoints !== false) {
+      awardMiniGameCoins(scene, MINI_GAME_POINTS);
     }
-    if (onComplete) onComplete(reason === 'win' ? (stars || 0) : 0);
+    if (onComplete) onComplete(reason === 'win' ? MINI_GAME_POINTS : 0);
   };
 
   const onMsg = (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object') return;
-    if (d.type === 'minigame-complete') finish('win', d.stars || 1);
+    if (d.type === 'minigame-complete') finish('win', true);
     else if (d.type === 'minigame-exit') finish('exit');
   };
   window.addEventListener('message', onMsg);

@@ -14,7 +14,9 @@ export class BaseLevelScene extends Phaser.Scene {
     this._checkpointX  = config.startX || 80;
     this._checkpointY  = config.startY || 390;
     this.cameras.main.setBackgroundColor('#0d0806');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    // Fast fade-in so the level appears almost instantly after the intro video
+    // (was 600ms) — user wants no perceptible load gap after a cinematic.
+    this.cameras.main.fadeIn(200, 0, 0, 0);
 
     // Extend world bottom so Shadow can fall off gaps before being detected
     this.physics.world.setBounds(0, 0, config.worldWidth || 2000, H + 600);
@@ -396,11 +398,11 @@ export class BaseLevelScene extends Phaser.Scene {
       { label: '▶   Resume',   color: '#a8e878',
         action: () => resume() },
       { label: '↺   Restart',  color: '#f5c87a',
-        action: () => { resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); } },
+        action: () => { resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(210, () => this.scene.restart()); } },
       { label: '⚙   Settings', color: '#c8a8f8',
         action: () => this._openSettings(toDestroy, px, py, PW, PH, resume) },
       { label: '✕   Exit',     color: '#f87070',
-        action: () => { resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); } },
+        action: () => { resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); } },
     ];
 
     BTNS.forEach((btn, i) => {
@@ -689,7 +691,7 @@ export class BaseLevelScene extends Phaser.Scene {
         this.shadow.setAlpha(1);
         this.shadow.setPosition(this._checkpointX, this._checkpointY);
         this.shadow.setVelocity(0, 0);
-        this.cameras.main.fadeIn(400, 0, 0, 0);
+        this.cameras.main.fadeIn(220, 0, 0, 0);
         this.tweens.add({
           targets: this.shadow, alpha: { from: 0.3, to: 1 },
           duration: 130, repeat: 4, yoyo: true,
@@ -746,7 +748,7 @@ export class BaseLevelScene extends Phaser.Scene {
       this.shadow.setAlpha(1);
       showTryAgainModal(this, () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(550, () => this.scene.restart());
+        this.time.delayedCall(210, () => this.scene.restart());
       });
     });
   }
@@ -775,6 +777,11 @@ export class BaseLevelScene extends Phaser.Scene {
     let done  = false;
     const finish = () => {
       if (done) return; done = true;
+      // Let the caller force any in-flight visual transition (e.g. a bg
+      // crossfade tween) to its end state BEFORE the black overlay is
+      // removed — otherwise skipping early (or the safety timeout firing
+      // early) can reveal a half-finished transition underneath.
+      if (opts.onFinish) opts.onFinish();
       this._videoOverlayOpen = false;
       if (safety) safety.remove(false);
       try { video?.stop(); video?.destroy(); } catch (_) {}
@@ -803,9 +810,24 @@ export class BaseLevelScene extends Phaser.Scene {
     const skip = this.add.text(W - 16, H - 12, 'SKIP  ›', {
       fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8a870',
       stroke: '#000', strokeThickness: 2
-    }).setOrigin(1, 1).setScrollFactor(0).setDepth(202)
-      .setInteractive({ useHandCursor: true });
+    }).setOrigin(1, 1).setScrollFactor(0).setDepth(202);
     skip.on('pointerup', finish);
+
+    // Minimum delay before the skip button appears/works — defaults to 3s on
+    // every video so it can't be insta-skipped before it even registers, but
+    // any call site can override (e.g. Level 2's zone-1->2 transition video
+    // passes skipDelayMs:5000, since its bg crossfade needs that much longer
+    // to finish underneath before it's safe to skip).
+    const skipDelay = Number.isFinite(opts.skipDelayMs) && opts.skipDelayMs >= 0 ? opts.skipDelayMs : 3000;
+    if (skipDelay > 0) {
+      skip.setAlpha(0).disableInteractive();
+      this.time.delayedCall(skipDelay, () => {
+        if (done) return;
+        skip.setAlpha(1).setInteractive({ useHandCursor: true });
+      });
+    } else {
+      skip.setInteractive({ useHandCursor: true });
+    }
   }
 
   _onFallDeath() {
@@ -924,8 +946,8 @@ export class BaseLevelScene extends Phaser.Scene {
       fontSize: '16px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
     }).setOrigin(0.5).setScrollFactor(0).setDepth(71).setInteractive({ useHandCursor: true });
     cont.on('pointerup', () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start(nextScene));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start(nextScene));
     });
     this.tweens.add({ targets: cont, alpha: { from: 0.4, to: 1 }, duration: 800, yoyo: true, repeat: -1 });
   }
@@ -964,7 +986,7 @@ export class BaseLevelScene extends Phaser.Scene {
   // of the canvas. Pauses the clock + movement (same as a puzzle). The game
   // posts { type:'minigame-complete', stars } back when finished (see
   // public/mini-games/shared/shared.js), which awards ⭐ and runs onComplete().
-  _launchMiniGame(folder, onComplete) {
+  _launchMiniGame(folder, onComplete, onFail) {
     if (this._miniGameOpen) return;
     this._miniGameOpen = true;
     // Freeze the dog + hazards so the paused world is fair, but DON'T set
@@ -1033,8 +1055,12 @@ export class BaseLevelScene extends Phaser.Scene {
       this._freezeForMini = false;
       this.physics.resume();
       if (success) {
-        if (typeof stars === 'number' && stars > 0) this._givePoints(stars);
+        // Flat 5 coins for any mini-game win — matches launchRandomMiniGame's
+        // MINI_GAME_POINTS so the payout is identical wherever a game is played.
+        this._givePoints(5);
         if (onComplete) onComplete(stars);
+      } else if (onFail) {
+        onFail();
       }
     };
 
@@ -1459,7 +1485,7 @@ export class BaseLevelScene extends Phaser.Scene {
           this.time.delayedCall(700, () => {
             close();
             this.physics.resume();
-            this._givePoints(2);
+            /* no coins here — mini-games are the only coin source now */
             onDone();
           });
         }
@@ -1543,7 +1569,7 @@ export class BaseLevelScene extends Phaser.Scene {
         if (c === correct) {
           this._showMessage('🌟 Correct! Great job!');
           close();
-          this._givePoints(2);
+          /* no coins here — mini-games are the only coin source now */
           onDone();
         } else {
           this._showMessage('Try again! 🎨');
@@ -1602,7 +1628,7 @@ export class BaseLevelScene extends Phaser.Scene {
         if (n === count) {
           this._showMessage('🌟 Correct! You can count!');
           close();
-          this._givePoints(2);
+          /* no coins here — mini-games are the only coin source now */
           onDone();
         } else {
           this._showMessage('Try again! Count carefully! ⭐');
@@ -1649,7 +1675,7 @@ export class BaseLevelScene extends Phaser.Scene {
         if (i === biggestIdx) {
           this._showMessage('🌟 Yes! That is the biggest!');
           close();
-          this._givePoints(2);
+          /* no coins here — mini-games are the only coin source now */
           onDone();
         } else {
           this._showMessage('Look for the biggest one! 🔵');
@@ -1714,7 +1740,7 @@ export class BaseLevelScene extends Phaser.Scene {
         if (em === pat.answer) {
           this._showMessage('🌟 Perfect pattern!');
           close();
-          this._givePoints(2);
+          /* no coins here — mini-games are the only coin source now */
           onDone();
         } else {
           this._showMessage('Look at the pattern again! 🔁');
@@ -1929,7 +1955,7 @@ export class BaseLevelScene extends Phaser.Scene {
             this.time.delayedCall(900, () => {
               close();
               this.physics.resume();
-              this._givePoints(2);
+              /* no coins here — mini-games are the only coin source now */
               onDone();
             });
           }
@@ -2227,7 +2253,7 @@ export class BaseLevelScene extends Phaser.Scene {
           this.tweens.add({ targets: sp, scale: 2.2, alpha: 0, duration: 600, onComplete: () => sp.destroy() });
 
           showFB('🌟 Correct! Amazing job!', true);
-          this.time.delayedCall(950, () => { close(); this.physics.resume(); this._givePoints(2); onDone(); });
+          this.time.delayedCall(950, () => { close(); this.physics.resume(); /* no coins here — mini-games are the only coin source now */ onDone(); });
 
         } else {
           // ❌ WRONG — .tile.wrong-letter shake + @keyframes shake + lose life
@@ -2306,7 +2332,7 @@ export class BaseLevelScene extends Phaser.Scene {
         if (em === set.odd) {
           this._showMessage('🌟 You found the different one!');
           close();
-          this._givePoints(2);
+          /* no coins here — mini-games are the only coin source now */
           onDone();
         } else {
           this._showMessage('That one matches the others! Try again! 🔍');

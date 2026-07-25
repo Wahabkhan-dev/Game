@@ -11,7 +11,7 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
   create() {
     generateL3Assets(this);
     this.cameras.main.setBackgroundColor('#0d1620');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     const l3Frame = applyL3Frame(this);
@@ -32,11 +32,6 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     // while open); on close it just steps aside into that real care step, and
     // the decorative gold frame goes with it — only the arcade activity gets it.
     launchRandomMiniGame(this, 3, () => { l3Frame?.setVisible(false); });
-
-    // Gamma on bed
-    if (this.textures.exists('gemma_idle')) {
-      this.add.image(620, H - 52, 'gemma_idle').setDisplaySize(130, 72).setOrigin(0.5, 1).setDepth(8).setTint(0xffdddd);
-    }
   }
 
   // Stainless-steel medical counter the bottles & tray rest on
@@ -205,8 +200,8 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     this.tweens.add({ targets: ok, scale: 1.08, duration: 300, yoyo: true, repeat: 1 });
     this.time.delayedCall(2000, () => {
       // Medicine tray ready → straight to the injection scene, no cinematic.
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L3_MG2'));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L3_MG2'));
     });
   }
 }

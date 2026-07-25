@@ -5,10 +5,15 @@
 // hierarchy a level scene extends (BaseLevelScene, L7/L8/L9BaseScene, or a
 // fully custom scene like Level3's).
 // ════════════════════════════════════════════════════════════════════════════
+import Phaser from 'phaser';
 import { W, H } from '../config/GameConfig.js';
+import { drawModalPanelBg } from '../scenes/levels/ModalFrame.js';
 
 function panelBg(scene, h) {
-  const bg = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.8)
+  // Fully opaque black backdrop — the "Try Again" and "Level Complete / Next
+  // Level" modals sit on a solid black background (game scene fully hidden
+  // behind), not a see-through dim.
+  const bg = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1)
     .setScrollFactor(0).setDepth(300);
   const panel = scene.add.rectangle(W / 2, H / 2, 360, h, 0x2a1608, 0.97)
     .setScrollFactor(0).setDepth(301).setStrokeStyle(3, 0xf5c87a, 0.9);
@@ -78,7 +83,21 @@ export function showTryAgainModal(scene, onRetry) {
 // button fires until clicked, so nothing auto-advances.
 export function showLevelCompleteModal(scene, points, opts = {}) {
   const { menuKey = 'Menu', nextLevelKey = null, nextLevelData = {} } = opts;
-  const objs = panelBg(scene, 250);
+
+  // Fully opaque black backdrop, same as showTryAgainModal's panelBg().
+  const bg = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1)
+    .setScrollFactor(0).setDepth(300);
+
+  // Panel uses the shared wood/gold "Level1_modal.png" frame art (same asset
+  // ModalFrame.js already shares across every level's mini-activities)
+  // instead of a plain rectangle — falls back to the old flat panel if the
+  // texture somehow isn't loaded.
+  const PW = 400, PH = 301;   // 491:370 source aspect
+  const panel = drawModalPanelBg(scene, W / 2 - PW / 2, H / 2 - PH / 2, PW, PH, 301)
+    || scene.add.rectangle(W / 2, H / 2, PW, PH, 0x2a1608, 0.97)
+        .setScrollFactor(0).setDepth(301).setStrokeStyle(3, 0xf5c87a, 0.9);
+
+  const objs = [bg, panel];
   objs.push(
     scene.add.text(W / 2, H / 2 - 85, '🎉 Level Complete!', {
       fontSize: '24px', fontFamily: 'Georgia, serif', color: '#f5c87a',
@@ -89,7 +108,35 @@ export function showLevelCompleteModal(scene, points, opts = {}) {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(302),
   );
 
-  const cleanup = () => objs.forEach(o => o.destroy());
+  // ── Rainbow spinning star flourish above the title — a procedural 5-point
+  // star (not an emoji, so its fill color can actually be driven through a
+  // rainbow instead of being stuck as whatever color the glyph bakes in),
+  // continuously rotating and cycling hue.
+  const starG = scene.add.graphics().setScrollFactor(0).setDepth(302);
+  objs.push(starG);
+  const scx = W / 2, scy = H / 2 - 122, sR = 15, sr = 6.5;
+  let hue = 0, sAngle = 0;
+  const drawStar = () => {
+    starG.clear();
+    const col = Phaser.Display.Color.HSVToRGB(hue, 0.85, 1).color;
+    starG.fillStyle(col, 1);
+    starG.lineStyle(1.5, 0xffffff, 0.55);
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 === 0 ? sR : sr;
+      const a = sAngle + (-Math.PI / 2) + i * Math.PI / 5;
+      pts.push({ x: scx + Math.cos(a) * rad, y: scy + Math.sin(a) * rad });
+    }
+    starG.fillPoints(pts, true);
+    starG.strokePoints(pts, true);
+  };
+  drawStar();
+  const starEvt = scene.time.addEvent({
+    delay: 40, loop: true,
+    callback: () => { hue = (hue + 0.012) % 1; sAngle += 0.06; drawStar(); }
+  });
+
+  const cleanup = () => { starEvt.remove(false); objs.forEach(o => o.destroy()); };
   const menuX = nextLevelKey ? W / 2 - 90 : W / 2;
   const menuBtn = makeButton(scene, menuX, H / 2 + 55, '🏠 Menu', '#8a5030', 302);
   menuBtn.on('pointerup', () => { cleanup(); scene.scene.start(menuKey); });

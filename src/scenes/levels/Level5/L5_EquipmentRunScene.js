@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL5Assets, generateL5StreetAssets } from './L5Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L5_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
+import { PremiumFooter } from '../../../hud/premium/PremiumFooter.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
@@ -67,7 +68,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
 
     this.physics.world.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = {};
     this._lives = 3;
@@ -150,21 +151,37 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     const gate = (x, txt) => this.add.text(x, GY - 150, txt, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#5a3d1a', stroke: '#fff8', strokeThickness: 3, backgroundColor: '#ffffffcc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setDepth(6);
     gate(2300, '🛒 GROCERY'); gate(4700, '🏘️ HOMES'); gate(7000, '🌳 PARK'); gate(9300, '🏪 MARKET'); gate(11600, '🏡 HOME ZONE');
 
+    // ── Checkpoint flags — visible markers at the two mid-level checkpoint
+    // boundaries (CP1→CP2 at ~4000, CP2→CP3 at ~8000). Same art + size + ground
+    // anchoring + world-x positions as Level 4 (checkpoint_flag.png ratio →
+    // 56×139, origin bottom) — Level 5 was missing these entirely, so crossing
+    // mid-level never saved a respawn point the way it does in Level 4.
+    this._cpFlags = [4200, 8300].map(fx =>
+      this.add.image(fx, GY, 'checkpoint_flag').setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(5)
+    );
+
     // ── Finish line — checkered marker just before the home stretch, so the
     // run has a clear "you made it!" visual right before reaching home.
-    const finishX = WORLD_W - 260;
-    const fW = 56, fRows = 4, fCols = 3, cs = fW / fCols;
+    // Spans the FULL ground-band height (bg/ground seam down to the screen
+    // bottom) — it used to float upward from GY (already inside the ground
+    // band) way past that seam, so half the checkers overlapped the
+    // background art instead of sitting only on the ground/road strip.
+    const finishX   = WORLD_W - 260;
+    const groundTop = GROUND_Y - 16;   // must match _buildRoad's topY (bg/ground seam)
+    const fRows = 4, fCols = 3;
+    const cs = (H - groundTop) / fRows;   // fills the ground band exactly, top to bottom
+    const fW = cs * fCols;
     const flG = this.add.graphics().setDepth(4);
     for (let r = 0; r < fRows; r++) {
       for (let c = 0; c < fCols; c++) {
         const dark = (r + c) % 2 === 0;
         flG.fillStyle(dark ? 0x141414 : 0xf5f5f5, 1);
-        flG.fillRect(finishX - fW / 2 + c * cs, GY - (r + 1) * cs, cs, cs);
+        flG.fillRect(finishX - fW / 2 + c * cs, groundTop + r * cs, cs, cs);
       }
     }
     flG.lineStyle(2, 0x000000, 0.6);
-    flG.strokeRect(finishX - fW / 2, GY - fRows * cs, fW, fRows * cs);
-    this.add.text(finishX, GY - fRows * cs - 22, '🏁 FINISH LINE', {
+    flG.strokeRect(finishX - fW / 2, groundTop, fW, H - groundTop);
+    this.add.text(finishX, groundTop - 14, '🏁 FINISH LINE', {
       fontSize: '13px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3,
       backgroundColor: '#00000088', padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(6);
@@ -274,74 +291,28 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     if (this._pointsTxt) this._pointsTxt.setText(`${this._points}`);
   }
 
-  // ── Bottom zone-progress bar (equipment run) ─────────────────────────────
-  // Track from start → 🏠 with a flag at each checkpoint, a fill, and a paw
-  // runner showing how far along the street the player has travelled.
+  // ── Bottom checkpoint bar — same premium carved-wood progress track, zone
+  // nodes, and runner marker as Level 4's footer (was previously a custom
+  // dark-panel/blue-fill bar with its own flag markers; now themed to match
+  // Level 4 exactly). Positions itself off Level 5's OWN worldWidth (WORLD_W),
+  // not Level 4's — the zone nodes are evenly spaced labels, not tied to any
+  // specific world-x, so this is correct however the two levels' item/CP
+  // layouts differ.
   _buildProgressBar() {
-    const LEFT = 88, RIGHT = W - 88, BAR_W = RIGHT - LEFT;
-    const TY = H - 12;
-    this._pbLeft  = LEFT;
-    this._pbWidth = BAR_W;
-
-    // Checkpoint completion positions along the world (last item of each CP)
-    this._pbMarkerDefs = [
-      { x: 3200, doneKey: '_cp1Done' },
-      { x: 7200, doneKey: '_cp2Done' },
-      { x: 9200, doneKey: '_cp3Done' },
-    ];
-
-    // Track shell (dark rounded panel) + groove
-    const shell = this.add.graphics().setScrollFactor(0).setDepth(46);
-    shell.fillStyle(0x000000, 0.34); shell.fillRoundedRect(LEFT - 10, TY - 7, BAR_W + 20, 12, 6);
-    shell.fillStyle(0x141c28, 0.92); shell.fillRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
-    shell.lineStyle(1.5, 0x4a6080, 0.8); shell.strokeRoundedRect(LEFT - 8, TY - 6, BAR_W + 16, 10, 5);
-
-    // Blue fill (grows with progress)
-    this._pbFill = this.add.rectangle(LEFT, TY - 1, 2, 5, 0x5ab0f5, 1)
-      .setScrollFactor(0).setDepth(47).setOrigin(0, 0.5);
-
-    // Checkpoint flag markers
-    this._pbMarkers = this._pbMarkerDefs.map(def => {
-      const bx = LEFT + (def.x / WORLD_W) * BAR_W;
-      const g = this.add.graphics().setScrollFactor(0).setDepth(48);
-      this._drawPbFlag(g, bx, TY, false);
-      return { g, bx, def, _lit: false };
-    });
-
-    // Finish flag at the end
-    const fx = LEFT + BAR_W;
-    const fin = this.add.graphics().setScrollFactor(0).setDepth(48);
-    fin.fillStyle(0x8a7050, 1); fin.fillRect(fx - 1, TY - 22, 2, 18);
-    fin.fillStyle(0xFFFFFF, 1); fin.fillRect(fx + 1, TY - 22, 9, 6);
-    fin.fillStyle(0x222222, 1);
-    fin.fillRect(fx + 1, TY - 22, 3, 3); fin.fillRect(fx + 7, TY - 22, 3, 3);
-    fin.fillRect(fx + 4, TY - 19, 3, 3);
-
-    // Paw runner that travels along the bar
-    this._pbRunner = this.add.text(LEFT, TY - 8, '🐾', { fontSize: '13px' })
-      .setScrollFactor(0).setDepth(49).setOrigin(0.5, 1);
-  }
-
-  // Checkpoint flag on the progress track (blue=pending, cyan=cleared).
-  _drawPbFlag(g, bx, ty, reached) {
-    g.clear();
-    g.fillStyle(0x8a7050, 1); g.fillRect(bx - 1, ty - 20, 2, 16);
-    g.fillStyle(reached ? 0x66E0A0 : 0x4a6080, 1);
-    g.fillTriangle(bx + 1, ty - 20, bx + 13, ty - 16, bx + 1, ty - 11);
-    if (reached) { g.fillStyle(0xCFFFE0, 0.9); g.fillCircle(bx + 5, ty - 16, 1.6); }
+    this._footer = new PremiumFooter(this, {
+      worldWidth: WORLD_W,
+      zones: [
+        { label: 'CP1', color: 0x44cc44 },
+        { label: 'CP2', color: 0xf5c840 },
+        { label: 'CP3', color: 0xee5522 },
+        { label: '🏁', color: 0x8fd0ff },
+      ],
+      runnerEmoji: '🐶',
+    }).build();
   }
 
   _updateProgressBar() {
-    if (!this._pbFill) return;
-    const pct = Phaser.Math.Clamp(this.player.x / WORLD_W, 0, 1);
-    this._pbFill.width = Math.max(2, pct * this._pbWidth);
-    this._pbRunner.x   = this._pbLeft + pct * this._pbWidth;
-    this._pbMarkers.forEach(m => {
-      if (!m._lit && this[m.def.doneKey]) {
-        m._lit = true;
-        this._drawPbFlag(m.g, m.bx, H - 12, true);
-      }
-    });
+    this._footer?.update(this.player.x);
   }
 
   _buildControls() {
@@ -391,12 +362,27 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     if (this._bgMain) this._bgMain.tilePositionX = sx / this._bgMain.tileScaleX;
     if (this._sky)    this._sky.tilePositionX    = sx / this._sky.tileScaleX;
     if (this._houses) this._houses.tilePositionX = sx / this._houses.tileScaleX;
+    this._checkFlags();
     this._checkItems();
     this._checkObstacles(onGround);
     this._checkBalls();
     this._checkHome();
     this._updateProgressBar();
     this._updateRain();
+  }
+
+  // Crossing a checkpoint flag saves the respawn point there and shows the
+  // "✅ CHECKPOINT!" banner — same as Level 4's flag crossings. Fires once per flag.
+  _checkFlags() {
+    if (!this._cpFlags) return;
+    const px = this.player.x;
+    this._cpFlags.forEach(flag => {
+      if (!flag.getData('reached') && px >= flag.x) {
+        flag.setData('reached', true);
+        this._saveCheckpoint(flag.x, GROUND_Y - 40, this._currentCP);
+        this.tweens.add({ targets: flag, scaleX: flag.scaleX * 1.12, scaleY: flag.scaleY * 1.12, duration: 160, yoyo: true });
+      }
+    });
   }
 
   _buildRain() {
@@ -436,8 +422,9 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
         this._sparkle(it.x, it.img.y);
         const h = this._itemHud[it.key];
         h.icon.setAlpha(1); h.chk.setText('✓').setColor('#66ff88').setFontSize(13);
-        this._addPoints(50);
-        this._toast(`✓ ${it.label} Collected!  +50`);
+        // Item pickups no longer award coins — coins come ONLY from solving
+        // mini-games now (see MiniGamePicker.js), everywhere in the game.
+        this._toast(`✓ ${it.label} Collected!`);
         const cpItems = ITEMS.filter(i => i.cp === it.cp);
         const cpDone = cpItems.every(i => this._collected[i.key]);
         if (cpDone && it.cp < 3) {
@@ -490,7 +477,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   _onHoleFell() { this._falling = false; this._loseLife(); }
 
   _spawnBall(x) {
-    const r = 23;
+    const r = 17;   // was 23 — 25% smaller
     const tex = this.textures.exists('l5_ball') ? 'l5_ball' : 'l5_coin';
     const img = this.add.image(x, GROUND_Y - r, tex).setDisplaySize(r * 2, r * 2).setDepth(9);
     this._balls.push({ img, r, speed: 3.4 });
@@ -526,8 +513,8 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       const stars = Object.keys(this._collected).length;
       // Reach-home cinematic (opaque overlay) → then the garage treatment part.
       playVideoOverlay(this, 'l5_reach_home', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('Level5', { stars }));
+        this.cameras.main.fadeOut(200, 0, 0, 0);
+        this.time.delayedCall(210, () => this.scene.start('Level5', { stars }));
       });
     }
   }
@@ -653,7 +640,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       this.time.delayedCall(400, () => {
         showTryAgainModal(this, () => {
           this.cameras.main.fadeOut(400, 0, 0, 0);
-          this.time.delayedCall(450, () => this.scene.restart());
+          this.time.delayedCall(210, () => this.scene.restart());
         });
       });
     } else {
@@ -682,7 +669,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       this._hiddenInHole = false;
       this.player.setPosition(rx, GROUND_Y - 40); this.player.setVelocity(0, 0);
       this.cameras.main.scrollX = Math.max(0, rx - W / 2);
-      this.cameras.main.fadeIn(400, 0, 0, 0);
+      this.cameras.main.fadeIn(220, 0, 0, 0);
       this.tweens.killTweensOf(this.player);
       this.tweens.add({ targets: this.player, alpha: { from: 0.3, to: 1 }, duration: 130, repeat: 4, yoyo: true, onComplete: () => { this.player.setAlpha(1); this._damageCD = false; } });
       if (cp) this._toast(`💫 Respawned at Checkpoint ${cp.cp}`);
@@ -717,8 +704,8 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this._paused = true; this.physics.pause();
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
-      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); },
-      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); },
+      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(210, () => this.scene.restart()); },
+      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

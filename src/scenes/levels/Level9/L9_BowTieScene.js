@@ -15,13 +15,13 @@ import { generateL9Assets } from './L9Assets.js';
 // ════════════════════════════════════════════════════════════════════════════
 
 const PUPS = [
-  { name: 'Max',   tint: 0xe8b884 },
-  { name: 'Bella', tint: 0xffffff },
-  { name: 'Coco',  tint: 0x9a6636 },
-  { name: 'Milo',  tint: 0xd8a870 },
-  { name: 'Daisy', tint: 0xf6e4c8 },
-  { name: 'Luna',  tint: 0xbcc4d4 },
-  { name: 'Teddy', tint: 0xc8823e },
+  { name: 'Max' },
+  { name: 'Bella' },
+  { name: 'Coco' },
+  { name: 'Milo' },
+  { name: 'Daisy' },
+  { name: 'Luna' },
+  { name: 'Teddy' },
 ];
 
 const BOW_TEX = ['l9_bow_red', 'l9_bow_green', 'l9_bow_gold', 'l9_bow_blue', 'l9_bow_pink', 'l9_bow_purple', 'l9_bow_silver'];
@@ -34,58 +34,67 @@ export class L9_BowTieScene extends L9BaseScene {
   // scenes to generateL9Assets() and lock in the procedural fallback instead.
   preload() {
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
-    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
-    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+    load('l9_sky',          'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground',       'assets/images/level 09/bottom-l9.jpg');
+    load('l9_puppy_real',   'assets/images/level 09/puppy-without-bow.png');
+    load('l9_puppy_bow',    'assets/images/level 09/Puppy_with_boo.png');
+    load('l9_room_bg_real', 'assets/images/level 09/after-decoration.png');
   }
 
   create() {
     generateL9Assets(this);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._done = false; this._dressed = 0;
 
     this.buildRoomBg();
-    // proud mother Gamma (with her santa hat) watching from the left
-    this.add.image(120, 300, 'l9_gamma').setDisplaySize(150, 106).setDepth(4);
 
     this.buildTopBanner('LEVEL 9', 'BOW-TIE PUPPIES', null);
-    this._counter = this.buildCounterPill('🐶', 'DRESSED', PUPS.length);   // below banner
-
-    this._buildPuppies();
     this._buildTray();
+    this._buildPuppies();
+    // progress lives at the bottom, same spot as Level 8's Feeding scene
+    this._counter = this.buildProgressBar('🎀 DRESSED', PUPS.length);
 
     this.time.delayedCall(400, () => this.toast('🎀 Drag a bow onto each puppy to dress them up!', 3000));
   }
 
+  // Same row placement as Level 8's Feeding scene puppies (fixed 92px gap,
+  // anchored near the bottom of the screen, real puppy art at 51×96) so both
+  // levels' puppy rows feel like one consistent piece.
   _buildPuppies() {
-    const n = PUPS.length;
-    const startX = 96, endX = W - 96;
-    const step = (endX - startX) / (n - 1);
-    const py = 232;
+    const startX = 130, gap = 92, py = H - 96;
+    const pupSrc = this.textures.get('l9_puppy_real').getSourceImage();
+    const pupRatio = pupSrc.width / pupSrc.height;
+    const pupH = 96, pupW = pupH * pupRatio;
     this._puppies = PUPS.map((pd, i) => {
-      const x = startX + i * step;
+      const x = startX + i * gap;
       // gentle stand shadow
       this.add.ellipse(x, py + 34, 62, 14, 0x000000, 0.14).setDepth(4);
-      const pup = this.add.image(x, py, 'l9_puppy').setDisplaySize(66, 58).setDepth(6).setTint(pd.tint);
+      // Real puppy art (same illustration for all 7 — no per-puppy tint since
+      // that would wash out the linework/shading; the name plate below is
+      // what tells them apart, same as it already did).
+      const pup = this.add.image(x, py, 'l9_puppy_real').setDisplaySize(pupW, pupH).setDepth(6);
       this.tweens.add({ targets: pup, y: py - 4, duration: 900 + i * 70, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       // name plate
       const plate = this.add.graphics().setDepth(6);
       plate.fillStyle(0x1c4a2e, 0.9); plate.fillRoundedRect(x - 34, py + 30, 68, 18, 6);
       plate.lineStyle(1.5, L9.GOLD, 0.8); plate.strokeRoundedRect(x - 34, py + 30, 68, 18, 6);
       this.add.text(x, py + 39, pd.name, { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#0a1a0e', strokeThickness: 2 }).setOrigin(0.5).setDepth(7);
-      // "needs a bow" hint
-      const hint = this.add.text(x, py - 40, '🎀?', { fontSize: '14px' }).setOrigin(0.5).setDepth(7);
-      this.tweens.add({ targets: hint, y: py - 46, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      // "needs a bow" hint, floating just above the head
+      const hintY = py - pupH / 2 - 12;
+      const hint = this.add.text(x, hintY, '🎀?', { fontSize: '14px' }).setOrigin(0.5).setDepth(7);
+      this.tweens.add({ targets: hint, y: hintY - 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return { ...pd, x, y: py, pup, hint, dressed: false, bowImg: null };
     });
   }
 
+  // Bow tray now sits at the top (same slot Level 8's Feeding food tray uses),
+  // freeing the bottom of the screen for the puppy row + progress bar.
   _buildTray() {
-    // tray backdrop along the bottom
-    const trayY = 404;
-    const g = this.add.graphics().setScrollFactor(0).setDepth(30);
-    g.fillStyle(0x1c4a2e, 0.85); g.fillRoundedRect(20, trayY - 26, W - 40, 44, 12);
-    g.lineStyle(2, L9.GOLD, 0.8); g.strokeRoundedRect(20, trayY - 26, W - 40, 44, 12);
-    this.add.text(30, trayY - 30, '🎀 Bows — drag one onto each puppy', { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#ffe6a0' }).setOrigin(0, 1).setDepth(31);
+    const trayY = 102;
+    const g = this.add.graphics().setDepth(30);
+    g.fillStyle(0x1c4a2e, 0.85); g.fillRoundedRect(20, 74, W - 40, 56, 12);
+    g.lineStyle(2, L9.GOLD, 0.8); g.strokeRoundedRect(20, 74, W - 40, 56, 12);
+    this.add.text(30, 70, '🎀 Bows — drag one onto each puppy', { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#ffe6a0' }).setOrigin(0, 1).setDepth(31);
 
     const n = BOW_TEX.length;
     const startX = 70, endX = W - 70;
@@ -125,14 +134,21 @@ export class L9_BowTieScene extends L9BaseScene {
       obj.disableInteractive();
       this.input.setDraggable(obj, false);
       best.dressed = true;
-      best.bowImg = obj;
-      // tie the bow onto the puppy (neck area)
-      this.tweens.add({ targets: obj, x: best.x, y: best.y + 4, displayWidth: 34, displayHeight: 28, duration: 240, ease: 'Back.easeOut' });
-      obj.setDepth(8);
       best.hint.destroy();
-      // happy reaction
-      this.tweens.add({ targets: best.pup, scaleX: best.pup.scaleX * 1.14, scaleY: best.pup.scaleY * 1.14, duration: 160, yoyo: true });
-      this.sparkleBurst(best.x, best.y, 14);
+      // Magic swap: the dragged bow flies to the puppy's neck and shrinks
+      // into a burst of sparkles the instant the puppy's own art swaps to
+      // the already-wearing-the-bow illustration (Puppy_with_boo.png has the
+      // bow baked into the art, so we don't keep a separate bow sprite tacked
+      // onto the neck afterward).
+      this.tweens.add({
+        targets: obj, x: best.x, y: best.y + 4, scale: 0, duration: 220, ease: 'Back.easeIn',
+        onComplete: () => {
+          try { obj.destroy(); } catch (_) {}
+          best.pup.setTexture('l9_puppy_bow');
+          this.tweens.add({ targets: best.pup, scaleX: best.pup.scaleX * 1.25, scaleY: best.pup.scaleY * 1.25, duration: 160, yoyo: true, ease: 'Back.easeOut' });
+          this.sparkleBurst(best.x, best.y - 10, 18);
+        }
+      });
       this.confetti(best.x, best.y - 10);
       this.popText(best.x, best.y - 40, `${best.name} looks great!`, '#ffe6a0');
       this.addScore(140);
@@ -174,11 +190,14 @@ export class L9_BowTieScene extends L9BaseScene {
     this.add.text(cx, 92, '🎄  Merry Christmas!', { fontSize: '22px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#0a1a0e', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(122);
     this.add.text(cx, 138, 'All 7 puppies got their gifts and bows!', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#7a3a1a' }).setOrigin(0.5).setScrollFactor(0).setDepth(122);
 
-    // a little row of bowed puppies on the card
+    // a little row of bowed puppies on the card — real "with bow" art now
+    // that every puppy is dressed, no separate bow overlay needed
+    const cardPupSrc = this.textures.get('l9_puppy_bow').getSourceImage();
+    const cardPupRatio = cardPupSrc.width / cardPupSrc.height;
+    const cardPupH = 46, cardPupW = cardPupH * cardPupRatio;
     PUPS.forEach((pd, i) => {
       const x = cx - 180 + i * 60, y = 190;
-      this.add.image(x, y, 'l9_puppy').setDisplaySize(46, 40).setScrollFactor(0).setDepth(122).setTint(pd.tint);
-      this.add.image(x, y + 6, BOW_TEX[i % BOW_TEX.length]).setDisplaySize(24, 20).setScrollFactor(0).setDepth(123);
+      this.add.image(x, y, 'l9_puppy_bow').setDisplaySize(cardPupW, cardPupH).setScrollFactor(0).setDepth(122);
       this.add.text(x, y + 26, pd.name, { fontSize: '8px', fontFamily: 'Georgia, serif', color: '#5a3a1a' }).setOrigin(0.5).setScrollFactor(0).setDepth(123);
     });
 

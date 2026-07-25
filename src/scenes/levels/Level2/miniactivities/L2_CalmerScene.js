@@ -7,7 +7,7 @@ export class L2_CalmerScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0d0806');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('l2cal_bg')) {
       this.add.image(W / 2, H / 2, 'l2cal_bg').setDisplaySize(W, H).setDepth(-5);
@@ -93,20 +93,19 @@ export class L2_CalmerScene extends Phaser.Scene {
     const h = this.add.image(420, 310, 'heart').setDepth(30).setScale(0.7);
     this.tweens.add({ targets: h, y: 265, alpha: 0, duration: 900, onComplete: () => h.destroy() });
 
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
+    // No coins here — coins come ONLY from solving mini-games now.
     const tick = this.add.text(bx, by - 130, '✅ Good choice!', {
       fontSize: '20px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets: tick, alpha: 1, y: tick.y - 10, duration: 400 });
-    const pts = this.add.text(bx, by - 104, `+2 ⭐  (Total: ${total})`, {
+    const pts = this.add.text(bx, by - 104, '✨ Nice work!', {
       fontSize: '14px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 2
     }).setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets: pts, alpha: 1, duration: 400, delay: 200 });
 
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L2_Feed'));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L2_Feed'));
     });
   }
 
@@ -127,7 +126,7 @@ export class L2_CalmerScene extends Phaser.Scene {
 
     this.time.delayedCall(1600, () => {
       this.cameras.main.fadeOut(400, 0, 0, 0);
-      this.time.delayedCall(450, () => this.scene.restart());
+      this.time.delayedCall(210, () => this.scene.restart());
     });
   }
 }

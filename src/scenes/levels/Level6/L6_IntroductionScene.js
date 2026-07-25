@@ -35,7 +35,7 @@ export class L6_IntroductionScene extends Phaser.Scene {
     this._stars  = (data && data.stars) || 0;
     this._idx    = 0; // current puppy being introduced
 
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._buildBackground();
     this._buildStage();
     this._showIntro(); // start the intro sequence
@@ -210,7 +210,7 @@ export class L6_IntroductionScene extends Phaser.Scene {
   _startCelebration() {
     this.children.removeAll(false);
     this._buildBackground();
-    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.cameras.main.zoomTo(1.1, 2000, 'Sine.easeInOut');
 
     // Title

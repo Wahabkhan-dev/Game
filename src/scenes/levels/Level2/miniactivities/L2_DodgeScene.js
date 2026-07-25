@@ -88,10 +88,9 @@ export class L2_DodgeScene extends Phaser.Scene {
     this._done = true;
     this._spawnTimer.remove(); this._clearAll();
     this.cameras.main.flash(500, 60, 200, 80);
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
+    // No coins here — coins come ONLY from solving mini-games now.
     this.add.text(W / 2, H / 2 - 14, '✅ Path cleared!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
-    this.add.text(W / 2, H / 2 + 22, `+2 ⭐   (Total: ${total})`, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
+    this.add.text(W / 2, H / 2 + 22, '✨ Nice work!', { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.time.delayedCall(1300, () => this.events.emit('cp-done'));
   }
 
@@ -101,6 +100,6 @@ export class L2_DodgeScene extends Phaser.Scene {
     this._spawnTimer.remove(); this._clearAll();
     this.cameras.main.shake(300, 0.012);
     this.add.text(W / 2, H / 2, msg + '\nTry again!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#ff7070', stroke: '#000', strokeThickness: 3, align: 'center' }).setOrigin(0.5).setDepth(20);
-    this.time.delayedCall(1700, () => this.scene.restart());
+    this.time.delayedCall(210, () => this.scene.restart());
   }
 }

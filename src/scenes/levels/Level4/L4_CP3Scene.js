@@ -33,8 +33,7 @@ export class L4_CP3Scene extends Phaser.Scene {
       return { box, emoji, label, btn, correct: c.correct };
     });
 
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
+    // No coins here — coins come ONLY from solving mini-games now.
   }
 
   _choose(isCorrect) {
@@ -53,8 +52,7 @@ export class L4_CP3Scene extends Phaser.Scene {
     this.add.text(W / 2, 160, '🐶 → 🥰', { fontSize: '36px' }).setOrigin(0.5).setDepth(20);
     this.add.text(W / 2, 215, '✅ Gamma feels at home!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.add.text(W / 2, 262, 'Cozy and safe in her new bed!', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#bfe0ff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(20);
-    const total = this.registry.get('points');
-    this.add.text(W / 2, 352, `+2 ⭐   (Total: ${total})`, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
+    this.add.text(W / 2, 352, '✨ Nice work!', { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.time.delayedCall(2200, () => this.events.emit('cp-done'));
   }
 

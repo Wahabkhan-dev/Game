@@ -80,16 +80,11 @@ export class PremiumHUD {
       s._timerTxt.setColor(s._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
     if (s._timerLeft <= 0 && !s._timerFired) {
-      s._timerFired = true;
-      s._isDying = true;
-      s._showMessage("⏱ Time's up! -1 Life! 💀");
-      s.cameras.main.shake(300, 0.012);
-      s.time.delayedCall(800, () => {
-        s._timerFired = false;
-        s._timerLeft  = s._timerFull;
-        if (s._timerTxt) { s._timerTxt.setText(`${s._timerFull}s`); s._timerTxt.setColor(THEME.goldTxt); }
-        s._loseLife(0.012);
-      });
+      // Delegate to the scene's own _handleTimeUp (BaseLevelScene's default,
+      // or a level-specific override e.g. Level2Scene's zone-start respawn +
+      // 1-HP-only penalty) instead of duplicating that logic here — this
+      // used to inline its own copy, which silently bypassed any override.
+      s._handleTimeUp();
     }
   }
 

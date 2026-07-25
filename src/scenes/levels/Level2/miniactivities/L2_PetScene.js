@@ -8,7 +8,7 @@ export class L2_PetScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0d0806');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('jungle_bg')) {
       this.add.image(400, 225, 'jungle_bg').setDisplaySize(800, 450).setAlpha(0.5).setTint(0x121a14).setDepth(-5);
@@ -84,20 +84,19 @@ export class L2_PetScene extends Phaser.Scene {
         arrow.destroy();
         this.cameras.main.flash(400, 120, 50, 100);
 
-        const total = (this.registry.get('points') || 0) + 2;
-        this.registry.set('points', total);
+        // No coins here — coins come ONLY from solving mini-games now.
         this.add.text(W / 2, H / 2 - 30, '💛 Gemma feels safe!', {
           fontSize: '22px', fontFamily: 'Georgia, serif', color: '#f5c87a',
           stroke: '#1a0802', strokeThickness: 3
         }).setOrigin(0.5).setDepth(40);
-        this.add.text(W / 2, H / 2 + 4, `+2 ⭐   (Total: ${total})`, {
+        this.add.text(W / 2, H / 2 + 4, '✨ Nice work!', {
           fontSize: '16px', fontFamily: 'Georgia, serif', color: '#ffd86a',
           stroke: '#1a0802', strokeThickness: 3
         }).setOrigin(0.5).setDepth(40);
 
         this.time.delayedCall(2200, () => {
-          this.cameras.main.fadeOut(600, 0, 0, 0);
-          this.time.delayedCall(650, () => this.scene.start('L2_Rhythm'));
+          this.cameras.main.fadeOut(200, 0, 0, 0);
+          this.time.delayedCall(210, () => this.scene.start('L2_Rhythm'));
         });
       }
     };

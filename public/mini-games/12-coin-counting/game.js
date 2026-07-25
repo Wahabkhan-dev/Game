@@ -39,11 +39,17 @@
   G.body.appendChild(checkBtn);
 
   function makeCoin(val){
-    const src = val===5?'assets/coin-5.png':'assets/coin-1.png';
-    const emo = val===5?'🟡':'🪙';
-    const c = el('.tile',{style:'width:74px;height:74px;border-radius:50%;position:relative'});
-    c.appendChild(imgOrEmoji(src, emo, 60));
-    c.appendChild(el('div',{style:'position:absolute;bottom:2px;right:6px;font-size:16px;font-weight:bold;color:#7a5b00'}, val+'¢'));
+    // Same glossy gold-disc look as the target badge above (radial gradient +
+    // embossed number), instead of the old plain emoji + tiny corner label —
+    // every coin in the tray/jar now reads as an actual coin.
+    const c = el('.tile',{style:
+      'width:74px;height:74px;border-radius:50%;position:relative;'+
+      'display:flex;align-items:center;justify-content:center;'+
+      'font-size:22px;font-weight:900;color:#4a2f00;'+
+      'background:radial-gradient(circle at 38% 32%, #ffe9a0 0%, #ffd24a 46%, #e0a520 100%);'+
+      'border:4px solid #b9860b;box-shadow:0 4px 10px rgba(0,0,0,.35), inset 0 2px 5px rgba(255,255,255,.5);'+
+      'text-shadow:0 1px 1px rgba(255,255,255,.55);'
+    }, val+'¢');
     c.dataset.val=val;
     enableDrag(c, {onDrop:(under)=>{
       // Two-way drag: drop ON the jar → into the jar; drop ANYWHERE else →

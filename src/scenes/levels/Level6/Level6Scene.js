@@ -43,22 +43,26 @@ const OBSTACLES = [
   { x: 700,   w: 44, h: 52 },
   { x: 1300,  w: 60, h: 50, theme: 'branch' },
   { x: 1700,  w: 46, h: 54 },
-  { x: 2100,  w: 88, h: 18, flat: true },
+  { x: 2050,  w: 88, h: 18, flat: true },
   { x: 2900,  w: 60, h: 52, theme: 'banner' },
   { x: 3300,  w: 44, h: 52 },
   { x: 4500,  w: 46, h: 54 },
   { x: 4900,  w: 58, h: 54, theme: 'sign' },
-  { x: 5300,  w: 88, h: 18, flat: true },
+  // Was x:5300 — only 20px clear of the pit's own fall-zone edge (5300±80)
+  // to Checkpoint 2 at x:5400, so respawning there (player body's left edge
+  // lands ~26px left of center) landed the player BACK inside the pit zone,
+  // instantly re-triggering the fall. Moved further left for real clearance.
+  { x: 5100,  w: 88, h: 18, flat: true },
   { x: 6000,  w: 44, h: 44, rolling: true },
   { x: 6600,  w: 46, h: 54 },
-  { x: 7000,  w: 60, h: 50, theme: 'flower' },
-  { x: 7400,  w: 88, h: 18, flat: true },
+  { x: 7000,  w: 50, h: 41, theme: 'flower' },   // was 60x50 — shrunk 25% then grown back 10% per your two answers (net ~17.5% smaller than original)
+  { x: 7450,  w: 88, h: 18, flat: true },
   { x: 8300,  w: 44, h: 52 },
   { x: 8800,  w: 60, h: 50, theme: 'branch' },
   { x: 9200,  w: 44, h: 44, rolling: true },
   { x: 9900,  w: 46, h: 54 },
   { x: 10400, w: 60, h: 52, theme: 'banner' },
-  { x: 10800, w: 88, h: 18, flat: true },
+  { x: 10750, w: 88, h: 18, flat: true },
   { x: 11500, w: 44, h: 52 },
   { x: 12000, w: 58, h: 54, theme: 'sign' },
   { x: 12500, w: 46, h: 54 },
@@ -121,7 +125,7 @@ export class Level6Scene extends Phaser.Scene {
     // being stopped dead by an invisible floor at the bottom of the screen.
     this.physics.world.setBounds(0, 0, WORLD_W, H + 600);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._buildSky();
     this._buildGround();
@@ -323,25 +327,65 @@ export class Level6Scene extends Phaser.Scene {
 
   _buildTokens() {
     const TY = GROUND_Y - 58;
-    this._tokenObjs = TOKENS.map(t => {
-      // Static badge (no glow animation to reduce tweens)
-      const badge = this.add.graphics().setDepth(9);
-      badge.fillStyle(0xFFD700, 1);  badge.fillCircle(t.x, TY, 22);
-      badge.lineStyle(3, 0xFF8800, 1); badge.strokeCircle(t.x, TY, 22);
-      badge.fillStyle(0xFFF8E1, 1);  badge.fillCircle(t.x, TY, 13);
+    const PW = 48, PH = 32;   // wood name-plate size
 
-      const label = this.add.text(t.x, TY, t.name.substring(0, 3).toUpperCase(),
-        { fontSize: '7px', fontFamily: 'Arial Black', color: '#6B3A00', fontStyle: 'bold' })
+    this._tokenObjs = TOKENS.map(t => {
+      // First word only, max 4 letters — reads better than a plain 3-char
+      // cut on two-word names ("Little Bear" -> LITT, not "Litt" + a
+      // dangling space from slicing across the word boundary).
+      const label = t.name.split(' ')[0].substring(0, 4).toUpperCase();
+
+      // ── Wooden dog-tag name plate — carved wood + gold trim, matching the
+      // game's premium HUD look, with a hanging ring so it clearly reads as
+      // a collectible name TAG instead of a generic gold coin/badge.
+      const badge = this.add.graphics().setDepth(9);
+
+      // drop shadow
+      badge.fillStyle(0x000000, 0.22);
+      badge.fillRoundedRect(t.x - PW / 2 + 2, TY - PH / 2 + 3, PW, PH, 8);
+
+      // hanging ring + short link
+      badge.lineStyle(2.5, 0xd4a030, 1);
+      badge.strokeCircle(t.x, TY - PH / 2 - 5, 5);
+      badge.lineStyle(2, 0x8a5a2a, 1);
+      badge.lineBetween(t.x, TY - PH / 2 - 1, t.x, TY - PH / 2 + 2);
+
+      // wood plate body + grain lines
+      badge.fillStyle(0x8a5a2a, 1);
+      badge.fillRoundedRect(t.x - PW / 2, TY - PH / 2, PW, PH, 8);
+      badge.lineStyle(1, 0x6a4018, 0.35);
+      for (let gy = -PH / 2 + 7; gy < PH / 2 - 3; gy += 6) {
+        badge.lineBetween(t.x - PW / 2 + 4, TY + gy, t.x + PW / 2 - 4, TY + gy);
+      }
+
+      // gold trim
+      badge.lineStyle(2, 0xf0c860, 1);
+      badge.strokeRoundedRect(t.x - PW / 2, TY - PH / 2, PW, PH, 8);
+
+      // cream inner panel the name sits on, for contrast/legibility
+      badge.fillStyle(0xfff4dc, 0.94);
+      badge.fillRoundedRect(t.x - PW / 2 + 5, TY - PH / 2 + 6, PW - 10, PH - 12, 4);
+
+      // tiny paw-print watermark (bottom-left of the panel) — makes it
+      // unmistakable at a glance that this is a PUPPY name tag.
+      badge.fillStyle(0xd8a860, 0.6);
+      badge.fillCircle(t.x - PW / 2 + 11, TY + 6, 2.6);
+      badge.fillCircle(t.x - PW / 2 + 8,  TY + 2, 1.5);
+      badge.fillCircle(t.x - PW / 2 + 11, TY - 1, 1.5);
+      badge.fillCircle(t.x - PW / 2 + 14, TY + 2, 1.5);
+
+      const nameLbl = this.add.text(t.x + 4, TY + 1, label,
+        { fontSize: '9px', fontFamily: 'Arial Black', color: '#6B3A00', fontStyle: 'bold' })
         .setOrigin(0.5).setDepth(10);
 
-      const spark = this.add.text(t.x, TY - 36, '✨', { fontSize: '13px' }).setOrigin(0.5).setDepth(10);
+      const spark = this.add.text(t.x, TY - PH / 2 - 22, '✨', { fontSize: '13px' }).setOrigin(0.5).setDepth(10);
       // Single gentle bob tween instead of multiple
       this.tweens.add({
-        targets: [badge, label, spark],
+        targets: [badge, nameLbl, spark],
         y: `-=8`, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
       });
 
-      return { ...t, badge, label, spark, taken: false };
+      return { ...t, badge, label: nameLbl, spark, taken: false };
     });
   }
 
@@ -638,8 +682,17 @@ export class Level6Scene extends Phaser.Scene {
     // Scroll background (parallax 25%). Ground segments are world-space
     // tileSprites now (Level 2's technique) — they scroll with the camera
     // automatically, no manual tilePositionX bookkeeping needed.
+    // Background now scrolls at the SAME on-screen rate as the ground (was
+    // camX*0.25 with no tileScaleX correction — a distant-parallax fraction
+    // scaled wrong on top of that), same fix as Level 5's road/city mismatch:
+    // the fence+bushes sit right behind the running pup, not off in a distant
+    // background, so scrolling them slower than the ground made the two
+    // visibly drift apart ("swim") while running instead of reading as one
+    // connected scene. tilePositionX is in the tile's own unscaled texture
+    // space, so dividing by tileScaleX (same convention as L2_Scenery.js's
+    // parallax) is what makes the ON-SCREEN shift actually equal camX.
     const camX = this.cameras.main.scrollX;
-    if (this._bgTile) this._bgTile.tilePositionX = camX * 0.25;
+    if (this._bgTile) this._bgTile.tilePositionX = camX / this._bgTile.tileScaleX;
 
     this._checkTokens();
     this._checkObstacles(onGround);
@@ -658,8 +711,8 @@ export class Level6Scene extends Phaser.Scene {
       if (Math.abs(p.x - t.x) < 46 && Math.abs(p.y - TY) < 90) {
         t.taken = true;
         this._collected.push(t.name);
-        this._score += 200;
-        this._scoreTxt.setText(`${this._score}`);
+        // Name tokens no longer award coins — coins come ONLY from solving
+        // mini-games now (see MiniGamePicker.js).
 
         const parts = [t.badge, t.label, t.spark].filter(Boolean);
         parts.forEach(o => this.tweens.killTweensOf(o));
@@ -768,9 +821,8 @@ export class Level6Scene extends Phaser.Scene {
     if (!this._returning) return;
     if (this.player.x > WORLD_W - 150) {
       this._done = true;
-      this.cameras.main.fadeOut(700, 0, 0, 0);
-      this.time.delayedCall(750, () =>
-        this.scene.start('L6_NamingCeremony', { names: this._collected, stars: this._score }));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L6_NamingCeremony', { names: this._collected, stars: this._score }));
     }
   }
 
@@ -821,9 +873,9 @@ export class Level6Scene extends Phaser.Scene {
     // Random mini-game from Level 6's slice of the 40 games — no intro/ending
     // screen, matches Level 1's flow (launchRandomMiniGame pauses physics itself).
     launchRandomMiniGame(this, 6, () => {
+      // Coins for solving this are awarded by launchRandomMiniGame itself
+      // (flat 5, the only coin source) — no extra manual bonus here.
       this._miniActive = false;
-      this._score += 300;
-      this._scoreTxt.setText(`${this._score}`);
       this._toast('⭐ Activity complete! Keep going!');
     });
   }
@@ -876,7 +928,7 @@ export class Level6Scene extends Phaser.Scene {
       this.time.delayedCall(400, () => {
         showTryAgainModal(this, () => {
           this.cameras.main.fadeOut(500, 0, 0, 0);
-          this.time.delayedCall(550, () => this.scene.restart());
+          this.time.delayedCall(210, () => this.scene.restart());
         });
       });
       return;
@@ -919,7 +971,7 @@ export class Level6Scene extends Phaser.Scene {
         this.time.delayedCall(400, () => {
           showTryAgainModal(this, () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(550, () => this.scene.restart());
+            this.time.delayedCall(210, () => this.scene.restart());
           });
         });
         return;
@@ -943,7 +995,7 @@ export class Level6Scene extends Phaser.Scene {
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
       onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.physics.resume(); this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
-      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => this.scene.start('Menu')); },
+      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 

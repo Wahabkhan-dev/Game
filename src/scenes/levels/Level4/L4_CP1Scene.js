@@ -55,9 +55,7 @@ export class L4_CP1Scene extends Phaser.Scene {
       return piece;
     });
 
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
-
+    // No coins here — coins come ONLY from solving mini-games now.
     this._done = false;
   }
 
@@ -67,8 +65,7 @@ export class L4_CP1Scene extends Phaser.Scene {
     this.cameras.main.flash(500, 150, 200, 100);
     this.add.text(W / 2, 200, '✅ Frame Built!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.add.text(W / 2, 250, 'Gamma\'s house is taking shape!', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#bfe0ff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(20);
-    const total = this.registry.get('points');
-    this.add.text(W / 2, 352, `+2 ⭐   (Total: ${total})`, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
+    this.add.text(W / 2, 352, '✨ Nice work!', { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.time.delayedCall(2000, () => this.events.emit('cp-done'));
   }
 }

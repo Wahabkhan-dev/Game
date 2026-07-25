@@ -29,7 +29,7 @@ export class L7_Stage2Scene extends L7BaseScene {
 
   create() {
     generateL7Assets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#1a1d22');
 
     this.add.image(W / 2, H / 2, 'l7_s2_bg').setDisplaySize(W, H).setDepth(-10);

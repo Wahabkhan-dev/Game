@@ -9,7 +9,7 @@
   const STAGES = [
     {id:0, name:'Seed',   img:'assets/plant-seed.png',   emo:'🌰'},
     {id:1, name:'Sprout', img:'assets/plant-sprout.png', emo:'🌱'},
-    {id:2, name:'Plant',  img:'assets/plant-small.png',  emo:'🪴'},
+    {id:2, name:'Plant',  img:'assets/plant-small.png',  emo:'🌿'},
     {id:3, name:'Flower', img:'assets/plant-flower.png', emo:'🌸'}
   ];
   const G = mountGame({icon:'🌱', title:'Plant Growth'});
@@ -51,5 +51,5 @@
     });
   }
 
-  G.instructions('🌰 → 🌱 → 🪴 → 🌸', build);
+  G.instructions('🌰 → 🌱 → 🌿 → 🌸', build);
 })();

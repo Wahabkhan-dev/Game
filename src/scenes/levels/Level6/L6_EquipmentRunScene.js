@@ -61,7 +61,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
 
     this.physics.world.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = {};
     this._lives = 3;
@@ -314,8 +314,9 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
         this._sparkle(it.x, it.img.y);
         const h = this._itemHud[it.key];
         h.icon.setAlpha(1); h.chk.setText('✓').setColor('#66ff88').setFontSize(13);
-        this._addPoints(50);
-        this._toast(`✓ ${it.label} Collected!  +50`);
+        // Item pickups no longer award coins — coins come ONLY from solving
+        // mini-games now (see MiniGamePicker.js), everywhere in the game.
+        this._toast(`✓ ${it.label} Collected!`);
         const cpItems = ITEMS.filter(i => i.cp === it.cp);
         const cpDone = cpItems.every(i => this._collected[i.key]);
         if (cpDone && it.cp < 3) this._checkpointReached(it.cp);
@@ -382,9 +383,9 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     if (this.player.x > WORLD_W - 120) {
       this._done = true;
       this._toast('🏠 Home! Time to help Gamma!');
-      this.cameras.main.fadeOut(700, 0, 0, 0);
+      this.cameras.main.fadeOut(200, 0, 0, 0);
       // After run: go straight to garage treatment
-      this.time.delayedCall(750, () => this.scene.start('Level5', { stars: Object.keys(this._collected).length }));
+      this.time.delayedCall(210, () => this.scene.start('Level5', { stars: Object.keys(this._collected).length }));
     }
   }
 
@@ -511,7 +512,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
       this.time.delayedCall(400, () => {
         showTryAgainModal(this, () => {
           this.cameras.main.fadeOut(400, 0, 0, 0);
-          this.time.delayedCall(450, () => this.scene.restart());
+          this.time.delayedCall(210, () => this.scene.restart());
         });
       });
     } else {
@@ -537,7 +538,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
       const rx = cp ? cp.x : 80;
       this.player.clearTint(); this.player.setPosition(rx, GROUND_Y - 40); this.player.setVelocity(0, 0);
       this.cameras.main.scrollX = Math.max(0, rx - W / 2);
-      this.cameras.main.fadeIn(400, 0, 0, 0);
+      this.cameras.main.fadeIn(220, 0, 0, 0);
       this.tweens.killTweensOf(this.player);
       this.tweens.add({ targets: this.player, alpha: { from: 0.3, to: 1 }, duration: 130, repeat: 4, yoyo: true, onComplete: () => { this.player.setAlpha(1); this._damageCD = false; } });
       if (cp) this._toast(`💫 Respawned at Checkpoint ${cp.cp}`);
@@ -572,8 +573,8 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     this._paused = true; this.physics.pause();
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this._togglePause(),
-      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); },
-      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); },
+      onRestart: () => { this.physics.resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(210, () => this.scene.restart()); },
+      onExit:    () => { this.physics.resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

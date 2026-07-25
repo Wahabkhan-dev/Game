@@ -16,7 +16,7 @@ export class L2_FeedScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0d0806');
-    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('l2feed_bg')) {
       this.add.image(W / 2, H / 2, 'l2feed_bg').setDisplaySize(W, H).setDepth(-5);
@@ -152,17 +152,16 @@ export class L2_FeedScene extends Phaser.Scene {
         this.textures.exists('sparkle') ? 'sparkle' : '__DEFAULT').setDepth(35).setScale(1.5);
       this.tweens.add({ targets: sp, y: sp.y - 60, alpha: 0, duration: 800, onComplete: () => sp.destroy() });
     });
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
+    // No coins here — coins come ONLY from solving mini-games now.
     this.add.text(W / 2, H / 2 - 30, '💛 Gemma is happy and full!', {
       fontSize: '22px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#1a0802', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
-    this.add.text(W / 2, H / 2 + 4, `+2 ⭐   (Total: ${total})`, {
+    this.add.text(W / 2, H / 2 + 4, '✨ Nice work!', {
       fontSize: '16px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#1a0802', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
     this.time.delayedCall(1900, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L2_Pet'));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L2_Pet'));
     });
   }
 
@@ -177,7 +176,7 @@ export class L2_FeedScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(46);
     this.time.delayedCall(1700, () => {
       this.cameras.main.fadeOut(450, 0, 0, 0);
-      this.time.delayedCall(500, () => this.scene.restart());
+      this.time.delayedCall(210, () => this.scene.restart());
     });
   }
 }

@@ -19,13 +19,13 @@ const FOODS = [
   { kind: 'meat', tex: 'l8_food_meat', label: 'Meat' },
   { kind: 'jar',  tex: 'l8_food_jar',  label: 'Jar' },
 ];
-const PUP_TINTS = [0xffffff, 0xeccaa2, 0xcf9d6a, 0xf3ddc0, 0xc68a55, 0xa9794a, 0x8a6240];
 
 export class L8_FeedingScene extends L8BaseScene {
   constructor() { super('L8_Feeding'); }
 
   preload() {
     const F = 'assets/images/level8/food/';
+    const CP = 'assets/images/level8/christmas props/';
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
     load('l8_food_bag',  `${F}l8_food_bag.png`);
     load('l8_food_milk', `${F}l8_food_milk.png`);
@@ -34,18 +34,19 @@ export class L8_FeedingScene extends L8BaseScene {
     load('l8_food_can',  `${F}l8_food_can.png`);
     load('l8_food_jar',  `${F}l8_food_jar.png`);
     load('l8_food_meat', `${F}l8_food_meat.png`);
+    // Unique keys (not the shared l8_feed_bg/l8_puppy procedural placeholders)
+    // so these real images always load, regardless of preload order.
+    load('l8_feed_bg_real', `${CP}before-decoration.png`);
+    load('l8_feed_puppy',   `${CP}puppy-without-bow.png`);
   }
 
   create() {
     generateL8Assets(this);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
-    this.add.image(W / 2, H / 2, 'l8_feed_bg').setDisplaySize(W, H).setDepth(-40);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
+    this.add.image(W / 2, H / 2, 'l8_feed_bg_real').setDisplaySize(W, H).setDepth(-40);
 
     this._fed = 0;
     this._done = false;
-
-    // mother Gamma watching from the left
-    this.add.image(64, H - 70, 'l8_gamma').setDisplaySize(150, 106).setDepth(8).setFlipX(true);
 
     this.buildTopBanner(3, 'Puppy Feeding Time', 'Drag the right food to each hungry pup!');
     this.buildHearts();
@@ -65,10 +66,8 @@ export class L8_FeedingScene extends L8BaseScene {
     for (let i = 0; i < n; i++) {
       const x = startX + i * gap;
       const want = wants[i];
-      const pup = this.add.image(x, py, 'l8_puppy').setDisplaySize(78, 68).setDepth(12).setTint(PUP_TINTS[i]);
+      const pup = this.add.image(x, py, 'l8_feed_puppy').setDisplaySize(51, 96).setDepth(12);
       this.tweens.add({ targets: pup, y: py - 5, duration: Phaser.Math.Between(700, 1000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      // empty bowl in front
-      const bowl = this.add.image(x, py + 36, 'l8_food_bowl').setDisplaySize(46, 38).setDepth(11).setAlpha(0.35).setTint(0x888888);
       // thought bubble with wanted food
       const bub = this.add.image(x + 26, py - 56, 'l8_bubble').setDisplaySize(58, 54).setDepth(30);
       const wantIcon = this.add.image(x + 26, py - 62, want.tex).setDisplaySize(30, 30).setDepth(31);
@@ -77,7 +76,7 @@ export class L8_FeedingScene extends L8BaseScene {
         const sx = obj.scaleX, sy = obj.scaleY;
         this.tweens.add({ targets: obj, scaleX: { from: sx * 0.92, to: sx }, scaleY: { from: sy * 0.92, to: sy }, duration: 900, yoyo: true, repeat: -1 });
       });
-      this._puppies.push({ x, py, want: want.kind, pup, bowl, bub, wantIcon, fed: false });
+      this._puppies.push({ x, py, want: want.kind, pup, bub, wantIcon, fed: false });
     }
   }
 
@@ -134,12 +133,10 @@ export class L8_FeedingScene extends L8BaseScene {
     pp.fed = true;
     this._fed++;
     this._setBar(this._fed);
-    // bowl fills up (pop without resetting its display size)
-    pp.bowl.clearTint().setAlpha(1);
-    this.tweens.add({ targets: pp.bowl, scaleX: pp.bowl.scaleX * 1.25, scaleY: pp.bowl.scaleY * 1.25, duration: 150, yoyo: true, ease: 'Quad.easeOut' });
-    // hide want bubble, happy bounce, heart
+    // hide want bubble, happy jiggle, heart
     this.tweens.add({ targets: [pp.bub, pp.wantIcon], scale: 0, alpha: 0, duration: 220, onComplete: () => { pp.bub.destroy(); pp.wantIcon.destroy(); } });
-    this.tweens.add({ targets: pp.pup, y: pp.py - 22, duration: 180, yoyo: true, ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: pp.pup, angle: { from: -8, to: 8 }, duration: 90, yoyo: true, repeat: 3, onComplete: () => pp.pup.setAngle(0) });
+    this.tweens.add({ targets: pp.pup, y: pp.py - 18, duration: 160, yoyo: true, ease: 'Quad.easeOut' });
     this.sparkleBurst(pp.x, pp.py - 10, 10);
     const heart = this.add.image(pp.x, pp.py - 30, 'l8_heart').setScale(0.5).setDepth(35);
     this.tweens.add({ targets: heart, y: heart.y - 50, alpha: 0, scale: 0.9, duration: 900, onComplete: () => heart.destroy() });

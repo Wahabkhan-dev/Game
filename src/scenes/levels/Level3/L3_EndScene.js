@@ -7,9 +7,9 @@ export class L3_EndScene extends Phaser.Scene {
   constructor() { super('L3_End'); }
 
   create() {
-    const health = this.registry.get('l3_health') || 100;
-    const coins  = this.registry.get('l3_coins')  || 0;
-    const points = coins + 250 + Math.round(health);
+    // Show ONLY the coins collected from solving mini-games (registry 'points')
+    // — no more health/base-bonus padding, matching every other level now.
+    const points = this.registry.get('points') || 0;
 
     this.cameras.main.setBackgroundColor('#0a1020');
     showLevelCompleteModal(this, points, { nextLevelKey: 'L4_Intro' });

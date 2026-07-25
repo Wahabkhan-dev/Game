@@ -13,7 +13,7 @@ export class L4_IntroVideoScene extends Phaser.Scene {
     this._idx  = 0;
     this._video = null;
     this.cameras.main.setBackgroundColor('#000000');
-    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._W = this.scale.width;
     this._H = this.scale.height;
@@ -60,7 +60,7 @@ export class L4_IntroVideoScene extends Phaser.Scene {
   _goNext() {
     if (this._gone) return;
     this._gone = true;
-    this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.time.delayedCall(650, () => this.scene.start('Level4'));
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.time.delayedCall(210, () => this.scene.start('Level4'));
   }
 }

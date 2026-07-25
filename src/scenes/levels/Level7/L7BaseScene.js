@@ -293,29 +293,12 @@ export class L7BaseScene extends Phaser.Scene {
       fontSize: '14px', fontFamily: 'Georgia, serif', color: '#9fe0b0'
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103));
     this.panelButton(td, W / 2, py + ph - 40, '▶  Continue the Journey', 0xf0c860, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(640, () => {
-        this._wakeLoop();
-        this.scene.start(nextScene, nextData);
-
-        // Poll until the target scene is running, forcing game ticks in case the
-        // RAF loop went to sleep (hasFocus=false) right after the fade started.
-        let tries = 0;
-        this._csIv = setInterval(() => {
-          const sceneObj = this.game.scene.getScene(nextScene);
-          const status = sceneObj ? sceneObj.sys.settings.status : -1;
-          if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(this._csIv); this._csIv = null; return; }
-          if (status === 8 || status === 9) { clearInterval(this._csIv); this._csIv = null; return; }
-          this._wakeLoop();
-          try {
-            const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
-            this.game.step(t, 16);
-          } catch (_) {}
-          if (++tries >= 300) { clearInterval(this._csIv); this._csIv = null; }
-        }, 50);
-      });
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this._wakeLoop();
+      // DOM timer + _forceSceneStart (which pumps game.step until the scene is
+      // running) — never rely on the Phaser clock here, it may be frozen.
+      setTimeout(() => this._forceSceneStart(nextScene, nextData), 640);
     }, 280, 44);
-    this.events.once('shutdown', () => { if (this._csIv) { clearInterval(this._csIv); this._csIv = null; } });
   }
 
   // Restore the Phaser game loop if it went to sleep (webview focus loss sets
@@ -368,7 +351,7 @@ export class L7BaseScene extends Phaser.Scene {
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this.togglePause(),
       onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.tweens.resumeAll(); this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
-      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => this.scene.start('Menu')); },
+      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

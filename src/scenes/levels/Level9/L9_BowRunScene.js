@@ -59,15 +59,17 @@ export class L9_BowRunScene extends L9BaseScene {
     // Real bg/ground art — same fit-height/tile technique as Level 4/8. Loaded
     // here too (not just in L9_GiftRunScene) since this scene can run first.
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
-    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
-    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+    load('l9_sky',      'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground',   'assets/images/level 09/bottom-l9.jpg');
+    load('l9_platform', 'assets/images/level 09/Platform.png');
+    load('l9_bow',      'assets/images/level 09/Bow.png');
   }
 
   create() {
     generateL9Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 220);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = 0; this._done = false; this._streak = 0; this._dustT = 0;
     this._groundY = GROUND_Y;
@@ -104,13 +106,30 @@ export class L9_BowRunScene extends L9BaseScene {
   }
 
   _buildLedges() {
+    // The snow-mound art's bounding box already starts almost exactly at its
+    // tallest snow peak (only ~1-2px of transparent margin above it) — the
+    // previous +8 nudge pushed the collision line (and with it, the player's
+    // feet) 8px further down INTO the ~22px-tall sprite, which is what made
+    // her legs visibly poke out below the snow instead of standing on it.
+    // A tiny +2 keeps her feet right at the visible snow line.
+    const STAND_Y_NUDGE = 2;
     LEDGES.forEach(p => {
-      const pl = this._platforms.create(p.x, p.y, 'l9_ground');
-      pl.setDisplaySize(p.w, 18).refreshBody();
+      const baseY = p.y + STAND_Y_NUDGE;
+      const src = this.textures.get('l9_platform').getSourceImage();
+      const h = Math.round(p.w / (src.width / src.height));
+      const pl = this._platforms.create(p.x, baseY, 'l9_platform');
+      pl.setDisplaySize(p.w, h).refreshBody();
       pl.body.checkCollision.down = false; pl.body.checkCollision.left = false; pl.body.checkCollision.right = false;
       pl.setDepth(6);
-      this.add.rectangle(p.x, p.y - 9, p.w, 4, 0xffffff, 0.9).setDepth(7);
-      this.tweens.add({ targets: pl, y: p.y - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      // Floating bob — refreshBody() on every tick keeps the (static) physics
+      // body glued to the animated sprite; without it the collider stays
+      // frozen at the spawn position while the art drifts, which is what
+      // made the player look like she was standing in mid-air with her legs
+      // sunk a little into the platform.
+      this.tweens.add({
+        targets: pl, y: baseY - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        onUpdate: () => pl.refreshBody(),
+      });
     });
   }
 
@@ -133,11 +152,13 @@ export class L9_BowRunScene extends L9BaseScene {
   }
 
   _buildBows() {
+    const src = this.textures.get('l9_bow').getSourceImage();
+    const bowH = 40, bowW = Math.round(bowH * (src.width / src.height));
     this._bowObjs = BOWS.map(bc => {
       const y = bc.high ? GROUND_Y - 128 : GROUND_Y - 44;
       const glow = this.add.image(bc.x, y, 'l9_glow').setScale(0.55).setAlpha(0.35).setDepth(7).setTint(0xffe6a0);
       this.tweens.add({ targets: glow, alpha: 0.6, scale: 0.8, duration: 800, yoyo: true, repeat: -1 });
-      const img = this.add.image(bc.x, y, bc.tex).setDepth(9).setDisplaySize(48, 40);
+      const img = this.add.image(bc.x, y, 'l9_bow').setDepth(9).setDisplaySize(bowW, bowH);
       this.tweens.add({ targets: img, y: y - 10, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       const hint = bc.high ? this.add.text(bc.x, y + 30, '⬆', { fontSize: '12px', color: '#ffe6a0' }).setOrigin(0.5).setDepth(9) : null;
       return { ...bc, img, glow, hint, taken: false, y };

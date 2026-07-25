@@ -8,7 +8,7 @@ export class L2_EndScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0d0806');
-    this.cameras.main.fadeIn(900, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('jungle_bg')) {
       this.add.image(400, 225, 'jungle_bg').setDisplaySize(800, 450).setAlpha(0.65).setTint(0x0a1a0a).setDepth(-5);

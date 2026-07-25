@@ -15,7 +15,7 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
   create() {
     generateL3Assets(this);
     this.cameras.main.setBackgroundColor('#0d1620');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     const l3Frame = applyL3Frame(this);
@@ -175,8 +175,8 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
       stroke: '#000', strokeThickness: 3, align: 'center'
     }).setOrigin(0.5).setDepth(51);
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.restart());
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.restart());
     });
   }
 
@@ -216,8 +216,8 @@ export class L3_MG5_DeliveryScene extends Phaser.Scene {
     this.time.delayedCall(2200, () => {
       // All treatment done → play the recovery cinematic, THEN the end scene.
       playVideoOverlay(this, 'l3_recovery_video', () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.time.delayedCall(650, () => this.scene.start('L3_End'));
+        this.cameras.main.fadeOut(200, 0, 0, 0);
+        this.time.delayedCall(210, () => this.scene.start('L3_End'));
       });
     });
   }

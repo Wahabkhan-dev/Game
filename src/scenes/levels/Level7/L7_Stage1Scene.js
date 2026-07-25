@@ -47,7 +47,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#0a0e16');
 
     this._fragments = 0;

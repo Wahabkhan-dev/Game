@@ -10,7 +10,7 @@ export class L5_CP1Scene extends Phaser.Scene {
 
   create() {
     generateL5Assets(this);
-    this.cameras.main.fadeIn(400, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setDepth(0);
     // Premium wood/gold panel (shared Level-1 modal art), procedural fallback

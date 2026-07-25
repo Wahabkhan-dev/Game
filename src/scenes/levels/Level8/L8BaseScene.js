@@ -357,7 +357,13 @@ export class L8BaseScene extends Phaser.Scene {
   // Kept for compatibility — the coin panel is part of the header.
   buildScore() { if (!this._scoreTxt) this.buildHearts(); }
 
-  addScore(n) {
+  // Coins are awarded ONLY by solving mini-games now. Themed activities
+  // (feeding, decorating, food/home runs) still call addScore(...) but it's a
+  // no-op — running/collecting/decorating grants no coins. MiniGamePicker
+  // routes the flat mini-game reward through _addPoints below instead.
+  addScore(_n) { /* no coins from gameplay activities — mini-games only */ }
+
+  _addPoints(n) {
     if (this._score == null) this._score = this.registry.get('l8_score') ?? 0;
     this._score += n;
     this.registry.set('l8_score', this._score);
@@ -531,9 +537,16 @@ export class L8BaseScene extends Phaser.Scene {
     if (!opts.fullLife) {
       this._hp--;
       this.registry.set('l8_hp', this._hp);
-      // fade this heart out
-      const lost = this._hearts?.[this._hp];
-      if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, scale: { from: 0.8, to: 0.55 }, duration: 300 }); }
+      // Dim an HP-bar segment (sub-life damage), NOT a heart — hearts
+      // represent whole LIVES and must stay full until a life is actually
+      // lost (this._hp <= 0, handled below). Indexing into this._hearts here
+      // (the old bug) dimmed a life icon on every ordinary hit instead.
+      // Fade only, no scale tween: the bar is a thin non-square icon (26×8)
+      // built via setDisplaySize, so a uniform `scale` tween would distort
+      // its aspect ratio the way it wouldn't for the roughly-square heart
+      // icon this tween used to target.
+      const lost = this._hpBars?.[this._hp];
+      if (lost) { lost.setTint(0x444444); this.tweens.add({ targets: lost, alpha: 0.25, duration: 300 }); }
     }
     this.cameras.main.shake(300, 0.012);
     // brief red flash on player
@@ -568,7 +581,7 @@ export class L8BaseScene extends Phaser.Scene {
           this.registry.set('l8_hp', 3);
           showTryAgainModal(this, () => {
             this.cameras.main.fadeOut(450, 0, 0, 0);
-            this.time.delayedCall(480, () => this.scene.restart());
+            this.time.delayedCall(210, () => this.scene.restart());
           });
         }
       });
@@ -605,7 +618,7 @@ export class L8BaseScene extends Phaser.Scene {
       // sprite/body re-sync, which looks like the checkpoint reset "missing".
       this.player.body.reset(cpX, cpY - 50);
     }
-    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.time.delayedCall(600, () => this.toast('💪 Continue! Use A/D to move'));
   }
 
@@ -615,10 +628,33 @@ export class L8BaseScene extends Phaser.Scene {
     this.registry.set('lives', this._lives ?? 3);
     this.registry.set('l8_checkpoint', nextScene);
     this.cameras.main.fadeOut(fadeMs, 0, 0, 0);
-    this.time.delayedCall(fadeMs + 30, () => {
+    this._wakeLoop();
+    // DOM timer (NOT this.time.delayedCall): after a video the RAF loop can be
+    // asleep, which freezes the Phaser clock — a scene-clock callback would then
+    // never fire and the screen would stay black. setTimeout always fires; then
+    // _forceSceneStart wakes the loop and pumps game.step() until the next scene
+    // is really running.
+    setTimeout(() => this._forceSceneStart(nextScene, data), fadeMs + 30);
+  }
+
+  // Start a scene and GUARANTEE it takes effect even if the RAF loop stalled the
+  // instant it fired (scene.start() is only processed on a loop tick; if that
+  // tick never comes, the game silently sits on a black screen). Pumps
+  // game.step() until the target scene is confirmed active, then stops.
+  _forceSceneStart(nextScene, data = {}) {
+    this._wakeLoop();
+    try { this.scene.start(nextScene, data); } catch (_) {}
+    let tries = 0;
+    const iv = setInterval(() => {
+      const s = this.game.scene.getScene(nextScene);
+      const status = s ? s.sys.settings.status : -1;
+      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
+      if (status === 8 || status === 9) { clearInterval(iv); return; }
       this._wakeLoop();
-      this.scene.start(nextScene, data);
-    });
+      try { const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()); this.game.step(t, 16); } catch (_) {}
+      if (++tries >= 300) clearInterval(iv);
+    }, 50);
+    this.events.once('shutdown', () => clearInterval(iv));
   }
 
   _wakeLoop() {
@@ -657,7 +693,7 @@ export class L8BaseScene extends Phaser.Scene {
     this._pauseObjs = openGameMenuModal(this, {
       onResume:  () => this.togglePause(),
       onRestart: () => { this._pauseObjs?.forEach(o => { try { o.destroy(); } catch (_) {} }); this._paused = false; this.tweens.resumeAll(); this.cameras.main.fadeOut(350, 0, 0, 0); this.time.delayedCall(380, () => this.scene.restart()); },
-      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(480, () => this.scene.start('Menu')); },
+      onExit:    () => { this.tweens.resumeAll(); this.cameras.main.fadeOut(450, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); },
     });
   }
 }

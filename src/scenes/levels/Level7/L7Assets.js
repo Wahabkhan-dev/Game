@@ -355,15 +355,9 @@ export function generateL7Assets(scene) {
   // ══════════════════════════════════════════════════════════════════════════
   // STAGE 3 — HIGHWAY GAS STATION (night, neon, rain reflections)
   // ══════════════════════════════════════════════════════════════════════════
-  g.clear();
-  grad(800, 450, 0x0c1020, 0x161b2e);
-  // distant mountains
-  g.fillStyle(0x0a0e18, 1); g.fillTriangle(0, 300, 180, 150, 360, 300); g.fillTriangle(260, 300, 460, 130, 660, 300); g.fillTriangle(520, 300, 720, 160, 920, 300);
-  // misty rain band
-  g.fillStyle(0x2a3450, 0.2); g.fillRect(0, 180, 800, 130);
-  // stars
-  for (let i = 0; i < 40; i++) { g.fillStyle(0xbcd0ff, Math.random() * 0.4); g.fillCircle(Math.random() * 800, Math.random() * 150, Math.random()); }
-  gen('l7_s3_sky', 800, 450);
+  // Sky/ground here now always use Level 2's real bg/surface art (l2_bg /
+  // l2_surface, loaded globally in BootScene) instead of procedural fallbacks
+  // — see L7_Stage3Scene.js's _buildWorld()/_buildGround().
 
   // Gas station building w/ neon canopy 340×220
   g.clear();
@@ -392,15 +386,6 @@ export function generateL7Assets(scene) {
   // ground reflection glow
   g.fillStyle(0xff3366, 0.10); g.fillEllipse(170, 222, 320, 24);
   gen('l7_s3_station', 340, 224);
-
-  // Wet road ground tile 128×80
-  g.clear();
-  grad(128, 80, 0x20242c, 0x101218);
-  // neon reflections shimmering
-  g.fillStyle(0xff3366, 0.07); g.fillRect(20, 10, 16, 70);
-  g.fillStyle(0x33e0ff, 0.06); g.fillRect(70, 14, 14, 66);
-  g.fillStyle(0x4a5a6a, 0.18); g.fillRect(0, 0, 128, 8);
-  gen('l7_s3_ground', 128, 80);
 
   // Fuel barrel (red) 60×80
   g.clear();

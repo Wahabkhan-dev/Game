@@ -212,10 +212,10 @@ export class L2_RoadRunScene extends BaseLevelScene {
     this.cameras.main.shake(280, 0.009);
     this.cameras.main.flash(500, 80, 160, 20);
     this._showMessage('Gemma has her supplies! Off to the jungle! 🌿', 3000);
-    this._givePoints(3);
+    // No coins here — coins come ONLY from solving mini-games now.
 
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
+      this.cameras.main.fadeOut(200, 0, 0, 0);
       this.time.delayedCall(650, () => {
         this.registry.set('l2_resumeZone', 2);
         this.scene.start('Level2');

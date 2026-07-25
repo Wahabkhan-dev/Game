@@ -20,7 +20,6 @@ const TASKS = [
   { id:'water',   label:'Fresh Water',   emoji:'💧', color:0xD0EEFF },
   { id:'towels',  label:'Soft Towel',    emoji:'🧺', color:0xFFEED0 },
   { id:'blanket', label:'Cozy Blanket',  emoji:'🧣', color:0xEDD0FF },
-  { id:'nursery', label:'Nursery Setup', emoji:'🧸', color:0xFFD8E8 },
 ];
 
 // ── Layout constants ──────────────────────────────────────────────────────
@@ -55,7 +54,6 @@ export class Level5Scene extends Phaser.Scene {
       towels:      'towels_stack',
       blanket:     'blanket',
       basket:      'puppy_basket',
-      nursery:     'nursery',
       gemma_lying: 'gemma_lying',
       gemma_lying_blanket: 'gemma_lying_blanket',
       puppy:          'puppy',
@@ -90,7 +88,7 @@ export class Level5Scene extends Phaser.Scene {
     });
     // maps both task IDs (heart/water/...) and prop names to texture keys
     this._propTextures = {
-      heart:'stethoscope', water:'water_bowl', towels:'towels', blanket:'blanket', nursery:'nursery',
+      heart:'stethoscope', water:'water_bowl', towels:'towels', blanket:'blanket',
       stethoscope:'stethoscope', water_bowl:'water_bowl',
     };
 
@@ -98,7 +96,7 @@ export class Level5Scene extends Phaser.Scene {
     if (footer) footer.style.display = 'none';
 
     this.cameras.main.setBackgroundColor('#6B4423');
-    this.cameras.main.fadeIn(700, 107, 68, 35);
+    this.cameras.main.fadeIn(220, 107, 68, 35);
 
     this._buildRoom();
     this._buildHeader();
@@ -328,14 +326,6 @@ export class Level5Scene extends Phaser.Scene {
         const bl = this.add.rectangle(this._bedCX, this._bedCY + 10, 210, 36, 0xCC88FF, 0.28).setDepth(9);
         this._roomDecors.push(bl);
         this.tweens.add({ targets: bl, alpha: 0.18, duration: 1800, yoyo: true, repeat: -1 });
-      },
-      // 4 nursery: stars & bear appear top-left
-      () => {
-        ['⭐','🧸','✨'].forEach((em, j) => {
-          const d = this.add.text(28 + j * 28, MID_Y + MID_H * 0.18, em, { fontSize: '14px' }).setDepth(8).setAlpha(0);
-          this.tweens.add({ targets: d, alpha: 1, duration: 500, delay: j * 150 });
-          this._roomDecors.push(d);
-        });
       },
     ];
     if (decors[taskIdx]) decors[taskIdx]();
@@ -834,153 +824,6 @@ export class Level5Scene extends Phaser.Scene {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TASK 5 — Nursery Setup: place 3 items into a wall display frame
-  // ═══════════════════════════════════════════════════════════════════════
-  _buildTask_nursery() {
-    let placed = 0;
-
-    this._io(this.add.text(L_W / 2, BOT_Y - 20,
-      'Drag each item into its spot in the nursery frame! 🧸',
-      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
-
-    // ── WALL FRAME ───────────────────────────────────────────────────────
-    const fx = L_W / 2 - 10;          // center of left area
-    const fy = MID_Y + MID_H * 0.53;  // vertical center
-    const fw = 400, fh = 175;
-
-    // Drop shadow
-    const frG = this._io(this.add.graphics().setDepth(12));
-    frG.fillStyle(0xAA8060, 0.18);
-    frG.fillRoundedRect(fx - fw / 2 + 5, fy - fh / 2 + 6, fw, fh, 16);
-
-    // Outer frame (warm wood)
-    frG.fillStyle(0xD4A060, 1);
-    frG.fillRoundedRect(fx - fw / 2, fy - fh / 2, fw, fh, 16);
-    frG.lineStyle(3, 0xB87830, 1);
-    frG.strokeRoundedRect(fx - fw / 2, fy - fh / 2, fw, fh, 16);
-
-    // Inner border ring
-    frG.lineStyle(2, 0xF0C870, 0.7);
-    frG.strokeRoundedRect(fx - fw / 2 + 7, fy - fh / 2 + 7, fw - 14, fh - 14, 11);
-
-    // Interior creamy background
-    frG.fillStyle(0xFFF8F2, 1);
-    frG.fillRoundedRect(fx - fw / 2 + 12, fy - fh / 2 + 12, fw - 24, fh - 24, 9);
-
-    // Small corner rosettes (decorative dots)
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
-      frG.fillStyle(0xC88838, 1);
-      frG.fillCircle(fx + sx * (fw / 2 - 8), fy + sy * (fh / 2 - 8), 5);
-    });
-
-    // Frame title banner
-    frG.fillStyle(0xF5C048, 1);
-    frG.fillRoundedRect(fx - 72, fy - fh / 2 + 12, 144, 22, 6);
-    this._io(this.add.text(fx, fy - fh / 2 + 23, '✦  Nursery Corner  ✦',
-      { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#7A4A10', fontStyle: 'bold italic' })
-      .setOrigin(0.5).setDepth(14));
-
-    // ── 3 DISPLAY SLOTS inside the frame ─────────────────────────────────
-    const slotY = fy + 14;
-    const slotXs = [fx - 126, fx, fx + 126];
-    const slotLabels = ['Teddy 🧸', 'Bottle 🍼', 'Star ⭐'];
-    const slots = slotXs.map((sx, si) => {
-      // Dashed circle slot hint
-      const sG = this._io(this.add.graphics().setDepth(13));
-      sG.fillStyle(0xF0E4D0, 0.85);
-      sG.fillCircle(sx, slotY, 38);
-      sG.lineStyle(2.5, 0xD4B080, 0.9);
-      sG.strokeCircle(sx, slotY, 38);
-      // Slot label underneath
-      this._io(this.add.text(sx, slotY + 50, slotLabels[si],
-        { fontSize: '8px', fontFamily: 'Georgia, serif', color: '#C09060' }).setOrigin(0.5).setDepth(13));
-      // Question mark hint
-      const qm = this._io(this.add.text(sx, slotY, '?',
-        { fontSize: '26px', color: '#D4A870', fontStyle: 'bold' }).setOrigin(0.5).setDepth(14));
-      return { x: sx, y: slotY, occupied: false, slotG: sG, hint: qm };
-    });
-
-    // Counter below frame
-    const ctr = this._io(this.add.text(fx, fy + fh / 2 - 10, '0 / 3 placed',
-      { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#A08050', fontStyle: 'bold' })
-      .setOrigin(0.5).setDepth(14));
-
-    // ── DRAGGABLE ITEMS (scattered around frame, clear of slots) ────────
-    [
-      { e: '🧸', x: 52,  y: MID_Y + MID_H * 0.28 },
-      { e: '🍼', x: 500, y: MID_Y + MID_H * 0.35 },
-      { e: '⭐', x: 55,  y: MID_Y + MID_H * 0.76 },
-    ].forEach(({ e, x, y }, ii) => {
-      // Item background bubble
-      const bubG = this._io(this.add.graphics().setDepth(14));
-      bubG.fillStyle(0xFFEEDD, 0.92);
-      bubG.fillCircle(x, y, 30);
-      bubG.lineStyle(2, 0xFFCC88, 1);
-      bubG.strokeCircle(x, y, 30);
-
-      const item = this._io(
-        this.add.text(x, y, e, { fontSize: '38px' }).setOrigin(0.5).setDepth(15)
-          .setInteractive({ draggable: true, useHandCursor: true })
-      );
-      item._sx = x; item._sy = y;
-      this.input.setDraggable(item);
-
-      item.on('drag', (_, dx, dy) => {
-        item.x = dx; item.y = dy;
-        bubG.clear();
-        bubG.fillStyle(0xFFEEDD, 0.7);
-        bubG.fillCircle(dx, dy, 30);
-      });
-
-      item.on('dragend', () => {
-        if (item._used) return;
-        // Find nearest unoccupied slot within range
-        let best = null, bestD = 9999;
-        slots.forEach(s => {
-          if (!s.occupied) {
-            const d = Phaser.Math.Distance.Between(item.x, item.y, s.x, s.y);
-            if (d < bestD) { bestD = d; best = s; }
-          }
-        });
-        if (best && bestD < 72) {
-          best.occupied = true;
-          item._used = true;
-          item.disableInteractive();
-          placed++;
-          // Hide bubble and hint
-          bubG.clear();
-          best.hint.setAlpha(0);
-          // Redraw slot as filled (golden ring)
-          best.slotG.clear();
-          best.slotG.fillStyle(0xFFF4E0, 1);
-          best.slotG.fillCircle(best.x, best.y, 38);
-          best.slotG.lineStyle(3, 0xF5C042, 1);
-          best.slotG.strokeCircle(best.x, best.y, 38);
-          // Snap item into slot
-          this.tweens.add({ targets: item, x: best.x, y: best.y, scaleX: 1.1, scaleY: 1.1,
-            duration: 220, ease: 'Back.easeOut',
-            onComplete: () => this.tweens.add({ targets: item, scaleX: 1, scaleY: 1, duration: 100 }) });
-          this._sparkle(best.x, best.y);
-          ctr.setText(`${placed} / 3 placed`);
-          if (placed === 3) {
-            ctr.setText('✨ Nursery ready!').setStyle({ color: '#44AA44', fontSize: '10px' });
-            this.cameras.main.flash(90, 255, 220, 100);
-            this.time.delayedCall(600, () => this._completeTask(4, '🧸 The nursery is perfect!'));
-          }
-        } else {
-          // Snap back
-          this.tweens.add({ targets: item, x: item._sx, y: item._sy, duration: 260, ease: 'Back.easeOut' });
-          bubG.clear();
-          bubG.fillStyle(0xFFEEDD, 0.92);
-          bubG.fillCircle(item._sx, item._sy, 30);
-          bubG.lineStyle(2, 0xFFCC88, 1);
-          bubG.strokeCircle(item._sx, item._sy, 30);
-        }
-      });
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
   // TRANSITION → PUPPY PHASE
   // ═══════════════════════════════════════════════════════════════════════
   _startPuppyPhase() {
@@ -1206,7 +1049,7 @@ export class Level5Scene extends Phaser.Scene {
     this.time.delayedCall(2200, () => {
       this._hideHUD(); // so the video (and the modal after it) render truly full-screen
       playVideoOverlay(this, 'l5_conclusion', () => {
-        try { this.registry.set('points', (this.registry.get('points') || 0) + 1000); } catch (_) {}
+        // Treatment/care finale awards NO coins — coins come ONLY from mini-games.
         try { localStorage.setItem('shadowgamma_level5_done', '1'); } catch (_) {}
         const points = this.registry.get('points') || 0;
         showLevelCompleteModal(this, points, { nextLevelKey: 'Level6' });

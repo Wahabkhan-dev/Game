@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { BaseLevelScene } from '../BaseLevelScene.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L2_GlendaSkin.js';
-import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVisuals, transitionToL1Visuals } from './L2_Scenery.js';
+import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVisuals, transitionToL1Visuals, forceFinishL1Transition } from './L2_Scenery.js';
 import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
@@ -32,13 +32,13 @@ export class Level2Scene extends BaseLevelScene {
   // is never shown over ANY Level 2 cinematic — hidden for the video's whole
   // duration, restored once it ends (matches the same hide/show _launchCheckpoint
   // already does around mini-games).
-  _playL2Video(key, onDone) {
+  _playL2Video(key, onDone, opts = {}) {
     const footer = document.getElementById('game-footer');
     if (footer) footer.style.display = 'none';
     this._playVideoOverlay(key, () => {
       if (footer) footer.style.display = 'flex';
       if (onDone) onDone();
-    });
+    }, opts);
   }
 
   _handleGameOver() {
@@ -51,7 +51,7 @@ export class Level2Scene extends BaseLevelScene {
       this.shadow.setAlpha(1);
       showTryAgainModal(this, () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(550, () => this.scene.restart());
+        this.time.delayedCall(210, () => this.scene.restart());
       });
     });
   }
@@ -78,7 +78,18 @@ export class Level2Scene extends BaseLevelScene {
         this._checkpointY = 370;
       }
       this._resetTimer(zoneTimer);
-      this._loseLife(0.012);
+      // Time-up only costs 1 sub-health pip, like any other hazard hit —
+      // only falling into a gap costs a full life (see _onFallDeath).
+      // A life is lost only once HP is already at 0 when time also runs out.
+      this._shadowHP--;
+      this._updateHPDots();
+      if (this._shadowHP <= 0) {
+        this._loseLife(0.012);
+      } else {
+        // Same teleport-to-checkpoint animation _loseLife uses — it clears
+        // _isDying itself once the fade/teleport finishes.
+        this._respawnAtCheckpoint();
+      }
     });
   }
 
@@ -194,19 +205,6 @@ export class Level2Scene extends BaseLevelScene {
       gr.lineBetween(g.x + g.w +  9, top - 3,  g.x + g.w,     top + 3);
       gr.lineBetween(g.x + g.w + 20, top + 9,  g.x + g.w + 4, top + 7);
 
-      // Bouncing JUMP hint above each hole
-      const cx = g.x + g.w / 2;
-      const arrow = this.add.text(cx, H - 72, '⬆', {
-        fontSize: '18px', color: '#ffee44',
-        stroke: '#1a1008', strokeThickness: 3
-      }).setOrigin(0.5).setDepth(9);
-      this.tweens.add({ targets: arrow, y: H - 84, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-      const jumpTxt = this.add.text(cx, H - 96, 'JUMP!', {
-        fontSize: '10px', fontFamily: 'Georgia, serif',
-        color: '#ffe080', stroke: '#1a0802', strokeThickness: 2
-      }).setOrigin(0.5).setDepth(9);
-      this.tweens.add({ targets: jumpTxt, alpha: 0.3, duration: 480, yoyo: true, repeat: -1 });
     });
 
     // ── Street lamps (Zone 1) — placed mid-segment, never near holes ─────
@@ -255,19 +253,6 @@ export class Level2Scene extends BaseLevelScene {
     });
 
     // ── Zone 1 Section A: Falling construction debris (x=1500–3100) ───────
-    // Warning signs at construction zone entrance
-    const cSign = this.add.graphics().setDepth(9);
-    cSign.fillStyle(0xffaa00, 0.92); cSign.fillRect(1460, H - 82, 100, 42);
-    cSign.lineStyle(3, 0xcc6600, 1); cSign.strokeRect(1460, H - 82, 100, 42);
-    this.add.text(1510, H - 71, '⚠️ DANGER', {
-      fontSize: '10px', fontFamily: 'Georgia, serif',
-      color: '#1a0800', stroke: '#ffee00', strokeThickness: 1
-    }).setOrigin(0.5).setDepth(10);
-    this.add.text(1510, H - 57, 'FALLING DEBRIS', {
-      fontSize: '8px', fontFamily: 'Georgia, serif',
-      color: '#1a0800'
-    }).setOrigin(0.5).setDepth(10);
-
     // Orange hazard tape across ground in debris zone
     for (let tx = 1520; tx < 3100; tx += 120) {
       this.add.rectangle(tx, H - 34, 60, 7, tx % 240 < 120 ? 0xff7700 : 0x111111, 0.6).setDepth(7);
@@ -308,18 +293,6 @@ export class Level2Scene extends BaseLevelScene {
     });
 
     // ── Zone 1 Section B: Rolling barrel waves (x=3100–5800) ──────────────
-    // Barrel run zone sign
-    const bSign = this.add.graphics().setDepth(9);
-    bSign.fillStyle(0xcc2200, 0.88); bSign.fillRect(3055, H - 80, 100, 38);
-    bSign.lineStyle(3, 0xff4400, 1); bSign.strokeRect(3055, H - 80, 100, 38);
-    this.add.text(3105, H - 70, '🛢️ BARREL RUN', {
-      fontSize: '10px', fontFamily: 'Georgia, serif',
-      color: '#ffe080', stroke: '#330000', strokeThickness: 1
-    }).setOrigin(0.5).setDepth(10);
-    this.add.text(3105, H - 56, 'JUMP OVER!', {
-      fontSize: '8px', fontFamily: 'Georgia, serif', color: '#ffcc00'
-    }).setOrigin(0.5).setDepth(10);
-
     this._barrelGroup = this.physics.add.group();
     this._barrelZoneEntered = false;
     this.physics.add.overlap(this.shadow, this._barrelGroup, (s, b) => {
@@ -508,48 +481,25 @@ export class Level2Scene extends BaseLevelScene {
       this.cameras.main.flash(300, 20, 140, 80);
       this._showMessage('🗝️ Key 2 found! Find Gemma\'s cage! 🐾');
 
-      // Checkpoint 2 ("Dodge the Hazards") now fires right on Key 2 pickup,
-      // instead of waiting until the player is nearly at Zone 3's entrance.
+      // "Dodge the Hazards" fires right on Key 2 pickup. Deliberately does NOT
+      // move the checkpoint up to here — dying anywhere before Zone 3's
+      // entrance (x=12020) should still send the player back to the Zone 2
+      // entrance (x=6020, saved on zone entry below), a meaningful setback,
+      // rather than reappearing right next to where they just died.
       if (!this._cp2Done) {
         this._cp2Done = true;
         this._launchCheckpoint('L2_Dodge',
           { emoji: '🐍', title: 'Dodge the Hazards', desc: 'Tap each creature before it bites you!' },
           () => {
-            this._saveCheckpoint(K2_X + 20, 360);
             this._showMessage('✅ Path cleared! The dark jungle awaits! 🌑');
           });
       }
     });
 
-    // ── Reach cage overlap ────────────────────────────────────────────────
-    this.physics.add.overlap(this.shadow, this.gemmaInCage, () => {
-      if (this._levelDone || this._unlocking) return;
-      if (this._hasKey1 && this._hasKey2) {
-        this._unlocking = true;
-        this._movementLocked = true;
-        this.shadow.setVelocity(0, 0);
-        if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
-
-        const openCage = () => {
-          this._levelDone = true;
-          this._unlockCage();
-        };
-
-        if (!this._cageVideoPlayed) {
-          this._cageVideoPlayed = true;
-          this._showMessage('🐾 Gemma is free from the cage! 💛');
-          this.time.delayedCall(1400, () => {
-            this._playL2Video('l2_cage_video', openCage);
-          });
-        } else {
-          openCage();
-        }
-      } else if (!this._hintedCage) {
-        this._hintedCage = true;
-        const missing = !this._hasKey1 ? 'Key 1' : 'Key 2';
-        this._showMessage(`You need ${missing} first! 🔑`);
-      }
-    });
+    // ── Reach cage — proximity, not a full body-overlap ─────────────────────
+    // Checked every frame from update() (_checkGemmaReach) instead of a
+    // physics overlap, so the player doesn't have to walk fully into the
+    // cage's hitbox — getting near is enough to trigger it.
 
     // ── State flags ────────────────────────────────────────────────────────
     this._zone2Entered    = false;
@@ -711,6 +661,45 @@ export class Level2Scene extends BaseLevelScene {
     });
   }
 
+  // ── Reach Gemma's cage — proximity check, not a full body-overlap. Being
+  // near is enough; the player doesn't have to walk fully into the hitbox.
+  _checkGemmaReach() {
+    if (this._levelDone || this._unlocking || !this.gemmaInCage || !this.shadow) return;
+    const d = Phaser.Math.Distance.Between(this.shadow.x, this.shadow.y, this.gemmaInCage.x, this.gemmaInCage.y);
+    if (d > 140) return;
+
+    if (this._hasKey1 && this._hasKey2) {
+      this._unlocking = true;
+      // Set _levelDone the instant Gemma is reached — not after the video —
+      // so the countdown timer and Gemma's HP decay both stop right here.
+      // Without this, the timer keeps ticking (and could still hit 0 and
+      // fire a time-up) during the message delay + cage-unlock video, even
+      // though the player has already won and can't do anything about it.
+      this._levelDone = true;
+      this._movementLocked = true;
+      this.shadow.setVelocity(0, 0);
+      if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
+
+      const openCage = () => {
+        this._unlockCage();
+      };
+
+      if (!this._cageVideoPlayed) {
+        this._cageVideoPlayed = true;
+        this._showMessage('🐾 Gemma is free from the cage! 💛');
+        this.time.delayedCall(1400, () => {
+          this._playL2Video('l2_cage_video', openCage);
+        });
+      } else {
+        openCage();
+      }
+    } else if (!this._hintedCage) {
+      this._hintedCage = true;
+      const missing = !this._hasKey1 ? 'Key 1' : 'Key 2';
+      this._showMessage(`You need ${missing} first! 🔑`);
+    }
+  }
+
   // ── Launch a checkpoint mini-game as an overlay (platformer freezes) ───────
   // Pauses THIS scene (position, timer, Gemma-HP all freeze), runs the overlay
   // scene on top, and resumes here + runs onWin() once it emits 'cp-done'.
@@ -791,7 +780,15 @@ export class Level2Scene extends BaseLevelScene {
         // in place — no crossfade visible after the cinematic closes.
         transitionToL1Visuals(this, 1100);
         if (this._roadBgTile) this.tweens.add({ targets: this._roadBgTile, alpha: 0, duration: 800 });
-        this._playL2Video('l2_transition_video', () => {});
+        // Skip is held back 5s (the bg crossfade only takes 1.1s, so it's
+        // always long done by then), and forceFinishL1Transition snaps the
+        // crossfade to its end state the instant the overlay closes either
+        // way — belt and suspenders against an early skip leaving a
+        // half-swapped background visible.
+        this._playL2Video('l2_transition_video', () => {}, {
+          skipDelayMs: 5000,
+          onFinish: () => forceFinishL1Transition(this),
+        });
       }
       this._saveCheckpoint(6020, 360);
       this._resetTimer(90);
@@ -814,20 +811,25 @@ export class Level2Scene extends BaseLevelScene {
     }
 
     // ── Gemma HP decay (Zone 3) ────────────────────────────────────────────
+    // This is a background clock, not something the player can dodge — it
+    // must never cost a full life on its own (that used to cause a Game
+    // Over with no hazard hit, no fall, and time still on the clock). It
+    // now costs 1 sub-health point, same as any other Zone 3 hazard, then
+    // resets so it keeps pressuring the player instead of insta-triggering
+    // again next frame.
     if (this._gemmaHPDecaying && !this._levelDone && !this._puzzleActive) {
       this._gemmaHP -= 0.03;
       if (this._gemmaHP <= 0) {
-        this._gemmaHP = 0;
+        this._gemmaHP = 100;
         this._drawGemmaHP();
-        this._levelDone      = true;
-        this._movementLocked = true;
-        this._showMessage('💔 Gemma\'s health is gone! Try again!');
-        this.cameras.main.shake(400, 0.015);
-        this.time.delayedCall(1500, () => this._loseLife(0.015));
+        this._onHazardHit();
         return;
       }
       this._drawGemmaHP();
     }
+
+    // ── Reach Gemma's cage (proximity, not a full body-overlap) ─────────────
+    if (this._zone3Entered) this._checkGemmaReach();
 
     // ── Zone 3 rain ───────────────────────────────────────────────────────
     if (this._zone3Entered && this._rainDrops) {

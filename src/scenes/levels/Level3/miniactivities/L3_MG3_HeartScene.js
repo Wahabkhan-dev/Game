@@ -11,7 +11,7 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
   create() {
     generateL3Assets(this);
     this.cameras.main.setBackgroundColor('#0d1620');
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this.add.image(W / 2, H / 2, 'l3_hospital_bg').setDisplaySize(W, H).setDepth(-1);
     const l3Frame = applyL3Frame(this);
@@ -195,8 +195,8 @@ export class L3_MG3_HeartScene extends Phaser.Scene {
       stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(40);
     this.time.delayedCall(2200, () => {
-      this.cameras.main.fadeOut(600, 0, 0, 0);
-      this.time.delayedCall(650, () => this.scene.start('L3_MG4'));
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L3_MG4'));
     });
   }
 }

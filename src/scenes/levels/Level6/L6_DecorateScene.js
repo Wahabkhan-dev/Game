@@ -33,7 +33,7 @@ export class L6_DecorateScene extends Phaser.Scene {
   create(data) {
     generateL6Assets(this);
     generateL5StreetAssets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._stars = (data && data.stars) || 0;
 
     this.add.image(W / 2, H / 2, 'l5_garage_bg').setDisplaySize(W, H).setDepth(-20);

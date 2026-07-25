@@ -22,7 +22,7 @@ export class L6_NurseryScene extends Phaser.Scene {
   create(data) {
     generateL6Assets(this);
     this._stars = (data && data.stars) || 0;
-    this.cameras.main.fadeIn(800, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('l5_garage_bg'))
       this.add.image(W / 2, H / 2, 'l5_garage_bg').setDisplaySize(W, H).setDepth(-30).setTint(0xc8c0d0);
@@ -69,7 +69,7 @@ export class L6_NurseryScene extends Phaser.Scene {
   // ── FINAL CUTSCENE ────────────────────────────────────────────────────────────
   _finale() {
     this.children.removeAll();
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('l5_garage_bg'))
       this.add.image(W / 2, H / 2, 'l5_garage_bg').setDisplaySize(W, H).setDepth(-30).setTint(0xfff2d8);
@@ -134,7 +134,7 @@ export class L6_NurseryScene extends Phaser.Scene {
   }
 
   _reward() {
-    try { this.registry.set('points', (this.registry.get('points') || 0) + 1000); } catch (_) {}
+    // Nursery setup awards NO coins — coins come ONLY from solving mini-games.
     try { localStorage.setItem('shadowgamma_level5_done', '1'); } catch (_) {}
     this.cameras.main.zoomTo(1, 600);
     const ov = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0).setDepth(60).setScrollFactor(0);
@@ -147,8 +147,8 @@ export class L6_NurseryScene extends Phaser.Scene {
     this.add.text(W / 2, H / 2 - 16, `⭐ Score: ${this._stars} · 🐶 7 puppies named!`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#8a5a30' }).setOrigin(0.5).setDepth(62).setScrollFactor(0);
     const menu = this.add.text(W / 2 - 70, H / 2 + 66, '🏠 Menu', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 18, y: 10 } }).setOrigin(0.5).setDepth(62).setScrollFactor(0).setInteractive({ useHandCursor: true });
     const next = this.add.text(W / 2 + 70, H / 2 + 66, '▶ Next Level', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#5b6cff', padding: { x: 16, y: 10 } }).setOrigin(0.5).setDepth(62).setScrollFactor(0).setInteractive({ useHandCursor: true });
-    menu.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); });
-    next.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('L7_Cutscene', { lives: 3, points: 0 })); });
+    menu.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('Menu')); });
+    next.on('pointerdown', () => { this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(210, () => this.scene.start('L7_Cutscene', { lives: 3, points: 0 })); });
   }
 
   _sparkle(x, y) { for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22; const s = this.add.text(x, y, '✨', { fontSize: '15px' }).setDepth(30); this.tweens.add({ targets: s, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0, duration: 600, onComplete: () => s.destroy() }); } }

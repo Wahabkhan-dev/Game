@@ -103,11 +103,10 @@ export class L2_FirefliesScene extends Phaser.Scene {
     if (this._done) return;
     this._done = true;
     this.cameras.main.flash(600, 150, 200, 80);
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
+    // No coins here — coins come ONLY from solving mini-games now.
     this._flies.forEach((f, k) => this.time.delayedCall(k * 120, () => this._flash(k, 0xffffaa)));
     this.add.text(W / 2, H / 2 + 62, '✅ The path is lit!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#ccffaa', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
-    this.add.text(W / 2, H / 2 + 96, `+2 ⭐   (Total: ${total})`, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
+    this.add.text(W / 2, H / 2 + 96, '✨ Nice work!', { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.time.delayedCall(1500, () => this.events.emit('cp-done'));
   }
 
@@ -116,6 +115,6 @@ export class L2_FirefliesScene extends Phaser.Scene {
     this._done = true;
     this.cameras.main.shake(300, 0.012);
     this.add.text(W / 2, H / 2 + 70, msg + '  Try again!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#ff7070', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
-    this.time.delayedCall(1700, () => this.scene.restart());
+    this.time.delayedCall(210, () => this.scene.restart());
   }
 }

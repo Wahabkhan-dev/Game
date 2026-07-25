@@ -5,7 +5,7 @@ export class Cinematic1Scene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0a0502');
-    this.cameras.main.fadeIn(800, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     const panels = [
       { text: "A quiet forest...\nRain falls softly.", delay: 0 },
@@ -65,7 +65,7 @@ export class Cinematic1Scene extends Phaser.Scene {
 
     panels.forEach((p, i) => {
       this.time.delayedCall(p.delay, () => {
-        this.cameras.main.fadeIn(400, 0, 0, 0);
+        this.cameras.main.fadeIn(220, 0, 0, 0);
         if (p.title) this.panelText.setStyle({ fontSize: '24px', color: '#f5c87a' });
         this.panelText.setText(p.text);
         this.tweens.add({ targets: this.panelText, alpha: { from: 0, to: 1 }, duration: 600 });
@@ -91,8 +91,8 @@ export class Cinematic1Scene extends Phaser.Scene {
   }
 
   _startGame() {
-    this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.time.delayedCall(650, () => this.scene.start('Level1'));
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.time.delayedCall(210, () => this.scene.start('Level1'));
   }
 
   update() {

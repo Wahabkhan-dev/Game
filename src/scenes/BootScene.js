@@ -149,7 +149,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.png');
     this.load.image('l3_med_ok',      'assets/images/Level 3/l3_med_ok.png');
     this.load.image('l3_med_wrong',   'assets/images/Level 3/l3_med_wrong.png');
-    this.load.image('l3_syringe',     'assets/images/Level 3/l3_syringe.png');
+    this.load.image('l3_syringe',     'assets/images/all/hurdle/injection.png');
     this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
     this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
     this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');

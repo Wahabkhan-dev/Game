@@ -63,6 +63,20 @@ const PITS = [
   { x: 3750, hw: 80 },
 ];
 
+// Each ground-obstacle PNG has a chunk of transparent canvas padding below
+// the actual visible art (measured from the source alpha channel — the real
+// artwork ends well above the canvas edge), as a fraction of the image's
+// native height. Centring these sprites via setDisplaySize alone puts that
+// padding at the bottom of the display box, so the object visibly floats
+// above the path; nudging each one down by (fraction × its display height)
+// puts its real base flush on the ground instead.
+const OBS_BOTTOM_PAD = {
+  l8_obs_pot:    0.060,
+  l8_obs_branch: 0.238,
+  l8_obs_toybox: 0.189,
+  l8_obs_crate:  0.134,
+};
+
 export class L8_FoodRunScene extends L8BaseScene {
   constructor() { super('L8_FoodRun'); }
 
@@ -124,7 +138,7 @@ export class L8_FoodRunScene extends L8BaseScene {
 
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = 0;
     this._done      = false;
@@ -221,10 +235,11 @@ export class L8_FoodRunScene extends L8BaseScene {
     this._gObjs = OBS_GROUND.map(o => {
       const src = this.textures.get(o.tex).getSourceImage();
       const w   = o.h * (src.width / src.height);
+      const pad = (OBS_BOTTOM_PAD[o.tex] || 0) * o.h;
       // soft contact shadow so it reads as planted on the path
       const sh = this.add.graphics({ x: o.x, y: baseY }).setDepth(10);
       sh.fillStyle(0x000000, 0.22); sh.fillEllipse(0, 0, w + 16, 11);
-      const spr = this.add.image(o.x, baseY - o.h / 2, o.tex)
+      const spr = this.add.image(o.x, baseY - o.h / 2 + pad, o.tex)
         .setOrigin(0.5, 0.5).setDisplaySize(w, o.h).setDepth(11);
       // gentle idle bob (skip flat puddles)
       if (!o.flat) this.tweens.add({

@@ -2,40 +2,53 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 const PUP_X = W / 2 + 30, PUP_Y = 300;
-const PUP_TINTS = [0xfff0e0, 0xc89858, 0x9a7040];
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 5 — TREAT THE PUPPIES  (veterinary hospital, emotional)
 // Pup 1: temperature + medicine • Pup 2: heartbeat + injection • Pup 3: bandage + recovery
+//
+// Background is Level 3's real hospital art (l3_hospital_bg, already loaded
+// globally by BootScene) and the puppy is Level 5's real puppy_in_basket.png
+// (own key below, so Level 5's own preload is untouched). Treatment is
+// divided evenly, 2 tasks per dog — once a dog's 2nd task is done, the puppy
+// vanishes in a sparkle burst and a fresh one pops in for the next dog.
 // ════════════════════════════════════════════════════════════════════════════
 export class L7_Stage5Scene extends L7BaseScene {
   constructor() { super('L7_Stage5'); }
 
+  preload() {
+    if (!this.textures.exists('l7_s5_puppy_basket')) {
+      this.load.image('l7_s5_puppy_basket', 'assets/images/Level 5/treatment/puppy_in_basket.png');
+    }
+  }
+
   create() {
     generateL7Assets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this.cameras.main.setBackgroundColor('#c4d2da');
 
-    this.add.image(W / 2, H / 2, 'l7_s5_bg').setDisplaySize(W, H).setDepth(-10);
+    const bgKey = this.textures.exists('l3_hospital_bg') ? 'l3_hospital_bg' : 'l7_s5_bg';
+    this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H).setDepth(-10);
     this.add.image(PUP_X, PUP_Y + 56, 'l7_exam_table').setOrigin(0.5, 1).setDisplaySize(250, 106).setDepth(2);
 
-    // Gamma watches over from the side
-    this._gamma = this.add.image(120, 392, 'l7_gamma').setOrigin(0.5, 1).setDisplaySize(160, 112).setDepth(3);
-    this.tweens.add({ targets: this._gamma, y: 388, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    // The puppy on the table
-    this._puppy = this.add.image(PUP_X, PUP_Y, 'l7_puppy').setDisplaySize(120, 88).setDepth(5).setTint(PUP_TINTS[0]);
-    this.tweens.add({ targets: this._puppy, scaleX: { from: 0.55, to: 0.57 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    // patients status (3 pups)
-    this._patientIcons = [];
-    for (let i = 0; i < 3; i++) {
-      const ic = this.add.image(W - 150 + i * 44, 70, 'l7_puppy').setDisplaySize(40, 30).setDepth(61).setTint(PUP_TINTS[i]).setAlpha(0.45);
-      this.add.text(W - 150 + i * 44, 90, `P${i + 1}`, { fontSize: '9px', color: '#456' }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-      this._patientIcons.push(ic);
-    }
+    // The puppy on the table — real art (puppy_in_basket.png), no per-pup
+    // tint (a flat color wash would just muddy the real illustration; which
+    // of the 3 pups is active is shown by the task banner text, and by the
+    // magic swap in _setPuppy() when a new dog's turn begins).
+    this._puppyKey = this.textures.exists('l7_s5_puppy_basket') ? 'l7_s5_puppy_basket' : 'l7_puppy';
+    const pupSrc = this.textures.get(this._puppyKey).getSourceImage();
+    this._puppyDispH = 100; this._puppyDispW = this._puppyDispH * (pupSrc.width / pupSrc.height);
+    this._puppy = this.add.image(PUP_X, PUP_Y, this._puppyKey).setDisplaySize(this._puppyDispW, this._puppyDispH).setDepth(5);
+    // Base scale from setDisplaySize() above — the breathing/pop tweens below
+    // scale RELATIVE to this, never as an absolute value (an absolute value
+    // tuned for the old tiny procedural texture would blow the real image up
+    // to several times its intended size once swapped onto this image's
+    // actual native pixel dimensions).
+    this._puppyBaseScale = this._puppy.scaleX;
+    this._breathe();
 
     this.buildStageHUD(5, 'Treat the Puppies',
       ['Pup 1 — temperature', 'Pup 1 — medicine', 'Pup 2 — heartbeat', 'Pup 2 — injection', 'Pup 3 — bandage', 'Pup 3 — recovery']);
@@ -44,16 +57,47 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.time.delayedCall(600, () => this._beginTask(1));
   }
 
+  // Idle breathing tween — pulled out to its own method so the magic puppy
+  // swap (_setPuppy) can restart it on the freshly-arrived puppy image.
+  _breathe() {
+    this._breatheTween = this.tweens.add({
+      targets: this._puppy, scaleX: this._puppyBaseScale * 0.98, duration: 1100,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+  }
+
   _clearTask() {
     this._taskObjs.forEach(o => { try { this.tweens.killTweensOf(o); if (o.destroy) o.destroy(); } catch (_) {} });
     this._taskObjs = [];
     if (this._taskBanner) { this._taskBanner.destroy(); this._taskBanner = null; }
   }
 
+  // idx===0 is the very first call (the puppy just created in create() is
+  // already showing) — nothing to swap yet. For idx 1/2 (a new dog's turn),
+  // the old puppy vanishes in a sparkle burst and a fresh one pops in, so
+  // treatment reads as 3 distinct dogs handled one at a time, not one dog
+  // re-tinted three times.
   _setPuppy(idx) {
-    this._puppy.setTint(PUP_TINTS[idx]);
+    if (idx === 0) return;
+    const old = this._puppy;
+    this.tweens.killTweensOf(old);
     this.cameras.main.flash(200, 255, 255, 255);
-    this.tweens.add({ targets: this._puppy, scale: { from: 0.45, to: 0.55 }, duration: 350, ease: 'Back.easeOut' });
+    this.sparkleBurst(old.x, old.y, 16);
+    this.tweens.add({
+      targets: old, scale: 0, alpha: 0, angle: 20, duration: 300, ease: 'Back.easeIn',
+      onComplete: () => {
+        old.destroy();
+        const fresh = this.add.image(PUP_X, PUP_Y, this._puppyKey)
+          .setDisplaySize(0, 0).setDepth(5).setAlpha(0);
+        this._puppy = fresh;
+        this.sparkleBurst(PUP_X, PUP_Y, 16);
+        this.tweens.add({
+          targets: fresh, displayWidth: this._puppyDispW, displayHeight: this._puppyDispH,
+          alpha: 1, duration: 340, ease: 'Back.easeOut',
+          onComplete: () => this._breathe(),
+        });
+      },
+    });
   }
 
   _bannerTask(text, color = '#2a4a6a') {
@@ -84,38 +128,21 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.sparkleBurst(PUP_X, PUP_Y, 14);
     this.toast(msg, 1800);
     this._clearTask();
-    // mark patient done after its 2nd task
-    if (objIdx % 2 === 1 || this._task === 6) {
-      const pi = Math.floor((this._task - 1) / 2);
-      if (this._patientIcons[pi]) { this._patientIcons[pi].setAlpha(1); this.tweens.add({ targets: this._patientIcons[pi], scale: { from: 1.4, to: 1 }, duration: 300 }); }
-    }
     if (this._task >= 6) this.time.delayedCall(900, () => this._allSafe());
     else this.time.delayedCall(900, () => this._beginTask(this._task + 1));
   }
 
+  // No "All Puppies Safe!" celebration screen (falling hearts etc.) — the
+  // video is the celebration. Straight into it, then straight into the
+  // level-complete modal once it ends (no automatic scene cut in between).
   _allSafe() {
     this._busy = true;
-    this.add.text(W / 2, H / 2 - 30, '🐾 All Puppies Safe!', {
-      fontSize: '26px', fontFamily: 'Georgia, serif', color: '#2a7a4a', stroke: '#fff', strokeThickness: 4
-    }).setOrigin(0.5).setDepth(80);
-    for (let i = 0; i < 16; i++) {
-      this.time.delayedCall(i * 120, () => {
-        const hX = Phaser.Math.Between(W / 2 - 140, W / 2 + 140);
-        const h = this.add.image(hX, PUP_Y, 'l7_heart').setScale(0.6).setDepth(70);
-        this.tweens.add({ targets: h, y: h.y - 140, alpha: 0, scale: 1.1, duration: 1600, onComplete: () => h.destroy() });
-      });
-    }
-    this.cameras.main.flash(500, 255, 240, 200);
-    this.time.delayedCall(2200, () => {
-      this.registry.set('lives', this._lives);
-      this.registry.set('l7_checkpoint', 'L7_COMPLETE');
-      // V7 plays once all 5 stages are done, then the level truly ends.
-      this.playStoryVideos(['l7_v7'], () => {
-        this.cameras.main.fadeOut(700, 0, 0, 0);
-        this.time.delayedCall(740, () => {
-          this._forceSceneStart('EndScene');
-        });
-      });
+    this.registry.set('lives', this._lives);
+    this.registry.set('l7_checkpoint', 'L7_COMPLETE');
+    // V7 plays once all 5 stages are done, then the level-complete modal.
+    this.playStoryVideos(['l7_v7'], () => {
+      const points = this.registry.get('points') ?? 0;
+      showLevelCompleteModal(this, points, { nextLevelKey: 'EndScene' });
     });
   }
 
@@ -305,7 +332,16 @@ export class L7_Stage5Scene extends L7BaseScene {
         if (d > 4 && Phaser.Math.Distance.Between(p.x, p.y, PUP_X, PUP_Y) < 90) {
           comfort = Math.min(100, comfort + d * 0.12); draw();
           if (Math.random() > 0.7) { const h = this.add.image(p.x, p.y, 'l7_heart').setScale(0.4).setDepth(45); this.tweens.add({ targets: h, y: h.y - 30, alpha: 0, duration: 700, onComplete: () => h.destroy() }); }
-          if (comfort >= 100 && !done) { done = true; this.cameras.main.flash(300, 255, 200, 200); this._puppy.setTint(0xffffff); this.tweens.add({ targets: this._puppy, scale: 0.6, duration: 300, yoyo: true }); this.time.delayedCall(400, () => this._taskDone(5, '❤️ Puppy 3 recovered!')); }
+          if (comfort >= 100 && !done) {
+            done = true;
+            this.cameras.main.flash(300, 255, 200, 200);
+            // Relative pop, same as the puppy-swap animation — an absolute
+            // scale here would blow the real image up to several times its
+            // intended size instead of a gentle happy bounce.
+            const s = this._puppyBaseScale;
+            this.tweens.add({ targets: this._puppy, scale: { from: s, to: s * 1.3 }, duration: 300, yoyo: true });
+            this.time.delayedCall(400, () => this._taskDone(5, '❤️ Puppy 3 recovered!'));
+          }
         }
       }
       lastX = p.x; lastY = p.y;

@@ -61,7 +61,7 @@ export class Level1Scene extends BaseLevelScene {
           this.shadow.setAlpha(1);
           showTryAgainModal(this, () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(550, () => this.scene.restart());
+            this.time.delayedCall(210, () => this.scene.restart());
           });
         });
       });
@@ -93,6 +93,31 @@ export class Level1Scene extends BaseLevelScene {
     this._timerFired = false;
     this._timerTxt.setText(`${seconds}s`);
     this._timerTxt.setColor('#ffe08a');
+  }
+
+  // ── Respawn (life lost, lives remain) ───────────────────────────────────────
+  // Whenever the player respawns at the last checkpoint they crossed:
+  //   • restart THAT zone's timer from full (each zone set _timerFull on entry), and
+  //   • if they died mid-boss-fight, silently re-arm the encounter so no stale
+  //     prompt / attack UI lingers and no intro prompt reappears (those show once).
+  _respawnAtCheckpoint() {
+    this._resetBossEncounterIfActive();
+    if (this._timerFull != null) this._resetTimer(this._timerFull);
+    super._respawnAtCheckpoint();
+  }
+
+  _resetBossEncounterIfActive() {
+    if (this._bossPhase === 'idle' || this._bossPhase === 'defeated') return;
+    this._dismissLightningModal();
+    this._setAttackBtn(false);
+    if (this._snakeHPText) this._snakeHPText.setVisible(false);
+    if (this._attackTxt)   this._attackTxt.setVisible(false);
+    this._bossPhase   = 'idle';      // re-arms approach when the player walks back
+    this._snakeHP     = 3;
+    this._attackCount = 0;
+    this._updateBossHP();
+    if (this.snake) { this.snake.clearTint(); this.snake.x = 16200; }
+    this._snakePaceDir = -1;
   }
 
   create() {
@@ -214,20 +239,20 @@ export class Level1Scene extends BaseLevelScene {
     this.add.text(11550, 348, '⚠️', { fontSize: '22px' }).setDepth(14);
 
     // ── LEVER 1: end of Zone 1 ─────────────────────────────────────────────
-    this._spawnLever(5350, async () => {
+    this._spawnLever(5350, async (resetLever) => {
       const game1 = await pickRandomGame(1);
       if (game1) this._launchMiniGame(game1, () => {
         this._buildBridge(5400, 350);
-      });
+      }, resetLever);   // fail (time up / exit) → re-arm the lever for another try
       else this._freezeForMini = false;   // no game → don't leave the player frozen
     });
 
     // ── LEVER 2: end of Zone 2 ─────────────────────────────────────────────
-    this._spawnLever(11150, async () => {
+    this._spawnLever(11150, async (resetLever) => {
       const game2 = await pickRandomGame(1);
       if (game2) this._launchMiniGame(game2, () => {
         this._buildBridge(11200, 350);
-      });
+      }, resetLever);   // fail (time up / exit) → re-arm the lever for another try
       else this._freezeForMini = false;   // no game → don't leave the player frozen
     });
 
@@ -331,16 +356,27 @@ export class Level1Scene extends BaseLevelScene {
     // ── Zone 3 boss snake — same physics body/HP/attack logic as before, now
     // with the looping 24-frame slither animation instead of a static image.
     ensureSnakeAnim(this);
-    this.snake = this.physics.add.sprite(16200, 385, SNAKE_FIRST_KEY)
-      .setDisplaySize(110, 36).setDepth(9);
+    // Size + ground-anchoring MATCH the Snake Anim Simulator (270×126, origin
+    // bottom-centre) so the boss snake is shown at the real image proportions,
+    // not the old squashed 110×36. y = the TRUE ground line (423, same as the
+    // thorns/porcupines) so the snake rests on the floor at the character's feet
+    // level instead of floating in mid-air.
+    this._snakeGroundY = 423;
+    this.snake = this.physics.add.sprite(16200, this._snakeGroundY, SNAKE_FIRST_KEY)
+      .setOrigin(0.5, 1).setDisplaySize(270, 126).setDepth(9);
     this.snake.play(SNAKE_ANIM_KEY);
-    this.snake.body.setSize(90, 30, true);
+    this.snake.body.setSize(200, 60, true);
     this.snake.body.setAllowGravity(false);
     this._snakeHP            = 3;
     this._bossPhase          = 'idle';   // idle → approach → stunned → attacking → defeated
     this._attackCount        = 0;
     this._snakeLungeCooldown = false;
     this._snakePaceDir       = -1;       // approach phase: paces left↔right, -1=left 1=right
+    // The boss "how to play" prompts (bark, then attack) appear ONLY the first
+    // time the encounter happens. After a death/respawn the fight resumes with no
+    // prompt reappearing — these flags gate that.
+    this._barkPromptShown    = false;
+    this._attackPromptShown  = false;
     this._lightningModalObjs = null;
     this._attackKey          = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
@@ -384,7 +420,10 @@ export class Level1Scene extends BaseLevelScene {
           this._snakeHPText.setVisible(true);
           this._attackTxt.setVisible(true);
           this._setAttackBtn(true);
-          this._showLightningModal('⚡ Press [F] / ⚔️ to ATTACK!\nHit the snake 3 times to save Gemma!', true);
+          if (!this._attackPromptShown) {
+            this._showLightningModal('⚡ Press [F] / ⚔️ to ATTACK!\nHit the snake 3 times to save Gemma!', true);
+            this._attackPromptShown = true;
+          }
         });
       }
     };
@@ -480,45 +519,84 @@ export class Level1Scene extends BaseLevelScene {
     }).setOrigin(0.5).setDepth(12).setAlpha(0);
 
     const glow = this.add.circle(x, baseY - 20, 18, 0xf5c87a, 0.12).setDepth(11);
-    this.tweens.add({ targets: glow, alpha: 0.05, scaleX: 1.3, scaleY: 1.3, duration: 750, yoyo: true, repeat: -1 });
-
-    const zone = this.physics.add.image(x, H - 58, '__DEFAULT')
-      .setAlpha(0).setDisplaySize(70, 70);
-    zone.body.setAllowGravity(false);
+    const startGlowIdle = () => {
+      this.tweens.killTweensOf(glow);
+      glow.setFillStyle(0xf5c87a, 0.12).setAlpha(0.12).setScale(1);
+      this.tweens.add({ targets: glow, alpha: 0.05, scaleX: 1.3, scaleY: 1.3, duration: 750, yoyo: true, repeat: -1 });
+    };
+    startGlowIdle();
 
     let pulled = false;
-    this.physics.add.overlap(this.shadow, zone, () => {
-      if (pulled) return;
-      pulled = true;
-      zone.destroy();
-      hint.destroy();
-      this.tweens.killTweensOf(glow);
+    let zone;
+    let needsRearm = false;
 
-      // Stop Shadow immediately AND keep them stuck here through the lever
-      // animation + the async game pick, so they never drift past the trigger.
-      if (this.shadow && this.shadow.body) this.shadow.setVelocity(0, 0);
-      this._freezeForMini = true;
+    // Re-arms the lever so the mini-activity fires again on the next approach.
+    // Called when the bridge-building mini-game is failed (time runs out) and
+    // the player respawns at the zone start — the lever must be "closed"
+    // again, not permanently spent, or the zone can never be crossed.
+    // The physics trigger itself is NOT recreated here: the player is still
+    // standing exactly on top of it when this fires (frozen through the
+    // mini-game), so an immediate overlap would instantly re-fire it before
+    // they even respawn. Instead the hint-loop below arms it only once the
+    // player has actually walked clear of the spot.
+    const resetLever = () => {
+      try {
+        pulled = false;
+        drawLever(false);
+        leverG.angle = 0;
+        label.setText('⚙ LEVER').setColor('#f5c87a');
+        startGlowIdle();
+        if (zone && zone.active) zone.destroy();
+        zone = null;
+        needsRearm = true;
+      } catch (_) {}
+    };
 
-      this.tweens.add({
-        targets: leverG, angle: 70, duration: 480, ease: 'Back.easeIn',
-        onComplete: () => {
-          drawLever(true);
-          leverG.angle = 70;
-          label.setText('⚙ PULLED!').setColor('#aaffaa');
-          glow.setFillStyle(0x44ff88, 0.22);
-          this.tweens.add({ targets: glow, alpha: 0.08, duration: 600, yoyo: true, repeat: -1 });
-          this.cameras.main.shake(280, 0.01);
-          this._showMessage('⚙ Lever pulled! Solve the puzzle to continue!');
-          this.time.delayedCall(500, () => onPull());
-        }
+    const armZone = () => {
+      zone = this.physics.add.image(x, H - 58, '__DEFAULT')
+        .setAlpha(0).setDisplaySize(70, 70);
+      zone.body.setAllowGravity(false);
+      this.physics.add.overlap(this.shadow, zone, () => {
+        if (pulled) return;
+        pulled = true;
+        zone.destroy();
+        this.tweens.killTweensOf(glow);
+
+        // Stop Shadow immediately AND keep them stuck here through the lever
+        // animation + the async game pick, so they never drift past the trigger.
+        if (this.shadow && this.shadow.body) this.shadow.setVelocity(0, 0);
+        this._freezeForMini = true;
+
+        this.tweens.add({
+          targets: leverG, angle: 70, duration: 480, ease: 'Back.easeIn',
+          onComplete: () => {
+            drawLever(true);
+            leverG.angle = 70;
+            label.setText('⚙ PULLED!').setColor('#aaffaa');
+            glow.setFillStyle(0x44ff88, 0.22);
+            this.tweens.add({ targets: glow, alpha: 0.08, duration: 600, yoyo: true, repeat: -1 });
+            this.cameras.main.shake(280, 0.01);
+            this._showMessage('⚙ Lever pulled! Solve the puzzle to continue!');
+            this.time.delayedCall(500, () => onPull(resetLever));
+          }
+        });
       });
-    });
+    };
+    armZone();
 
     let hintEvt;
     hintEvt = this.time.addEvent({
       delay: 200, loop: true, callback: () => {
-        if (pulled || !this.shadow) { hintEvt.remove(); return; }
+        if (!this.shadow) { hintEvt.remove(); return; }
+        if (pulled) { hint.setAlpha(0); return; }
         const d = Phaser.Math.Distance.Between(this.shadow.x, this.shadow.y, x, baseY - 24);
+        if (needsRearm) {
+          // Wait for the player to clear the trigger radius before re-arming,
+          // so the re-armed zone doesn't instantly overlap them again.
+          if (d > 120) { needsRearm = false; armZone(); }
+          hint.setAlpha(0);
+          return;
+        }
         hint.setAlpha(d < 190 ? Math.min(1, (190 - d) / 70) : 0);
       }
     });
@@ -532,6 +610,12 @@ export class Level1Scene extends BaseLevelScene {
 
   _defeatSnake() {
     this._bossPhase = 'defeated';
+    // Gemma is saved — the fight (and its clock) is over. _levelDone pauses
+    // the countdown timer (and Gemma's HP decay, and hazards) for the rest of
+    // the victory sequence, WITHOUT freezing player movement the way
+    // _puzzleActive would — the player needs to be able to walk over to
+    // Gemma next, not stand frozen where the snake fell.
+    this._levelDone = true;
     this._snakeHPText.setText('🐍 Snake defeated! Gemma is safe!');
     this.tweens.add({ targets: this.snake, x: this.snake.x + 500, alpha: 0, duration: 1300, ease: 'Power2' });
     this.cameras.main.shake(450, 0.016);
@@ -542,14 +626,30 @@ export class Level1Scene extends BaseLevelScene {
       ).setDepth(60);
       this.tweens.add({ targets: sp, x: sp.x + (Math.random() - 0.5) * 160, y: sp.y - 70, alpha: 0, scale: 2, duration: 950, onComplete: () => sp.destroy() });
     }
+    // Text shows right here, immediately after the defeat effects — NOT after
+    // any later respawn/reappear animation. The video only plays once the
+    // player actually walks up near Gemma (see _checkGemmaApproach in update()).
     this.time.delayedCall(1400, () => {
-      this._playVideoOverlay('l1_conclusion_video', () => this._unlockCage());
+      this._showMessage('🐍 The snake is gone! Go to Gemma! 🐾');
+      this._awaitingGemmaApproach = true;
     });
   }
 
+  // Checked every frame from update() once the snake is defeated — plays the
+  // conclusion video (then unlocks the cage) as soon as the player gets near
+  // Gemma, instead of firing automatically on a fixed timer regardless of
+  // where the player is standing.
+  _checkGemmaApproach() {
+    if (!this._awaitingGemmaApproach || !this.gemmaGoal || !this.shadow) return;
+    const d = Phaser.Math.Distance.Between(this.shadow.x, this.shadow.y, this.gemmaGoal.x, this.gemmaGoal.y);
+    if (d > 150) return;
+    this._awaitingGemmaApproach = false;
+    this._playVideoOverlay('l1_conclusion_video', () => this._unlockCage());
+  }
+
   _unlockCage() {
-    if (this._levelDone) return;
-    this._levelDone = true;
+    if (this._cageUnlocked) return;
+    this._cageUnlocked = true;
     this._showMessage('🐾 Snake defeated! Gemma is safe! Gleeda will free the cage! 💛');
 
     // Cage stays — Gleeda opens it in Level 2
@@ -576,30 +676,37 @@ export class Level1Scene extends BaseLevelScene {
 
     this._destroyGemmaLifeBar();
 
-    // Auto-transition to feed round — no button needed
-    this.time.delayedCall(2200, () => {
-      this._showMessage("GEMMA IS FREE! 🐾💛 Now let's find her some food!", 2000);
-      this.cameras.main.fadeOut(2500, 0, 0, 0);
-      this.time.delayedCall(2600, () => this.scene.start('L1_Food'));
+    // Auto-transition to feed round — no button needed. Was a scripted ~4.8s
+    // pause (2200ms wait + 2500ms fade + 2600ms more) after the video already
+    // finished — trimmed to the same snappy 500/550ms fade every other
+    // level-to-level transition in the game uses, so nothing sits waiting.
+    this.time.delayedCall(300, () => {
+      this._showMessage("GEMMA IS FREE! 🐾💛 Now let's find her some food!", 1200);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(210, () => this.scene.start('L1_Food'));
     });
   }
 
   // ── Gemma life bar — shown in Zone 3 to show urgency ──────────────────────
   _createGemmaLifeBar() {
-    // y shifted below the new premium header banner + hanging timer box
-    const CX = W / 2, BY = 106, BW = 170, BH = 10;
+    // y shifted below the new premium header banner + hanging timer box.
+    // Panel is tall enough to stack the label ABOVE the bar with a clear gap
+    // (the label used to sit at the same height as the bar track, so the
+    // green/yellow/red fill was drawn right over the "GEMMA'S LIFE" text).
+    const CX = W / 2, BY = 120, BW = 170, BH = 10;
+    const PANEL_Y = 92, PANEL_H = 36;
 
     // Outer panel
     const panel = this.add.graphics().setScrollFactor(0).setDepth(34);
     panel.fillStyle(0x1a0904, 0.78);
-    panel.fillRoundedRect(CX - BW / 2 - 4, 92, BW + 8, 24, 5);
+    panel.fillRoundedRect(CX - BW / 2 - 4, PANEL_Y, BW + 8, PANEL_H, 5);
     this._gemmaBarPanel = panel;
 
-    // Label
-    this._gemmaBarLabel = this.add.text(CX, 97, '💛 GEMMA\'S LIFE', {
+    // Label — sits clear of the bar track below it
+    this._gemmaBarLabel = this.add.text(CX, PANEL_Y + 4, '💛 GEMMA\'S LIFE', {
       fontSize: '11px', fontFamily: 'Georgia, serif',
       color: '#ffdd44', stroke: '#1a0802', strokeThickness: 2
-    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(36);
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(37);
 
     // Track background
     this._gemmaBarBG = this.add.graphics().setScrollFactor(0).setDepth(35);
@@ -887,9 +994,13 @@ export class Level1Scene extends BaseLevelScene {
       if (this._bossPhase === 'idle' && sx > 15700) {
         this._bossPhase = 'approach';
         this.cameras.main.shake(400, 0.014);
-        this._showLightningModal(
-          '⚡ The snake is attacking Gemma!\nPress [B] 🐕 to BARK and stop it!', true
-        );
+        // Prompt only the FIRST time — on a retry the player already knows.
+        if (!this._barkPromptShown) {
+          this._showLightningModal(
+            '⚡ The snake is attacking Gemma!\nPress [B] 🐕 to BARK and stop it!', true
+          );
+          this._barkPromptShown = true;
+        }
         // Stop rock rain — focus is now on the boss fight
         if (this._zone3BoulderTimer) { this._zone3BoulderTimer.remove(); this._zone3BoulderTimer = null; }
         // Destroy any existing falling rocks immediately
@@ -899,12 +1010,14 @@ export class Level1Scene extends BaseLevelScene {
       // Snake paces back-and-forth menacingly — does NOT reach cage until time expires
       if (this._bossPhase === 'approach') {
         this.snake.x += this._snakePaceDir * 1.2;
-        this.snake.setFlipX(this._snakePaceDir < 0);
+        // Face the direction of travel — SAME convention as the Snake Simulator
+        // (flipX when moving right); the old `< 0` made it face the wrong way.
+        this.snake.setFlipX(this._snakePaceDir > 0);
         if (this.snake.x > 16530) { this.snake.x = 16530; this._snakePaceDir = -1; }
         if (this.snake.x < 16100) { this.snake.x = 16100; this._snakePaceDir =  1; }
-        // Block Shadow from walking through the snake (body half ~45px + buffer)
-        if (sx >= this.snake.x - 58) {
-          this.shadow.x = this.snake.x - 60;
+        // Block Shadow from walking through the snake (visual half-width ~135px now)
+        if (sx >= this.snake.x - 130) {
+          this.shadow.x = this.snake.x - 132;
           this.shadow.body.setVelocityX(Math.min(0, this.shadow.body.velocity.x));
         }
       }
@@ -915,7 +1028,7 @@ export class Level1Scene extends BaseLevelScene {
         if (bd > 45) {
           const dir = sx > this.snake.x ? 1 : -1;
           this.snake.x += dir * 1.0;
-          this.snake.setFlipX(dir < 0);
+          this.snake.setFlipX(dir > 0);
         }
         if (bd < 60 && !this._snakeLungeCooldown) {
           this._snakeLungeCooldown = true;
@@ -926,6 +1039,11 @@ export class Level1Scene extends BaseLevelScene {
         if (Phaser.Input.Keyboard.JustDown(this._attackKey)) this._doSnakeAttack();
       }
     }
+
+    // Runs even after _levelDone (the snake fight's own block above stops
+    // once _levelDone is set) — walking near Gemma post-victory is what
+    // actually triggers the conclusion video, not a fixed timer.
+    this._checkGemmaApproach();
 
     // ── Collapsing logs ────────────────────────────────────────────────────
     if (this._collapsing) {

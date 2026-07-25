@@ -76,8 +76,9 @@ export class L9_GiftRunScene extends L9BaseScene {
     const B = 'assets/images/level9/';
     const load = (k, path) => { if (!this.textures.exists(k)) this.load.image(k, path); };
     // Real bg/ground art — same fit-height/tile technique as Level 4/8.
-    load('l9_sky',    'assets/images/level 09/bg-l9.jpg');
-    load('l9_ground', 'assets/images/level 09/bottom-l9.jpg');
+    load('l9_sky',      'assets/images/level 09/bg-l9.jpg');
+    load('l9_ground',   'assets/images/level 09/bottom-l9.jpg');
+    load('l9_platform', 'assets/images/level 09/Platform.png');
     ['l9_hills', 'l9_room_bg', 'l9_tree', 'l9_lights', 'l9_house', 'l9_door']
       .forEach(k => load(k, `${B}bg/${k}.png`));
     ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe', 'l9_gift_open']
@@ -100,7 +101,7 @@ export class L9_GiftRunScene extends L9BaseScene {
     generateL9Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 220);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._collected = 0; this._done = false; this._streak = 0; this._dustT = 0;
     this._groundY = GROUND_Y;
@@ -140,15 +141,30 @@ export class L9_GiftRunScene extends L9BaseScene {
   }
 
   _buildLedges() {
+    // The snow-mound art's bounding box already starts almost exactly at its
+    // tallest snow peak (only ~1-2px of transparent margin above it) — the
+    // previous +8 nudge pushed the collision line (and with it, the player's
+    // feet) 8px further down INTO the ~22px-tall sprite, which is what made
+    // her legs visibly poke out below the snow instead of standing on it.
+    // A tiny +2 keeps her feet right at the visible snow line.
+    const STAND_Y_NUDGE = 2;
     LEDGES.forEach(p => {
-      const pl = this._platforms.create(p.x, p.y, 'l9_ground');
-      pl.setDisplaySize(p.w, 18).refreshBody();
-      pl.setTint(0xffffff);
+      const baseY = p.y + STAND_Y_NUDGE;
+      const src = this.textures.get('l9_platform').getSourceImage();
+      const h = Math.round(p.w / (src.width / src.height));
+      const pl = this._platforms.create(p.x, baseY, 'l9_platform');
+      pl.setDisplaySize(p.w, h).refreshBody();
       pl.body.checkCollision.down = false; pl.body.checkCollision.left = false; pl.body.checkCollision.right = false;
       pl.setDepth(6);
-      // a little snow cap line
-      this.add.rectangle(p.x, p.y - 9, p.w, 4, 0xffffff, 0.9).setDepth(7);
-      this.tweens.add({ targets: pl, y: p.y - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      // Floating bob — refreshBody() on every tick keeps the (static) physics
+      // body glued to the animated sprite; without it the collider stays
+      // frozen at the spawn position while the art drifts, which is what
+      // made the player look like she was standing in mid-air with her legs
+      // sunk a little into the platform.
+      this.tweens.add({
+        targets: pl, y: baseY - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        onUpdate: () => pl.refreshBody(),
+      });
     });
   }
 

@@ -37,9 +37,7 @@ export class L4_CP2Scene extends Phaser.Scene {
     this._phase = 'show';
     this._done = false;
 
-    const total = (this.registry.get('points') || 0) + 2;
-    this.registry.set('points', total);
-
+    // No coins here — coins come ONLY from solving mini-games now.
     this.time.delayedCall(700, () => this._showSequence());
   }
 
@@ -96,8 +94,7 @@ export class L4_CP2Scene extends Phaser.Scene {
     this.cameras.main.flash(600, 150, 200, 80);
     this.add.text(W / 2, 210, '🎨 Wall Finished!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.add.text(W / 2, 256, 'Nailed & painted — looking great!', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#bfe0ff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(20);
-    const total = this.registry.get('points');
-    this.add.text(W / 2, 352, `+2 ⭐   (Total: ${total})`, { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
+    this.add.text(W / 2, 352, '✨ Nice work!', { fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ffd86a', stroke: '#0a0502', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
     this.time.delayedCall(2000, () => this.events.emit('cp-done'));
   }
 
@@ -106,6 +103,6 @@ export class L4_CP2Scene extends Phaser.Scene {
     this._done = true;
     this.cameras.main.shake(300, 0.012);
     this.add.text(W / 2, 250, '❌ Wrong pattern!\nTry again!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#ff7070', stroke: '#000', strokeThickness: 3, align: 'center' }).setOrigin(0.5).setDepth(20);
-    this.time.delayedCall(1700, () => this.scene.restart());
+    this.time.delayedCall(210, () => this.scene.restart());
   }
 }

@@ -6,6 +6,13 @@ import { preloadGlendaSkin } from './L7_GlendaSkin.js';
 
 const WORLD_W = 3000;
 const GROUND_Y = 408;
+// Background/ground art seam — same value AND technique as Level 2's own
+// bg/surface pairing (L2_Scenery.js's GROUND_TOP): the background tileSprite
+// is fit to end EXACTLY here, and the ground tileSprite fills from here down
+// to the screen bottom, so the two meet with no gap and no overlap, matching
+// Level 2 pixel-for-pixel. Kept separate from GROUND_Y (the physics/gameplay
+// line) so the swap doesn't nudge the player, barriers, or station anchors.
+const BG_SEAM_Y = 404;
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 3 — FUEL COLLECTION  (rainy highway gas station, neon)
@@ -20,7 +27,9 @@ export class L7_Stage3Scene extends L7BaseScene {
     // Real Gemini art for Stage 3. A procedural placeholder for these keys may
     // already exist (generateL7Assets in an earlier scene); drop it so the real
     // PNG loads. If a file is missing, generateL7Assets() in create() regenerates it.
-    ['l7_s3_sky', 'l7_s3_ground', 'l7_s3_station', 'l7_barrel', 'l7_generator',
+    // (Sky/ground are NOT in this list — Stage 3 uses Level 2's l2_bg/l2_surface,
+    // already loaded globally by BootScene, see _buildWorld()/_buildGround().)
+    ['l7_s3_station', 'l7_barrel', 'l7_generator',
      'l7_barrier', 'l7_pipe_straight', 'l7_pipe_elbow', 'l7_fuelcan']
       .forEach(k => { if (this.textures.exists(k)) this.textures.remove(k); this.load.image(k, `${P}${k}.png`); });
     // reused jeep from Stage 2
@@ -43,7 +52,7 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.setBackgroundColor('#0c1020');
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     this._fuel = 0;          // 0..100
     this._stationsDone = {};
@@ -63,24 +72,49 @@ export class L7_Stage3Scene extends L7BaseScene {
   }
 
   _buildWorld() {
-    // full-scene night roadside backdrop, scaled to fit the viewport height; the
-    // existing update() parallax (tilePositionX) then drifts it gently.
-    this._sky = this.add.tileSprite(W / 2, H / 2, W, H, 'l7_s3_sky').setScrollFactor(0).setDepth(-30);
-    const sky = this.textures.get('l7_s3_sky').getSourceImage();
-    if (sky && sky.height) this._sky.tileScaleX = this._sky.tileScaleY = H / sky.height;
-    // gas station building near the right (aspect-preserved)
+    // Background — Level 2's own bg art (l2_bg, already loaded globally by
+    // BootScene), fit to end EXACTLY at BG_SEAM_Y so it meets the ground
+    // strip below with no gap/overlap — same technique AND seam value as
+    // L2_Scenery.js's buildL2Background(). The existing update() parallax
+    // (tilePositionX) then drifts it gently, same as before.
+    this._sky = null;
+    if (this.textures.exists('l2_bg')) {
+      const src = this.textures.get('l2_bg').getSourceImage();
+      const srcH = src.naturalHeight || src.height;
+      this._sky = this.add.tileSprite(W / 2, BG_SEAM_Y / 2, W, BG_SEAM_Y, 'l2_bg').setScrollFactor(0).setDepth(-30);
+      this._sky.tileScaleX = this._sky.tileScaleY = BG_SEAM_Y / srcH;
+    } else {
+      this.add.rectangle(W / 2, BG_SEAM_Y / 2, W, BG_SEAM_Y, 0x0a1a0a).setScrollFactor(0).setDepth(-30);
+    }
+    // gas station building near the right (aspect-preserved). l7_s3_station.png
+    // has a wide band of transparent canvas padding below the building's
+    // actual visible base (measured from the source alpha channel — the real
+    // artwork ends well above the canvas edge), so anchoring at GROUND_Y+10
+    // left a visible gap floating above the road. Nudging the anchor down by
+    // that padding (scaled to the display size) puts the building's real
+    // base flush on the new ground art instead.
+    const STATION_Y_NUDGE = 38;
     const [stw, sth] = this._wh('l7_s3_station', 224);
-    this.add.image(2750, GROUND_Y + 10, 'l7_s3_station').setOrigin(0.5, 1).setDisplaySize(stw, sth).setDepth(2);
+    this.add.image(2750, GROUND_Y + 10 + STATION_Y_NUDGE, 'l7_s3_station').setOrigin(0.5, 1).setDisplaySize(stw, sth).setDepth(2);
     // a parked jeep at the start (the one that ran dry)
     const [jw, jh] = this._wh('l7_jeep_side', 118);
     this.add.image(180, GROUND_Y + 12, 'l7_jeep_side').setOrigin(0.5, 1).setDisplaySize(jw, jh).setDepth(3).setAlpha(0.97);
   }
 
   _buildGround() {
-    const stripH = 90;
-    const ground = this.add.tileSprite(WORLD_W / 2, GROUND_Y + stripH / 2 - 6, WORLD_W, stripH, 'l7_s3_ground').setDepth(5);
-    const gs = this.textures.get('l7_s3_ground').getSourceImage();
-    if (gs && gs.height) ground.tileScaleX = ground.tileScaleY = stripH / gs.height;  // fit the wet-road texture into the strip
+    // Ground — Level 2's own road art (l2_surface), filling from BG_SEAM_Y
+    // all the way down to the screen bottom — same technique as
+    // L2_Scenery.js's buildL2Ground() (one continuous strip; Stage 3 has no
+    // fall-through gaps, so no need for L2's per-segment splitting).
+    const bandH = H - BG_SEAM_Y;
+    if (this.textures.exists('l2_surface')) {
+      const src = this.textures.get('l2_surface').getSourceImage();
+      const srcH = src.naturalHeight || src.height;
+      const ground = this.add.tileSprite(WORLD_W / 2, BG_SEAM_Y + bandH / 2, WORLD_W, bandH, 'l2_surface').setDepth(5);
+      ground.tileScaleX = ground.tileScaleY = bandH / srcH;
+    } else {
+      this.add.rectangle(WORLD_W / 2, BG_SEAM_Y + bandH / 2, WORLD_W, bandH, 0x1a1a1a).setDepth(5);
+    }
     const body = this.add.rectangle(WORLD_W / 2, GROUND_Y + 16, WORLD_W, 28, 0, 0);
     this.physics.add.existing(body, true);
     this._ground = body;

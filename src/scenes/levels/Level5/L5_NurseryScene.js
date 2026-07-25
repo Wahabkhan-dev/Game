@@ -23,7 +23,7 @@ export class L5_NurseryScene extends Phaser.Scene {
   create(data) {
     generateL5Assets(this);
     this._stars = (data && data.stars) || 0;
-    this.cameras.main.fadeIn(800, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     // The conclusion video already told the "puppies arrive" story — skip
     // straight to the reward modal, no extra decorating and no separate
@@ -83,7 +83,7 @@ export class L5_NurseryScene extends Phaser.Scene {
   // ── FINAL CUTSCENE ────────────────────────────────────────────────────────────
   _finale() {
     this.children.removeAll();
-    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
 
     if (this.textures.exists('l5_garage_bg'))
       this.add.image(W / 2, H / 2, 'l5_garage_bg').setDisplaySize(W, H).setDepth(-30).setTint(0xfff2d8);
@@ -150,7 +150,7 @@ export class L5_NurseryScene extends Phaser.Scene {
   // No popup modal — the finale cutscene above (puppies gathering, "A New
   // Family Is Born") is the ending. Just settle, then quietly fade to the menu.
   _reward(immediate = false) {
-    try { this.registry.set('points', (this.registry.get('points') || 0) + 1000); } catch (_) {}
+    // Nursery setup awards NO coins — coins come ONLY from solving mini-games.
     try { localStorage.setItem('shadowgamma_level5_done', '1'); } catch (_) {}
     this.cameras.main.zoomTo(1, 600);
 

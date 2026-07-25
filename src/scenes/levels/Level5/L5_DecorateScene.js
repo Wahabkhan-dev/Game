@@ -31,7 +31,7 @@ export class L5_DecorateScene extends Phaser.Scene {
   create(data) {
     generateL5Assets(this);
     generateL5StreetAssets(this);
-    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
     this._stars = (data && data.stars) || 0;
 
     this.add.image(W / 2, H / 2, 'l5_garage_bg').setDisplaySize(W, H).setDepth(-20);
@@ -270,7 +270,7 @@ export class L5_DecorateScene extends Phaser.Scene {
     const next = this.add.text(W / 2, H / 2 + 64, '▶ Continue to Treatment', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#fff', backgroundColor: '#44aa44', padding: { x: 20, y: 10 } }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true });
     next.on('pointerdown', () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(550, () => this.scene.start('Level5', { stars: this._stars }));
+      this.time.delayedCall(210, () => this.scene.start('Level5', { stars: this._stars }));
     });
     this.time.addEvent({ delay: 200, repeat: 20, callback: () => this._sparkle(W / 2 - 130 + Math.random() * 260, H / 2 - 100 + Math.random() * 220) });
   }
