@@ -6,6 +6,7 @@ import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L9BaseScene — shared scaffolding for Level 9 "A Holiday for the Puppies".
@@ -210,7 +211,7 @@ export class L9BaseScene extends Phaser.Scene {
     this._hdr.setHP(this._hp);
 
     if (opts.timer) {
-      this._timerFull = opts.timer; this._timeLeft = opts.timer;
+      this._timerFull = opts.timer; this._timerLeft = opts.timer;
       this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
     }
 
@@ -226,13 +227,13 @@ export class L9BaseScene extends Phaser.Scene {
   // Countdown tick — at 0, lose a life and refill (only runs if a stage set a timer)
   _tickHudTimer() {
     if (this._paused || this._busy || this._done) return;
-    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
     if (this._timerTxt) {
-      this._timerTxt.setText(`${this._timeLeft}s`);
-      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
-    if (this._timeLeft <= 0) {
-      this._timeLeft = this._timerFull;
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
       this.loseLife?.();
     }
@@ -419,6 +420,10 @@ export class L9BaseScene extends Phaser.Scene {
   // ── HP / Lives / damage ──────────────────────────────────────────────────────
   loseLife(onRespawn) {
     if (this._invuln || this._done) return;
+    // If the timer ran out to 0 while a mini-activity overlay was open, close
+    // it before respawning — otherwise the iframe stays visible on top while
+    // the player is silently teleported back to the checkpoint underneath it.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
     this._invuln = true;
     this._hp--;
     this.registry.set('l9_hp', this._hp);
@@ -479,6 +484,20 @@ export class L9BaseScene extends Phaser.Scene {
       if (l.hasFocus === false) l.hasFocus = true;
       if (l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
     } catch (_) {}
+  }
+
+  // ── Story videos (Cloudinary), played back-to-back as one overlay. Input/
+  // physics stay frozen (_busy) the whole time, then onDone runs — used both
+  // for start-of-stage intros (call in create, onDone omitted) and end-of-
+  // stage bridges (onDone advances to the next scene via goToScene).
+  playStoryVideos(keys, onDone) {
+    this._busy = true;
+    if (this.physics?.world) this.physics.pause();
+    playVideoSequence(this, keys, () => {
+      this._busy = false;
+      if (this.physics?.world) this.physics.resume();
+      if (onDone) onDone();
+    });
   }
 
   // ── Pause menu — finalized wood/gold Game-Menu modal (approved via Theme Design)

@@ -442,7 +442,7 @@ export class Level5Scene extends Phaser.Scene {
     // Instruction
     this._io(this.add.text(240, BOT_Y - 20,
       '👆 Gently rub the chest to stabilize heartbeat',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
+      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
 
     // ═══ HEART MONITOR DISPLAY (compact) ═══
     const monitorX = 220, monitorY = MID_Y + 90;
@@ -549,14 +549,14 @@ export class Level5Scene extends Phaser.Scene {
   // TASK 2 — Fresh Water: tap faucet + drag dial to warm zone
   // ═══════════════════════════════════════════════════════════════════════
   _buildTask_water() {
-    let step = 0;
+    let step = 1;   // water is already running — skip straight to the hold-to-heat step
     const bwx = 58, bwy = BOT_Y - 20; // water bowl position
 
     const instr = this._io(this.add.text(L_W / 2, BOT_Y - 20,
-      'TAP the faucet 🚿 to start!',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
+      'PRESS & HOLD the 🔥 button for 5 sec!',
+      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
 
-    // Faucet (large, left-center area)
+    // Faucet (decorative — water is already flowing, no tap needed)
     const fx = 160, fy = MID_Y + MID_H * 0.42;
     const faucetG = this._io(this.add.graphics().setDepth(14));
     const drawFaucet = (on) => {
@@ -565,11 +565,9 @@ export class Level5Scene extends Phaser.Scene {
       faucetG.lineStyle(4, on ? 0x55DDFF : 0x5A8AB8, 1); faucetG.strokeCircle(fx, fy, 38);
       faucetG.fillStyle(on ? 0x55BBEE : 0x2A4A7A, 1); faucetG.fillCircle(fx, fy, 20);
     };
-    drawFaucet(false);
+    drawFaucet(true);
     // Faucet icon (tap handle, NOT the bowl image)
     this._io(this.add.text(fx, fy, '🚿', { fontSize: '38px' }).setOrigin(0.5).setDepth(15));
-    this._io(this.add.text(fx, fy + 50, 'TAP ME!',
-      { fontSize: '10px', fontFamily: 'Arial', color: '#3A8AB8', fontStyle: 'bold' }).setOrigin(0.5).setDepth(14));
 
     // Water bowl image shown at the BOWL position — PERSISTENT (not in _io)
     let bowl;
@@ -583,34 +581,23 @@ export class Level5Scene extends Phaser.Scene {
       bowl = bowlG;
     }
 
-    const fHit = this._io(this.add.rectangle(fx, fy, 76, 76, 0, 0).setDepth(16).setInteractive({ useHandCursor: true }));
-    fHit.once('pointerdown', () => {
-      if (step > 0) return;
-      step = 1;
-      drawFaucet(true);
-      // Water drops
-      for (let i = 0; i < 7; i++) this.time.delayedCall(i * 110, () => {
-        const d = this.add.text(fx + (Math.random()-0.5)*14, fy + 38, '💧', { fontSize: '14px' }).setDepth(17).setAlpha(0.9);
-        this.tweens.add({ targets: d, x: bwx + (Math.random()-0.5)*16, y: bwy - 8, alpha: 0.5, duration: 550, ease: 'Sine.easeIn', onComplete: () => d.destroy() });
-      });
-      instr.setText('NOW: PRESS & HOLD the 🔥 button for 5 sec!').setStyle({ color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 });
-      // Show heat button
-      heatBtn.setVisible(true);
-      heatLabel.setVisible(true);
-      heatProgress.setVisible(true);
+    // Water drops fall into the bowl automatically — no tap gating
+    for (let i = 0; i < 7; i++) this.time.delayedCall(i * 110, () => {
+      const d = this.add.text(fx + (Math.random()-0.5)*14, fy + 38, '💧', { fontSize: '14px' }).setDepth(17).setAlpha(0.9);
+      this.tweens.add({ targets: d, x: bwx + (Math.random()-0.5)*16, y: bwy - 8, alpha: 0.5, duration: 550, ease: 'Sine.easeIn', onComplete: () => d.destroy() });
     });
 
-    // ── Heat button (center-bottom, press & hold for 5 seconds)
+    // ── Heat button (center-bottom, press & hold for 5 seconds) — visible immediately
     const HBX = L_W/2, HBY = MID_Y + MID_H * 0.72;
-    const heatBtn = this._io(this.add.rectangle(HBX, HBY, 120, 60, 0xFF6B35, 0.8).setDepth(20).setInteractive({ useHandCursor: true }).setVisible(false));
+    const heatBtn = this._io(this.add.rectangle(HBX, HBY, 120, 60, 0xFF6B35, 0.8).setDepth(20).setInteractive({ useHandCursor: true }));
     heatBtn.setStrokeStyle(3, 0xFF4500, 1);
 
-    const heatLabel = this._io(this.add.text(HBX, HBY, '🔥 HEAT', { fontSize: '14px', fontFamily: 'Arial', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(21).setVisible(false));
+    const heatLabel = this._io(this.add.text(HBX, HBY, '🔥 HEAT', { fontSize: '14px', fontFamily: 'Arial', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(21));
 
     // Progress ring for 5-second hold — a fresh timer event drives it every
     // time the button is pressed, so an early release (before 5s) always
     // resets and re-displays cleanly on the next hold attempt.
-    const heatProgress = this._io(this.add.graphics().setDepth(19).setVisible(false));
+    const heatProgress = this._io(this.add.graphics().setDepth(19));
     let isHolding = false;
     let holdStart = 0;
     let holdEvent = null;
@@ -662,7 +649,7 @@ export class Level5Scene extends Phaser.Scene {
               const st = this.add.text(bwx + (Math.random()-0.5)*18, bwy - 10, '💨', { fontSize: '13px' }).setDepth(18).setAlpha(0.8);
               this.tweens.add({ targets: st, y: st.y - 30, alpha: 0, duration: 620, onComplete: () => st.destroy() });
             });
-            instr.setText('✅ Perfect warm water!').setStyle({ color: '#FFFFFF', stroke: '#3A2412', strokeThickness: 2.5 });
+            instr.setText('✅ Perfect warm water!').setStyle({ color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 });
             this.time.delayedCall(800, () => this._completeTask(1, '💧 Warm water is ready!'));
           }
         }
@@ -678,7 +665,7 @@ export class Level5Scene extends Phaser.Scene {
 
     this._io(this.add.text(240, BOT_Y - 20,
       'Drag the towel onto Gamma and rub back & forth — 3 times! 🧺',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
+      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
 
     // Wet shine on Gamma
     const wetG = this._io(this.add.graphics().setDepth(7));
@@ -779,7 +766,7 @@ export class Level5Scene extends Phaser.Scene {
   _buildTask_blanket() {
     this._io(this.add.text(240, BOT_Y - 20,
       'Drag the blanket onto Gamma\'s bed 🧣',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
+      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
 
     // Bed drop zone (visible outline)
     const bdx = this._bedCX, bdy = this._bedCY + 10;
@@ -854,7 +841,7 @@ export class Level5Scene extends Phaser.Scene {
 
     this._io(this.add.text(L_W / 2, BOT_Y - 20,
       'Drag each item into its spot in the nursery frame! 🧸',
-      { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 2.5 }).setOrigin(0.5).setDepth(20));
+      { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#FFFFFF', fontStyle: 'bold', stroke: '#3A2412', strokeThickness: 3 }).setOrigin(0.5).setDepth(20));
 
     // ── WALL FRAME ───────────────────────────────────────────────────────
     const fx = L_W / 2 - 10;          // center of left area

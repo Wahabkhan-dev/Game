@@ -132,6 +132,8 @@ export class L9_GiftRunScene extends L9BaseScene {
     }).setOrigin(0.5).setDepth(6);
 
     this.time.delayedCall(400, () => this.toast('🎁 Collect 8 gifts!\nA/D move · W jump over snow · S slide', 3000));
+
+    this.playStoryVideos(['l9_intro']);
   }
 
   _buildLedges() {

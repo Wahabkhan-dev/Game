@@ -128,7 +128,6 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     };
     [800, 3000, 6000, 8600, 11000].forEach((x, i) => place(x, 'l5_house', 150, 3, [0xffffff, 0xfff2e0, 0xeef6ff, 0xfdeef0, 0xeffbef][i]));
     [500, 1800, 2600, 4000, 5400, 6800, 8000, 9600, 10600, 11800].forEach((x, i) => place(x, i % 2 ? 'l5_bush' : 'l5_tree', i % 2 ? 70 : 150, 4));
-    [1400, 4600, 7600, 10400].forEach(x => place(x, 'l5_lamp', 150, 4));
     [2400, 7000, 9900].forEach(x => place(x, 'l5_bench', 78, 4));
     const gate = (x, txt) => this.add.text(x, GY - 150, txt, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#5a3d1a', stroke: '#fff8', strokeThickness: 3, backgroundColor: '#ffffffcc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setDepth(6);
     gate(2300, '🛒 GROCERY'); gate(4700, '🏘️ HOMES'); gate(7000, '🌳 PARK'); gate(9300, '🏪 MARKET'); gate(11600, '🏡 HOME ZONE');
@@ -198,8 +197,8 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
     const tmrW = 72, tmrX = coinX - 8 - tmrW, tmrY = ROW_CY - 20;
 
     // functional countdown timer
-    this._timerFull = 120; this._timeLeft = 120;
-    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timeLeft}s`, 50);
+    this._timerFull = 120; this._timerLeft = 120;
+    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timerLeft}s`, 50);
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickTimer() });
 
     // functional coin/points counter (earned per item collected)
@@ -218,13 +217,13 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
   // Countdown tick — at 0, lose a life and refill the clock (Level-1 behaviour)
   _tickTimer() {
     if (this._done || this._paused) return;
-    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
     if (this._timerTxt) {
-      this._timerTxt.setText(`${this._timeLeft}s`);
-      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
-    if (this._timeLeft <= 0) {
-      this._timeLeft = this._timerFull;
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
       this._toast("⏱ Out of time! -1 life");
       this._loseLife();
@@ -497,6 +496,11 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
   }
 
   _loseLife() {
+    // If the timer ran out to 0 while a mini-activity overlay was open, close
+    // it before respawning — otherwise the iframe stays visible on top while
+    // the player is silently teleported back to the checkpoint underneath it.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
+
     this._lives--; this._shadowHP = 3; this._drawHPPips();
     const lostHeart = this._hearts[this._lives];
     if (lostHeart) { lostHeart.setTint(0x444444); this.tweens.add({ targets: lostHeart, alpha: 0.25, duration: 300 }); }

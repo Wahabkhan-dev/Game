@@ -6,7 +6,7 @@ import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVi
 import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, showLevelCompleteModal } from '../../../utils/EndModals.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
@@ -64,7 +64,7 @@ export class Level2Scene extends BaseLevelScene {
     this.time.delayedCall(800, () => {
       this._timerFired = false;
       const sx = this.shadow?.x ?? this._checkpointX ?? 80;
-      let zoneTimer = 75;
+      let zoneTimer = 90;
       if (sx > 12000) {
         this._checkpointX = 12020;
         this._checkpointY = 360;
@@ -84,8 +84,8 @@ export class Level2Scene extends BaseLevelScene {
   _loseLife(shake = 0.012) {
     super._loseLife(shake);
     // Respawn checkpoint (just set above/by the caller) decides the zone —
-    // Zone 3 keeps its +20s allowance instead of always resetting to 75.
-    this._resetTimer(this._checkpointX > 12000 ? 95 : 75);
+    // Zone 3 keeps its own allowance instead of always resetting to 90.
+    this._resetTimer(this._checkpointX > 12000 ? 95 : 90);
   }
 
   create() {
@@ -97,7 +97,7 @@ export class Level2Scene extends BaseLevelScene {
     const config = {
       worldWidth: 18500,
       startX: 80, startY: 370,
-      timer: 75,
+      timer: 90,
       character: 'gleeda',
       chapterName: 'Chapter 2 — Rescue Gemma!',
       objective: 'Collect 2 keys to unlock Gemma\'s cage!\nRoad → Jungle → Dark Jungle 🔑',
@@ -137,7 +137,7 @@ export class Level2Scene extends BaseLevelScene {
     this._bgTransitionTriggered = false;
     this._introVideoPlayed = false;
     this._cageVideoPlayed = false;
-    this._resetTimer(75);
+    this._resetTimer(90);
     // Swap the player VISUAL to Glenda's run/idle/jump art (gameplay/physics untouched).
     applyGlendaSkin(this);
 
@@ -376,7 +376,7 @@ export class Level2Scene extends BaseLevelScene {
       this._spikes.push({ x: sx2 - 25, w: 60, y: H - 58 });
     });
 
-    // ── Cactus thorn hazards (Zone 2 + Zone 3) — real cactus art, same
+    // ── Cactus thorn hazards (Zone 2 only) — real cactus art, same
     // ground/hit-detection style as Level 1's thorn hazard ─────────────────
     this._thorns = [];
     // Bottom-anchored at the same ground line the old center-origin/32px art
@@ -385,12 +385,6 @@ export class Level2Scene extends BaseLevelScene {
     [7200, 10200].forEach(tx => {
       this.add.image(tx, H - 30, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(74, 74).setDepth(9);
       this._thorns.push({ x: tx - 16, y: H - 60, w: 32 });
-    });
-    // 17800 removed — that's Gemma's cage location at the end of the level;
-    // a cactus was sitting right next to/under the cage there.
-    [12050].forEach(tx => {
-      this.add.image(tx, H - 28, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(83, 83).setDepth(9);
-      this._thorns.push({ x: tx - 18, y: H - 60, w: 37 });
     });
 
     // ── Collapsing platforms (Zone 3) ─────────────────────────────────────
@@ -431,9 +425,12 @@ export class Level2Scene extends BaseLevelScene {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#000', strokeThickness: 2
     }).setScrollFactor(0).setDepth(40).setVisible(false);
 
-    // ── Gemma's cage (Zone 3 end) — real-art image (dog + cage baked in) ───
+    // ── Gemma's cage (Zone 3 end) — real-art image (dog + cage baked in).
+    // gy=420 matches the ground-contact line other bottom-anchored Zone 3
+    // props use (see cactus_thorn below) — 404 (background/ground seam)
+    // left the cage floating above the ground instead of resting on it.
     {
-      const gx = 17800, gy = 404;
+      const gx = 17800, gy = 420;
       this.gemmaInCage = this.physics.add.staticImage(gx, gy, 'l2_gemma_cage')
         .setDisplaySize(110, 110).setDepth(8).setOrigin(0.5, 1).refreshBody();
       this.tweens.add({ targets: this.gemmaInCage, y: gy - 5, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -526,13 +523,15 @@ export class Level2Scene extends BaseLevelScene {
 
         const openCage = () => {
           this._levelDone = true;
-          this._showMessage('✨ The cage glows… it\'s unlocking! 🔓');
           this._unlockCage();
         };
 
         if (!this._cageVideoPlayed) {
           this._cageVideoPlayed = true;
-          this._playL2Video('l2_cage_video', openCage);
+          this._showMessage('🐾 Gemma is free from the cage! 💛');
+          this.time.delayedCall(1400, () => {
+            this._playL2Video('l2_cage_video', openCage);
+          });
         } else {
           openCage();
         }
@@ -690,8 +689,13 @@ export class Level2Scene extends BaseLevelScene {
         onComplete: () => {
           this.tweens.add({ targets: this.gemmaInCage, alpha: 0, duration: 600 });
           this.time.delayedCall(900, () => {
-            this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(550, () => this.scene.start('L2_Calmer'));
+            // Straight to the conclusion cinematic + Level Complete modal —
+            // no separate trust/food/pet/rhythm chain and no celebration
+            // screen in between; the modal appears the instant the video ends.
+            this._playL2Video('l2_conclusion_video', () => {
+              const points = this.registry.get('points') || 0;
+              showLevelCompleteModal(this, points, { nextLevelKey: 'Level3', nextLevelData: { l3_health: 100, l3_coins: 0 } });
+            });
           });
         }
       });
@@ -781,7 +785,7 @@ export class Level2Scene extends BaseLevelScene {
         this._playL2Video('l2_transition_video', () => {});
       }
       this._saveCheckpoint(6020, 360);
-      this._resetTimer(75);
+      this._resetTimer(90);
       this._showMessage('🌿 Stage 2 — Jungle! Dodge porcupines & find Key 2! 🗝️');
     }
 
@@ -791,7 +795,7 @@ export class Level2Scene extends BaseLevelScene {
     if (!this._zone3Entered && sx > 12000) {
       this._zone3Entered = true;
       this._saveCheckpoint(12020, 360);
-      this._resetTimer(95);   // Zone 3 gets +20s over the usual 75s — more hazards to clear
+      this._resetTimer(95);   // Zone 3 gets its own allowance — more hazards to clear
       this._gemmaHPDecaying = true;
       this._gemmaHPBar.setVisible(true);
       this._gemmaHPLabel.setVisible(true);

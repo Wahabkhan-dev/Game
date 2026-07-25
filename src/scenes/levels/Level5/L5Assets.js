@@ -561,15 +561,6 @@ export function generateL5StreetAssets(scene) {
   g.fillStyle(0x3c9a49, 0.7); g.fillEllipse(24, 18, 18, 12); g.fillEllipse(42, 18, 16, 10);
   gen('l5_bush', 64, 42);
 
-  // ── BG: Street Lamp (26×96) ────────────────────────────────────────────────
-  g.clear();
-  g.fillStyle(0x3a3f4a, 1); g.fillRect(11, 16, 4, 78);
-  g.fillStyle(0x2a2f38, 1); g.fillRoundedRect(4, 90, 18, 6, 2);
-  g.fillStyle(0x3a3f4a, 1); g.fillRect(11, 14, 12, 4);
-  g.fillStyle(0xffe9a8, 1); g.fillRoundedRect(18, 8, 8, 12, 3);
-  g.fillStyle(0xfff4cc, 0.5); g.fillCircle(22, 14, 8);
-  gen('l5_lamp', 28, 98);
-
   // ── HOME arrow sign (96×46) ────────────────────────────────────────────────
   g.clear();
   g.fillStyle(0x8a5a28, 1); g.fillRect(6, 30, 6, 16);

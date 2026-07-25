@@ -63,8 +63,10 @@ export class L8_HomeRunScene extends L8BaseScene {
 
     // background + surface — same real-art technique as Level 4 (fit-height,
     // horizontally tiling images), swapped in for the old procedural-style art.
-    load('l8_bg',      `${B}backgorund-l8.jpg`);
-    load('l8_surface', `${B}bottoml8.jpg`);
+    // Unique keys (not the shared l8_bg/l8_surface L8_FoodRunScene uses) so
+    // this scene's own art always loads, regardless of preload order.
+    load('l8_home_bg',      `${B}bg-l8.jpg`);
+    load('l8_home_surface', `${B}bottom-l8.jpg`);
 
     load('l8_item_bed',          `${HI}l8_item_bed.png`);
     load('l8_item_foodstation',  `${HI}l8_item_foodstation.png`);
@@ -93,8 +95,8 @@ export class L8_HomeRunScene extends L8BaseScene {
     this._done = false;
     this._groundY = GROUND_Y;   // needed by buildSky() before buildGround()
 
-    this.buildSky();
-    this.buildGround(WORLD_W, GROUND_Y, PITS);
+    this.buildSky('l8_home_bg');
+    this.buildGround(WORLD_W, GROUND_Y, PITS, 'l8_home_surface');
     this._buildDecor();
     this._buildItems();
     this._buildObstacles();
@@ -253,6 +255,8 @@ export class L8_HomeRunScene extends L8BaseScene {
     this.add.text(W / 2, H / 2 + 18, 'Time to decorate the puppy home! 🎨', {
       fontSize: '15px', fontFamily: 'Georgia, serif', color: '#fff3d0', stroke: '#3a1a5a', strokeThickness: 3
     }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
-    this.time.delayedCall(1700, () => this.goToScene('L8_Decorate'));
+    this.time.delayedCall(1700, () =>
+      this.playStoryVideos(['l8_decorate_home_reach'], () => this.goToScene('L8_Decorate'))
+    );
   }
 }

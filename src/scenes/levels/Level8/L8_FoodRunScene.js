@@ -167,6 +167,8 @@ export class L8_FoodRunScene extends L8BaseScene {
     this.time.delayedCall(400, () =>
       this.toast('🐾 Collect 7 foods for the puppies!\nA/D = Move   W/↑/SPACE = Jump over hurdles')
     );
+
+    this.playStoryVideos(['l8_intro']);
   }
 
   // ── Puppy Town zone signs + finish marker ──────────────────────────────────
@@ -531,6 +533,8 @@ export class L8_FoodRunScene extends L8BaseScene {
     this.add.text(W / 2, H / 2 + 18, 'You collected enough food for all the puppies! 🐾', {
       fontSize: '14px', fontFamily: 'Georgia, serif', color: '#fff3d0', stroke: '#3a1a5a', strokeThickness: 3
     }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
-    this.time.delayedCall(2000, () => this.goToScene('L8_Feeding'));
+    this.time.delayedCall(2000, () =>
+      this.playStoryVideos(['l8_reach_home_food'], () => this.goToScene('L8_Feeding'))
+    );
   }
 }

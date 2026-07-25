@@ -27,14 +27,14 @@ const OBSTACLES = [
   { tex: 'l5_boxes',   x: 2750,  w: 42, h: 54 },
   { tex: 'l5_bin',     x: 4250,  w: 50, h: 58 },
   { tex: 'l5_cone',    x: 4900,  w: 46, h: 48 },
-  { tex: 'l5_puddle',  x: 5300,  w: 90, h: 28, flat: true },
+  { tex: 'l5_pothole', x: 5300,  w: 90, h: 28, flat: true, hole: true },
   { tex: 'l5_bike',    x: 6700,  w: 70, h: 50 },
   { tex: 'l5_boxes',   x: 7300,  w: 42, h: 54 },
-  { tex: 'l5_puddle',  x: 8200,  w: 90, h: 28, flat: true },
+  { tex: 'l5_pothole', x: 8200,  w: 90, h: 28, flat: true, hole: true },
   { tex: 'l5_bin',     x: 8800,  w: 50, h: 58 },
   { tex: 'l5_puddle',  x: 9400,  w: 84, h: 22, flat: true },
   { tex: 'l5_cone',    x: 10700, w: 46, h: 48 },
-  { tex: 'l5_puddle',  x: 11050, w: 90, h: 28, flat: true },
+  { tex: 'l5_pothole', x: 11050, w: 90, h: 28, flat: true, hole: true },
   { tex: 'l5_boxes',   x: 11300, w: 42, h: 54 },
 ];
 
@@ -147,9 +147,27 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       if (tint) s.setTint(tint);
       return s;
     };
-    [1400, 4600, 7600, 10400].forEach(x => place(x, 'l5_lamp', 150, 4));
     const gate = (x, txt) => this.add.text(x, GY - 150, txt, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#5a3d1a', stroke: '#fff8', strokeThickness: 3, backgroundColor: '#ffffffcc', padding: { x: 8, y: 4 } }).setOrigin(0.5).setDepth(6);
     gate(2300, '🛒 GROCERY'); gate(4700, '🏘️ HOMES'); gate(7000, '🌳 PARK'); gate(9300, '🏪 MARKET'); gate(11600, '🏡 HOME ZONE');
+
+    // ── Finish line — checkered marker just before the home stretch, so the
+    // run has a clear "you made it!" visual right before reaching home.
+    const finishX = WORLD_W - 260;
+    const fW = 56, fRows = 4, fCols = 3, cs = fW / fCols;
+    const flG = this.add.graphics().setDepth(4);
+    for (let r = 0; r < fRows; r++) {
+      for (let c = 0; c < fCols; c++) {
+        const dark = (r + c) % 2 === 0;
+        flG.fillStyle(dark ? 0x141414 : 0xf5f5f5, 1);
+        flG.fillRect(finishX - fW / 2 + c * cs, GY - (r + 1) * cs, cs, cs);
+      }
+    }
+    flG.lineStyle(2, 0x000000, 0.6);
+    flG.strokeRect(finishX - fW / 2, GY - fRows * cs, fW, fRows * cs);
+    this.add.text(finishX, GY - fRows * cs - 22, '🏁 FINISH LINE', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3,
+      backgroundColor: '#00000088', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(6);
   }
 
   _buildItems() {
@@ -216,8 +234,8 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     const tmrW = 72, tmrX = coinX - 8 - tmrW, tmrY = ROW_CY - 20;
 
     // functional countdown timer
-    this._timerFull = 120; this._timeLeft = 120;
-    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timeLeft}s`, 50);
+    this._timerFull = 120; this._timerLeft = 120;
+    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timerLeft}s`, 50);
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickTimer() });
 
     // functional coin/points counter (earned per item collected)
@@ -236,13 +254,13 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   // Countdown tick — at 0, lose a life and refill the clock (Level-1 behaviour)
   _tickTimer() {
     if (this._done || this._paused) return;
-    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
     if (this._timerTxt) {
-      this._timerTxt.setText(`${this._timeLeft}s`);
-      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
-    if (this._timeLeft <= 0) {
-      this._timeLeft = this._timerFull;
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
       this._toast("⏱ Out of time! -1 life");
       this._loseLife();
@@ -343,6 +361,10 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     if (this._done || this._paused || this._miniGameOpen) return;
     if (this._falling) {
       this.player.play('gleeda_jump_anim', true);
+      if (!this._hiddenInHole && this.player.y - this._fallStartY > 40) {
+        this.player.setVisible(false);
+        this._hiddenInHole = true;
+      }
       if (this.player.y > H + 60) this._onHoleFell();
       return;
     }
@@ -418,9 +440,24 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
         this._toast(`✓ ${it.label} Collected!  +50`);
         const cpItems = ITEMS.filter(i => i.cp === it.cp);
         const cpDone = cpItems.every(i => this._collected[i.key]);
-        if (cpDone && it.cp < 3) this._checkpointReached(it.cp);
+        if (cpDone && it.cp < 3) {
+          this._checkpointReached(it.cp);   // saves checkpoint + its own mini-game
+        } else {
+          this._launchItemMini();           // every other pickup gets its own mini-activity too
+        }
         if (Object.keys(this._collected).length === ITEMS.length) this._allCollected();
       }
+    });
+  }
+
+  // ── Mini-activity fired on every individual item pickup (not just at
+  // checkpoint completion) — random game from Level 5's slice of the 40 games.
+  _launchItemMini() {
+    if (this.player?.body) this.player.setVelocity(0, 0);
+    const footer = document.getElementById('game-footer');
+    if (footer) footer.style.display = 'none';
+    launchRandomMiniGame(this, 5, () => {
+      if (footer) footer.style.display = 'flex';
     });
   }
 
@@ -429,6 +466,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     const p = this.player;
     for (const o of this._obsObjs) {
       if (Math.abs(p.x - o.x) < (o.w / 2 + 14) && p.body.bottom > o.clearY + 4) {
+        if (o.hole) { this._fallInHole(o); return; }   // pothole → drop in
         const dir = (p.x <= o.x) ? -1 : 1;
         p.setPosition(o.x + dir * (o.w / 2 + 30), p.y);
         p.setVelocityX(dir * 160); p.setVelocityY(-180);
@@ -444,7 +482,10 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     const p = this.player;
     p.setCollideWorldBounds(false);
     p.setPosition(o.x, p.y); p.setVelocityX(0); p.setVelocityY(140);
+    this._fallStartY = p.y;
+    this._hiddenInHole = false;
     this.cameras.main.shake(160, 0.008);
+    this._toast('🕳️ Watch the potholes!');
   }
   _onHoleFell() { this._falling = false; this._loseLife(); }
 
@@ -494,9 +535,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   _allCollected() {
     this._returning = true;
     this._toast('✅ All items collected! Return home →');
-    const fImg = this.textures.get('l5_house_finished').getSourceImage();
-    const fh = 170, fw = fh * (fImg.width / fImg.height);
-    this.add.image(WORLD_W - 80, GROUND_Y + 8, 'l5_house_finished').setOrigin(0.5, 1).setDisplaySize(fw, fh).setDepth(6);
+    // Goal marker + arrow at the end (house picture removed per request)
     this.add.image(WORLD_W - 80, GROUND_Y - 178, 'l5_homesign').setDisplaySize(96, 46).setDepth(9);
     this._arrow = this.add.text(0, 0, '➡️', { fontSize: '26px' }).setScrollFactor(0).setDepth(52);
     this.tweens.add({ targets: this._arrow, alpha: 0.4, duration: 500, yoyo: true, repeat: -1 });
@@ -599,6 +638,11 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
   }
 
   _loseLife() {
+    // If the timer ran out to 0 while a mini-activity overlay was open, close
+    // it before respawning — otherwise the iframe stays visible on top while
+    // the player is silently teleported back to the checkpoint underneath it.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
+
     this._lives--; this._shadowHP = 3; this._drawHPPips();
     const lostHeart = this._hearts[this._lives];
     if (lostHeart) { lostHeart.setTint(0x444444); this.tweens.add({ targets: lostHeart, alpha: 0.25, duration: 300 }); }
@@ -633,7 +677,10 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
     this.time.delayedCall(350, () => {
       this._shadowHP = 3; this._drawHPPips();
       const rx = cp ? cp.x : 80;
-      this.player.clearTint(); this.player.setPosition(rx, GROUND_Y - 40); this.player.setVelocity(0, 0);
+      this.player.clearTint();
+      this.player.setVisible(true);   // undo the pothole-fall hide, if any
+      this._hiddenInHole = false;
+      this.player.setPosition(rx, GROUND_Y - 40); this.player.setVelocity(0, 0);
       this.cameras.main.scrollX = Math.max(0, rx - W / 2);
       this.cameras.main.fadeIn(400, 0, 0, 0);
       this.tweens.killTweensOf(this.player);

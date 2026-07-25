@@ -328,6 +328,8 @@ export class L9_BowRunScene extends L9BaseScene {
     this.add.text(W / 2, H / 2 - 24, '🎀 All Bows Collected!', { fontSize: '28px', fontFamily: 'Georgia, serif', color: '#ffe6a0', stroke: '#0a1a0e', strokeThickness: 5 }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
     this.add.text(W / 2, H / 2 + 16, `Now let's dress up the 7 puppies! 🐶`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#0a1a0e', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(111);
     this.registry.set('l9_bows', this._collected);
-    this.time.delayedCall(2000, () => this.goToScene('L9_BowTie'));
+    this.time.delayedCall(2000, () =>
+      this.playStoryVideos(['l9_bow_intro'], () => this.goToScene('L9_BowTie'))
+    );
   }
 }

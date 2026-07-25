@@ -6,6 +6,7 @@ import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L8BaseScene — shared scaffolding for Level 8 "Puppy Care Day".
@@ -21,13 +22,13 @@ export class L8BaseScene extends Phaser.Scene {
   // ── Background — same seam technique as Level 4: ends EXACTLY where the
   // ground band begins (groundY - 16), so the two meet with no gap and no
   // overlap, and the ground doesn't eat more of the screen than Level 4's. ───
-  buildSky() {
+  buildSky(bgKey = 'l8_bg') {
     const bgDisplayH = (this._groundY || 380) - 16;
-    if (this.textures.exists('l8_bg')) {
-      const src  = this.textures.get('l8_bg').getSourceImage();
+    if (this.textures.exists(bgKey)) {
+      const src  = this.textures.get(bgKey).getSourceImage();
       const srcH = src.naturalHeight || src.height || 700;
       const scale = bgDisplayH / srcH;
-      this._bgTile = this.add.tileSprite(0, 0, W, bgDisplayH, 'l8_bg')
+      this._bgTile = this.add.tileSprite(0, 0, W, bgDisplayH, bgKey)
         .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
       this._bgTile.setTileScale(scale, scale);
     } else {
@@ -50,16 +51,16 @@ export class L8BaseScene extends Phaser.Scene {
   // style holes the player loses a life for dropping into, instead of the old
   // "puddle" sprite hurdle. When omitted, behaves exactly as before: one
   // continuous physics floor + one screen-locked tileSprite. ─────────────────
-  buildGround(worldW, groundY, pits = []) {
+  buildGround(worldW, groundY, pits = [], surfKey = 'l8_surface') {
     this._worldW = worldW; this._groundY = groundY;
     this._pitZones = pits;
 
     const surfaceY = groundY - 16;
     const surfaceH = H - surfaceY;
-    const hasSurf = this.textures.exists('l8_surface');
+    const hasSurf = this.textures.exists(surfKey);
     let tileScale = 1;
     if (hasSurf) {
-      const src = this.textures.get('l8_surface').getSourceImage();
+      const src = this.textures.get(surfKey).getSourceImage();
       const srcH = src.naturalHeight || src.height || 380;
       tileScale = surfaceH / srcH;
     }
@@ -71,7 +72,7 @@ export class L8BaseScene extends Phaser.Scene {
       this._ground = body;
       // surface image (screen-locked tileSprite, scrolls 1:1 with camera)
       if (hasSurf) {
-        this._surfTile = this.add.tileSprite(0, surfaceY, W, surfaceH, 'l8_surface')
+        this._surfTile = this.add.tileSprite(0, surfaceY, W, surfaceH, surfKey)
           .setOrigin(0, 0).setScrollFactor(0).setDepth(-8);
         this._surfTile.setTileScale(tileScale, tileScale);
       } else {
@@ -113,7 +114,7 @@ export class L8BaseScene extends Phaser.Scene {
       const w = seg.end - seg.start;
       if (w <= 0) return;
       if (hasSurf) {
-        const ts = this.add.tileSprite(seg.start + w / 2, surfaceY + surfaceH / 2, w, surfaceH, 'l8_surface').setDepth(-8);
+        const ts = this.add.tileSprite(seg.start + w / 2, surfaceY + surfaceH / 2, w, surfaceH, surfKey).setDepth(-8);
         ts.tileScaleX = ts.tileScaleY = tileScale;
       } else {
         const fg = this.add.graphics().setDepth(-8);
@@ -285,7 +286,7 @@ export class L8BaseScene extends Phaser.Scene {
 
     // functional countdown (runner/action stages only)
     if (opts.timer) {
-      this._timerFull = opts.timer; this._timeLeft = opts.timer;
+      this._timerFull = opts.timer; this._timerLeft = opts.timer;
       this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
     }
 
@@ -302,13 +303,13 @@ export class L8BaseScene extends Phaser.Scene {
   // Countdown tick — at 0, lose a life and refill (only runs if a stage set a timer)
   _tickHudTimer() {
     if (this._paused || this._busy || this._done) return;
-    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
     if (this._timerTxt) {
-      this._timerTxt.setText(`${this._timeLeft}s`);
-      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
-    if (this._timeLeft <= 0) {
-      this._timeLeft = this._timerFull;
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
       this.loseLife();
     }
@@ -491,6 +492,10 @@ export class L8BaseScene extends Phaser.Scene {
   // ── HP / Lives / damage ─────────────────────────────────────────────────────────
   loseLife(onRespawn) {
     if (this._invuln || this._done) return;
+    // If the timer ran out to 0 while a mini-activity overlay was open, close
+    // it before respawning — otherwise the iframe stays visible on top while
+    // the player is silently teleported back to the checkpoint underneath it.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
     this._invuln = true;
     this._hp--;
     this.registry.set('l8_hp', this._hp);
@@ -584,6 +589,20 @@ export class L8BaseScene extends Phaser.Scene {
       if (l.hasFocus === false) l.hasFocus = true;
       if (l.running === false) { if (l.wake) l.wake(); if (l.resume) l.resume(); }
     } catch (_) {}
+  }
+
+  // ── Story videos (Cloudinary), played back-to-back as one overlay. Input/
+  // physics stay frozen (_busy) the whole time, then onDone runs — used both
+  // for start-of-stage intros (call in create, onDone omitted) and end-of-
+  // stage bridges (onDone advances to the next scene via goToScene).
+  playStoryVideos(keys, onDone) {
+    this._busy = true;
+    if (this.physics?.world) this.physics.pause();
+    playVideoSequence(this, keys, () => {
+      this._busy = false;
+      if (this.physics?.world) this.physics.resume();
+      if (onDone) onDone();
+    });
   }
 
   // ── Pause menu — finalized wood/gold Game-Menu modal (approved via Theme Design)

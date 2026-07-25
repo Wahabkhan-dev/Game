@@ -60,12 +60,6 @@ export class L4_DecorateScene extends Phaser.Scene {
     this._promptTxt = this.add.text(W / 2, 86, '', { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#cfe0f5', align: 'center' }).setOrigin(0.5).setDepth(41);
     this._tipTxt = this.add.text(W / 2, 104, '', { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#88a0c0' }).setOrigin(0.5).setDepth(41);
 
-    // Gamma watching
-    this._gamma = this.add.image(140, HY + 4, this.textures.exists('gemma_idle') ? 'gemma_idle' : 'l4_food_bowl')
-      .setOrigin(0.5, 1).setDisplaySize(140, 80).setDepth(8);
-    this._gammaScale = this._gamma.scaleX;   // remember display scale for later tweens
-    this._gammaBob = this.tweens.add({ targets: this._gamma, y: HY, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
     // ── The real house, revealed bottom-up as steps complete ──
     const src = this.textures.get('l4_house_finished').getSourceImage();
     this._houseTexW = src.width; this._houseTexH = src.height;
@@ -268,23 +262,12 @@ export class L4_DecorateScene extends Phaser.Scene {
     this._setReveal(1);
     this._promptTxt.setText('🎉 The house is ready!');
     this._tipTxt.setText('');
-    if (this._gammaBob) { this._gammaBob.stop(); this._gammaBob = null; }   // stop bob so the walk-in is smooth
-    this.tweens.add({ targets: this._gamma, x: HX - 6, duration: 1400, ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (this.textures.exists('gemma_happy')) this._gamma.setTexture('gemma_happy');
-        this.tweens.add({ targets: this._gamma, y: this._gamma.y + 6, duration: 200, yoyo: true, repeat: 2,
-          onComplete: () => {
-            this.tweens.add({ targets: this._gamma, x: HX, alpha: 0, scaleX: this._gammaScale * 0.7, scaleY: this._gammaScale * 0.7, duration: 700,
-              onComplete: () => {
-                this._heartBurst();
-                if (this.textures.exists('gleeda_idle'))
-                  this.add.image(HX - this._hw * 0.62, HY + 4, 'gleeda_idle').setOrigin(0.5, 1).setDisplaySize(80, 98).setDepth(8);
-                this.add.text(W / 2, 150, '💛 Gamma loves her new home! 💛', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ffd0e4', stroke: '#3a0820', strokeThickness: 3 }).setOrigin(0.5).setDepth(45).setAlpha(0).setData('fin', 1);
-                this.children.list.filter(c => c.getData && c.getData('fin')).forEach(c => this.tweens.add({ targets: c, alpha: 1, duration: 500 }));
-                this.time.delayedCall(2000, () => this._reward());
-              } });
-          } });
-      } });
+    this.time.delayedCall(500, () => {
+      this._heartBurst();
+      this.add.text(W / 2, 150, '💛 Gamma loves her new home! 💛', { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#ffd0e4', stroke: '#3a0820', strokeThickness: 3 }).setOrigin(0.5).setDepth(45).setAlpha(0).setData('fin', 1);
+      this.children.list.filter(c => c.getData && c.getData('fin')).forEach(c => this.tweens.add({ targets: c, alpha: 1, duration: 500 }));
+      this.time.delayedCall(2000, () => this._reward());
+    });
   }
 
   _heartBurst() {
@@ -303,17 +286,6 @@ export class L4_DecorateScene extends Phaser.Scene {
 
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0a0820, 0).setDepth(50);
     this.tweens.add({ targets: dim, alpha: 0.42, duration: 1200 });
-
-    // Gamma lies down to rest.
-    this.time.delayedCall(500, () => {
-      this.tweens.add({ targets: this._gamma, y: this._gamma.y + 6, scaleY: this._gammaScale * 0.72, duration: 500, ease: 'Sine.easeOut' });
-    });
-
-    // Gentle "sleeping" Zzz above her.
-    this.time.delayedCall(900, () => {
-      const zzz = this.add.text(this._gamma.x + 24, this._gamma.y - this._gamma.displayHeight - 4, '💤', { fontSize: '22px' }).setDepth(51).setAlpha(0);
-      this.tweens.add({ targets: zzz, alpha: 1, y: zzz.y - 14, duration: 900, yoyo: true, repeat: 2 });
-    });
 
     // Closing caption.
     this.time.delayedCall(1300, () => {

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
 import { generateL8Assets } from './L8Assets.js';
+import { showStoryCard } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 3+4 — PUPPY FEEDING TIME
@@ -164,6 +165,12 @@ export class L8_FeedingScene extends L8BaseScene {
       const h = this.add.image(Phaser.Math.Between(120, 680), H / 2 + 60, 'l8_heart').setScale(0.5).setDepth(112);
       this.tweens.add({ targets: h, y: h.y - 140, alpha: 0, duration: 1500, onComplete: () => h.destroy() });
     });
-    this.time.delayedCall(2000, () => this.goToScene('L8_HomeRun'));
+    this.time.delayedCall(2000, () => {
+      this.playStoryVideos(['l8_after_eat'], () => {
+        showStoryCard(this, "🍽️ Bellies full and happy...\nnow it's time to build their perfect home! 🏡", () => {
+          this.playStoryVideos(['l8_decorate_intro'], () => this.goToScene('L8_HomeRun'));
+        });
+      });
+    });
   }
 }

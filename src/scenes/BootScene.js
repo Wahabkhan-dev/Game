@@ -77,6 +77,20 @@ export class BootScene extends Phaser.Scene {
     this.load.video('l7_v8', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777669/shadow-gamma/video/Level%207/video-8.mp4');
     this.load.image('street_lamp',    'assets/images/Street_Lamp_Post.png');
     this.load.image('traffic_signal', 'assets/images/Traffic_Signal.png');
+
+    // ── Level 8 story videos (already H.264/avc1, no transcode needed) ──────────
+    this.load.video('l8_intro',                'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936466/shadow-gamma/video/Level%208/intro-l8.mp4');
+    this.load.video('l8_reach_home_food',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936478/shadow-gamma/video/Level%208/reach-home-food.mp4');
+    this.load.video('l8_after_eat',             'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936496/shadow-gamma/video/Level%208/after-eat-l8.mp4');
+    this.load.video('l8_decorate_intro',        'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936511/shadow-gamma/video/Level%208/decorate-intro-l8.mp4');
+    this.load.video('l8_decorate_home_reach',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936527/shadow-gamma/video/Level%208/decorate-home-reach-l8.mp4');
+    this.load.video('l8_end',                   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936550/shadow-gamma/video/Level%208/l8-end.mp4');
+
+    // ── Level 9 story videos (already H.264/avc1, no transcode needed) ──────────
+    this.load.video('l9_intro',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936576/shadow-gamma/video/Level%209/intro-l10.mp4');
+    this.load.video('l9_gift_open',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936594/shadow-gamma/video/Level%209/gift-open-l10.mp4');
+    this.load.video('l9_bow_intro',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936616/shadow-gamma/video/Level%209/bow-intro-l10.mp4');
+    this.load.video('l9_end',         'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936672/shadow-gamma/video/Level%209/end-l10.mp4');
     this.load.image('cone',           'assets/images/Traffic_Cone.png');
     this.load.image('road_barrier',   'assets/images/Road Construction_ Barrier.png');
     this.load.image('barrel',         'assets/images/Oil_Barrel.png');
@@ -143,7 +157,7 @@ export class BootScene extends Phaser.Scene {
     const L4 = 'assets/images/Level 4/';
     [
       'l4_bg_sky', 'l4_bg_houses', 'l4_ground', 'l4_garage_bg',
-      'l4_house_finished', 'l4_bush', 'l4_lamp', 'l4_bench',
+      'l4_house_finished', 'l4_bush', 'l4_bench',
       'l4_wood', 'l4_roof', 'l4_nails', 'l4_paint', 'l4_bed', 'l4_food_bowl',
       'l4_cone', 'l4_bin', 'l4_boxes', 'l4_bike', 'l4_puddle', 'l4_pothole',
     ].forEach(k => this.load.image(k, `${L4}${k}.png`));
@@ -158,7 +172,7 @@ export class BootScene extends Phaser.Scene {
     const L5 = 'assets/images/Level 5/';
     [
       'l5_bg_sky', 'l5_bg_houses', 'l5_ground', 'l5_garage_bg',
-      'l5_house', 'l5_house_finished', 'l5_tree', 'l5_bush', 'l5_lamp', 'l5_bench',
+      'l5_house', 'l5_house_finished', 'l5_tree', 'l5_bush', 'l5_bench',
       'l5_wood', 'l5_roof', 'l5_nails', 'l5_paint', 'l5_bed', 'l5_food_bowl',
       'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
     ].forEach(k => this.load.image(k, `${L5}${k}.png`));

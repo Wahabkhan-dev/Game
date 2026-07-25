@@ -158,7 +158,10 @@ export class L8_DecorateScene extends L8BaseScene {
       fontSize: '15px', fontFamily: 'Georgia, serif', color: '#e0567a', stroke: '#fff', strokeThickness: 3
     }).setOrigin(0.5).setDepth(57);
 
-    this.time.delayedCall(2400, () => this._levelComplete());
+    this.time.delayedCall(2400, () => {
+      if (this._heartTimer) this._heartTimer.remove();
+      this.playStoryVideos(['l8_end'], () => this._levelComplete());
+    });
   }
 
   _levelComplete() {

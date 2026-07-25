@@ -103,9 +103,27 @@ async function launchRandomMiniGame(scene, levelNum, onComplete, opts = {}) {
   try { scene.physics?.pause?.(); } catch (_) {}
   try { (scene.player || scene.shadow)?.setVelocity?.(0, 0); } catch (_) {}
 
+  // A caller's timeout/lose-life handler may call scene._miniGameClose() at
+  // ANY time, including during the (async) game pick below, before the real
+  // overlay+finish() below even exists. Without this early hook, that call
+  // would silently no-op (scene._miniGameClose was still whatever it was
+  // last time — likely null), leaving _miniGameOpen stuck true — and the
+  // overlay would still appear a moment later once the pick resolves, with
+  // nothing left able to close it. So: an abort requested before the overlay
+  // exists just needs to stop this function from ever building it.
+  let abortedEarly = false;
+  scene._miniGameClose = () => {
+    abortedEarly = true;
+    scene._miniGameOpen = false;
+    scene._miniGameClose = null;
+    try { scene.physics?.resume?.(); } catch (_) {}
+  };
+
   const folder = await pickRandomGame(levelNum);
+  if (abortedEarly) return;   // caller already closed us out while we were loading
   if (!folder) {
     scene._miniGameOpen = false;
+    scene._miniGameClose = null;
     try { scene.physics?.resume?.(); } catch (_) {}
     if (onComplete) onComplete(0);
     return;

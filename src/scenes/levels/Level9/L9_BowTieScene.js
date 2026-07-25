@@ -147,7 +147,9 @@ export class L9_BowTieScene extends L9BaseScene {
     this._puppies.forEach((pup, i) => this.time.delayedCall(i * 90, () => {
       this.tweens.add({ targets: [pup.pup, pup.bowImg].filter(Boolean), y: `-=14`, duration: 200, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
     }));
-    this.time.delayedCall(900, () => this._endingCard());
+    this.time.delayedCall(900, () =>
+      this.playStoryVideos(['l9_end'], () => this._endingCard())
+    );
   }
 
   _endingCard() {

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L9BaseScene, L9 } from './L9BaseScene.js';
 import { generateL9Assets } from './L9Assets.js';
+import { showStoryCard } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 9 — PART 1 · STAGE 2: "Unwrapping!"  🎀
@@ -131,6 +132,10 @@ export class L9_UnwrapScene extends L9BaseScene {
   _goBow() {
     if (this._advanced) return;
     this._advanced = true;
-    this.goToScene('L9_BowRun');
+    this.playStoryVideos(['l9_gift_open'], () => {
+      showStoryCard(this, "🎁 Gifts opened with joy...\nnow let's find the perfect bows! 🎀", () => {
+        this.playStoryVideos(['l9_bow_intro'], () => this.goToScene('L9_BowRun'));
+      });
+    });
   }
 }

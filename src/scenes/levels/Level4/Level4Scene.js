@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generateL4Assets, generateL4StreetAssets } from './L4Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L4_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
+import { PremiumFooter } from '../../../hud/premium/PremiumFooter.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
@@ -163,9 +164,6 @@ export class Level4Scene extends Phaser.Scene {
       return s;
     };
 
-    // Street lamps
-    [1400, 4600, 7600, 10400].forEach(x => place(x, 'l4_lamp', 150, 4));
-
     // ── Checkpoint flags — visible markers at the two mid-level checkpoint
     // boundaries (CP1→CP2 at ~4000, CP2→CP3 at ~8000). Same art + size + ground
     // anchoring as Level 2 (checkpoint_flag.png ratio → 56×139, origin bottom).
@@ -182,6 +180,25 @@ export class Level4Scene extends Phaser.Scene {
     gate(7000, '🌳 PARK');
     gate(9300, '🏪 MARKET');
     gate(11600, '🏡 HOME ZONE');
+
+    // ── Finish line — checkered marker just before the home stretch, so the
+    // run has a clear "you made it!" visual right before reaching home.
+    const finishX = WORLD_W - 260;
+    const fW = 56, fRows = 4, fCols = 3, cs = fW / fCols;
+    const flG = this.add.graphics().setDepth(4);
+    for (let r = 0; r < fRows; r++) {
+      for (let c = 0; c < fCols; c++) {
+        const dark = (r + c) % 2 === 0;
+        flG.fillStyle(dark ? 0x141414 : 0xf5f5f5, 1);
+        flG.fillRect(finishX - fW / 2 + c * cs, GY - (r + 1) * cs, cs, cs);
+      }
+    }
+    flG.lineStyle(2, 0x000000, 0.6);
+    flG.strokeRect(finishX - fW / 2, GY - fRows * cs, fW, fRows * cs);
+    this.add.text(finishX, GY - fRows * cs - 22, '🏁 FINISH LINE', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3,
+      backgroundColor: '#00000088', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(6);
   }
 
   // ── COLLECTIBLE ITEMS ───────────────────────────────────────────────────────
@@ -261,8 +278,8 @@ export class Level4Scene extends Phaser.Scene {
     const tmrW = 72, tmrX = coinX - 8 - tmrW, tmrY = ROW_CY - 20;
 
     // functional countdown timer
-    this._timerFull = 120; this._timeLeft = 120;
-    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timeLeft}s`, 50);
+    this._timerFull = 120; this._timerLeft = 120;
+    this._timerTxt = buildTimerArt(this, tmrX, tmrY, tmrW, 40, `${this._timerLeft}s`, 50);
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickTimer() });
 
     // functional coin/points counter (earned per item collected)
@@ -276,18 +293,31 @@ export class Level4Scene extends Phaser.Scene {
     menuHit.on('pointerout',  () => this.tweens.add({ targets: menuImg, displayWidth: mSz, displayHeight: mSz, duration: 120 }));
     menuHit.on('pointerdown', () => { menuImg.y += 1; });
     menuHit.on('pointerup',   () => { menuImg.y -= 1; this._togglePause(); });
+
+    // ── Checkpoint bar (bottom) — same premium carved-wood progress track,
+    // zone nodes, and runner marker as Level 2's footer.
+    this._footer = new PremiumFooter(this, {
+      worldWidth: WORLD_W,
+      zones: [
+        { label: 'CP1', color: 0x44cc44 },
+        { label: 'CP2', color: 0xf5c840 },
+        { label: 'CP3', color: 0xee5522 },
+        { label: '🏁', color: 0x8fd0ff },
+      ],
+      runnerEmoji: '🐶',
+    }).build();
   }
 
   // Countdown tick — at 0, lose a life and refill the clock (Level-1 behaviour)
   _tickTimer() {
     if (this._done || this._paused) return;
-    this._timeLeft = Math.max(0, this._timeLeft - 1);
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
     if (this._timerTxt) {
-      this._timerTxt.setText(`${this._timeLeft}s`);
-      this._timerTxt.setColor(this._timeLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
     }
-    if (this._timeLeft <= 0) {
-      this._timeLeft = this._timerFull;
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
       if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
       this._toast("⏱ Out of time! -1 life");
       this._loseLife();
@@ -313,9 +343,16 @@ export class Level4Scene extends Phaser.Scene {
   update(time, delta) {
     if (this._done || this._paused || this._miniGameOpen) return;
 
-    // Dropping into a pothole — let gravity pull the player down, then respawn
+    // Dropping into a pothole — let gravity pull the player down a little so
+    // the drop is visible, then hide the pup once it's sunk into the hole
+    // itself (instead of staying visible all the way off the bottom of the
+    // screen), then respawn.
     if (this._falling) {
       this.player.play('gleeda_jump_anim', true);
+      if (!this._hiddenInHole && this.player.y - this._fallStartY > 40) {
+        this.player.setVisible(false);
+        this._hiddenInHole = true;
+      }
       if (this.player.y > H + 60) this._onHoleFell();
       return;
     }
@@ -349,6 +386,8 @@ export class Level4Scene extends Phaser.Scene {
     if (this._bgMain) this._bgMain.tilePositionX = sx2 / this._bgMain.tileScaleX;
     if (this._sky)    this._sky.tilePositionX    = sx2 / this._sky.tileScaleX;
     if (this._houses) this._houses.tilePositionX = sx2 / this._houses.tileScaleX;
+
+    this._footer?.update(p.x);
 
     this._checkItems();
     this._checkFlags();
@@ -390,9 +429,24 @@ export class Level4Scene extends Phaser.Scene {
         // Check if all items in this checkpoint are collected
         const cpItems = ITEMS.filter(i => i.cp === it.cp);
         const cpDone = cpItems.every(i => this._collected[i.key]);
-        if (cpDone && it.cp < 3) this._checkpointReached(it.cp);
+        if (cpDone && it.cp < 3) {
+          this._checkpointReached(it.cp);   // saves checkpoint + its own mini-game
+        } else {
+          this._launchItemMini();           // every other pickup gets its own mini-activity too
+        }
         if (Object.keys(this._collected).length === ITEMS.length) this._allCollected();
       }
+    });
+  }
+
+  // ── Mini-activity fired on every individual item pickup (not just at
+  // checkpoint completion) — random game from Level 4's slice of the 40 games.
+  _launchItemMini() {
+    if (this.player?.body) this.player.setVelocity(0, 0);
+    const footer = document.getElementById('game-footer');
+    if (footer) footer.style.display = 'none';
+    launchRandomMiniGame(this, 4, () => {
+      if (footer) footer.style.display = 'flex';
     });
   }
 
@@ -425,6 +479,8 @@ export class Level4Scene extends Phaser.Scene {
     p.setPosition(o.x, p.y);
     p.setVelocityX(0);
     p.setVelocityY(140);
+    this._fallStartY = p.y;
+    this._hiddenInHole = false;
     this.cameras.main.shake(160, 0.008);
     this._toast('🕳️ Watch the potholes!');
   }
@@ -490,10 +546,7 @@ export class Level4Scene extends Phaser.Scene {
   _allCollected() {
     this._returning = true;
     this._toast('✅ All materials collected! Return home →');
-    // Finished doghouse goal + arrow at the end
-    const fImg = this.textures.get('l4_house_finished').getSourceImage();
-    const fh = 170, fw = fh * (fImg.width / fImg.height);
-    this.add.image(WORLD_W - 80, GROUND_Y + 8, 'l4_house_finished').setOrigin(0.5, 1).setDisplaySize(fw, fh).setDepth(6);
+    // Goal marker + arrow at the end (house picture removed per request)
     this.add.image(WORLD_W - 80, GROUND_Y - 178, 'l4_homesign').setDisplaySize(96, 46).setDepth(9);
     // arrow above player
     this._arrow = this.add.text(0, 0, '➡️', { fontSize: '26px' }).setScrollFactor(0).setDepth(52);
@@ -650,6 +703,11 @@ export class Level4Scene extends Phaser.Scene {
 
   // ── Pips emptied → lose a heart, refill pips, respawn (or game over) ──
   _loseLife() {
+    // If the timer ran out to 0 while a mini-activity overlay was open, close
+    // it before respawning — otherwise the iframe stays visible on top while
+    // the player is silently teleported back to the checkpoint underneath it.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
+
     this._lives--;
     this._shadowHP = 3;
     this._drawHPPips();
@@ -691,6 +749,8 @@ export class Level4Scene extends Phaser.Scene {
       this._drawHPPips();
       const rx = cp ? cp.x : 80;
       this.player.clearTint();
+      this.player.setVisible(true);   // undo the pothole-fall hide, if any
+      this._hiddenInHole = false;
       this.player.setPosition(rx, GROUND_Y - 40);
       this.player.setVelocity(0, 0);
       this.cameras.main.scrollX = Math.max(0, rx - W / 2);
