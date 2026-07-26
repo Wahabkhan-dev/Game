@@ -63,8 +63,9 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.buildFog(18, 0.18);
     this.startLightning();
 
-    // Intro cinematic (V1+V2 merged) plays over Stage 1 before gameplay begins.
-    this.playStoryVideos(['l7_v1', 'l7_v2'], () => {
+    // Intro cinematic — V1 only now (V2 moved to the END of Stage 1, see
+    // _assembleKey) — plays over Stage 1 before gameplay begins.
+    this.playStoryVideos(['l7_v1'], () => {
       this.toast('🏠 The storm cut the power — find the jeep key. Walk right →', 3400);
     });
   }
@@ -194,9 +195,11 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.time.delayedCall(1100, () => {
       this.registry.set('lives', this._lives);
       this.registry.set('l7_checkpoint', 'L7_Stage2');
-      this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => {
-        this._forceSceneStart('L7_Stage2');
+      // V2 now plays here — at the END of Stage 1 — instead of being merged
+      // into the intro. Once it finishes (or is skipped), continue to Stage 2.
+      this.playStoryVideos(['l7_v2'], () => {
+        this.cameras.main.fadeOut(300, 0, 0, 0);
+        this.time.delayedCall(320, () => this._forceSceneStart('L7_Stage2'));
       });
     });
   }

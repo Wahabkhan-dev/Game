@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { generateAssets } from '../utils/AssetGenerator.js';
+import { warmUpVideos } from '../utils/VideoWarmup.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
@@ -14,6 +15,10 @@ export class BootScene extends Phaser.Scene {
     // Real-art cactus — replaces the plain 🌵 emoji-text "thorn" hazard
     // (Level 1 + Level 2). Not used for the falling boulders/rocks/debris.
     this.load.image('cactus_thorn', 'assets/images/all/hurdle/01.png');
+    // Real-art lever (Level 1's two bridge-unlock levers) — replaces the
+    // procedurally-drawn (WebGL graphics) pedestal + pole + ball.
+    this.load.image('lever_closed', 'assets/images/all/hurdle/lever.png');
+    this.load.image('lever_open',   'assets/images/all/hurdle/lever-open.png');
     this.load.image('fallen_tree',  'assets/images/fallen_tree.png');
     this.load.image('fallen_log',   'assets/images/fallen_log.png');
     this.load.image('porcupine',    'assets/images/porcupine.png');
@@ -71,7 +76,7 @@ export class BootScene extends Phaser.Scene {
     // v1+v2 = merged intro (before Stage 1); v3 = Stage 2 start; v4+v5 = merged,
     // end of Stage 2 → Stage 3; v6 = Stage 4 start; v7 = Stage 4 end (reached
     // hospital) → Stage 5; v8 = game-over cinematic (all lives lost).
-    this.load.video('l7_v1', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777628/shadow-gamma/video/Level%207/video-1.mp4');
+    this.load.video('l7_v1', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777635/shadow-gamma/video/Level%207/video-1.mp4');
     this.load.video('l7_v2', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777635/shadow-gamma/video/Level%207/video-2.mp4');
     this.load.video('l7_v3', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777637/shadow-gamma/video/Level%207/video-3.mp4');
     this.load.video('l7_v4', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777645/shadow-gamma/video/Level%207/video-4.mp4');
@@ -94,7 +99,10 @@ export class BootScene extends Phaser.Scene {
     this.load.video('l9_intro',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936576/shadow-gamma/video/Level%209/intro-l10.mp4');
     this.load.video('l9_gift_open',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936594/shadow-gamma/video/Level%209/gift-open-l10.mp4');
     this.load.video('l9_bow_intro',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936616/shadow-gamma/video/Level%209/bow-intro-l10.mp4');
-    this.load.video('l9_end',         'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936672/shadow-gamma/video/Level%209/end-l10.mp4');
+    // Reused in two spots: reaching home after the Bow Run, and the "all
+    // puppies dressed" ending — same clip, one upload (see
+    // scripts/upload-l9-part2.mjs).
+    this.load.video('l9_part2',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1785026510/shadow-gamma/video/Level%209/part-02.mp4');
     this.load.image('cone',           'assets/images/Traffic_Cone.png');
     this.load.image('road_barrier',   'assets/images/Road Construction_ Barrier.png');
     this.load.image('barrel',         'assets/images/Oil_Barrel.png');
@@ -196,6 +204,12 @@ export class BootScene extends Phaser.Scene {
     // of real alpha transparency (e.g. the puddle sprites) — key it out here so
     // it doesn't show as a white box behind the sprite in-game.
     ['l4_puddle', 'l5_puddle'].forEach(k => this._stripWhiteBackground(k));
+
+    // Start buffering every cinematic in the background NOW (Phaser doesn't
+    // preload video data — it only records URLs), so each one plays instantly
+    // instead of stalling on a black screen while it fetches from the network.
+    warmUpVideos(this);
+
     this.scene.start('Menu');
 
     // Debug: launch sprite simulator on Ctrl+Shift+S

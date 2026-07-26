@@ -487,38 +487,29 @@ export class Level1Scene extends BaseLevelScene {
   // ── Lever ──────────────────────────────────────────────────────────────────
   _spawnLever(x, onPull) {
     const GRASS_Y = H - 46;
-    const PED_H   = 12;
-    const pedTop  = GRASS_Y - PED_H;
+    // Real-art lever (base box + pole + ball, closed/open baked in as two
+    // separate images) — same on-screen height as the old procedural
+    // pedestal+handle (~78px) so the footprint/scale in the scene is unchanged.
+    const LEVER_H = 78;
+    const closedSrc = this.textures.get('lever_closed').getSourceImage();
+    const openSrc   = this.textures.get('lever_open').getSourceImage();
+    const closedW = LEVER_H * (closedSrc.width / closedSrc.height);
+    const openW   = LEVER_H * (openSrc.width / openSrc.height);
 
-    const ped = this.add.graphics().setDepth(6);
-    ped.fillStyle(0x5a3212, 1);
-    ped.fillRect(x - 14, pedTop, 28, PED_H);
-    ped.lineStyle(1, 0x8a5c2a, 1);
-    ped.strokeRect(x - 14, pedTop, 28, PED_H);
+    const leverImg = this.add.image(x, GRASS_Y, 'lever_closed')
+      .setOrigin(0.5, 1).setDisplaySize(closedW, LEVER_H).setDepth(12);
 
-    const baseY = pedTop;
-    const leverG = this.add.graphics().setDepth(12);
-    leverG.x = x;
-    leverG.y = baseY;
-    const drawLever = (pulled) => {
-      leverG.clear();
-      leverG.fillStyle(pulled ? 0x5a8820 : 0x7a4a15, 1);
-      leverG.fillRect(-3, -36, 6, 36);
-      leverG.fillStyle(pulled ? 0x88cc30 : 0xd4a030, 1);
-      leverG.fillCircle(0, -36, 7);
-    };
-    drawLever(false);
-    leverG.angle = 0;
+    const baseY = GRASS_Y - LEVER_H;
 
-    const label = this.add.text(x, baseY - 56, '⚙ LEVER', {
+    const label = this.add.text(x, baseY - 10, '⚙ LEVER', {
       fontSize: '10px', fontFamily: 'Georgia, serif', color: '#f5c87a'
     }).setOrigin(0.5).setDepth(12);
 
-    const hint = this.add.text(x, baseY - 68, '▼ Walk here!', {
+    const hint = this.add.text(x, baseY - 22, '▼ Walk here!', {
       fontSize: '9px', fontFamily: 'Georgia, serif', color: '#aaeebb'
     }).setOrigin(0.5).setDepth(12).setAlpha(0);
 
-    const glow = this.add.circle(x, baseY - 20, 18, 0xf5c87a, 0.12).setDepth(11);
+    const glow = this.add.circle(x, GRASS_Y - LEVER_H / 2, 18, 0xf5c87a, 0.12).setDepth(11);
     const startGlowIdle = () => {
       this.tweens.killTweensOf(glow);
       glow.setFillStyle(0xf5c87a, 0.12).setAlpha(0.12).setScale(1);
@@ -542,8 +533,7 @@ export class Level1Scene extends BaseLevelScene {
     const resetLever = () => {
       try {
         pulled = false;
-        drawLever(false);
-        leverG.angle = 0;
+        leverImg.setTexture('lever_closed').setDisplaySize(closedW, LEVER_H);
         label.setText('⚙ LEVER').setColor('#f5c87a');
         startGlowIdle();
         if (zone && zone.active) zone.destroy();
@@ -567,11 +557,12 @@ export class Level1Scene extends BaseLevelScene {
         if (this.shadow && this.shadow.body) this.shadow.setVelocity(0, 0);
         this._freezeForMini = true;
 
+        // Quick squash-punch (the "open" art already shows the handle pulled
+        // over sideways, so no rotation tween is needed on top of it).
         this.tweens.add({
-          targets: leverG, angle: 70, duration: 480, ease: 'Back.easeIn',
+          targets: leverImg, scaleY: leverImg.scaleY * 0.85, duration: 110, yoyo: true, ease: 'Sine.easeIn',
           onComplete: () => {
-            drawLever(true);
-            leverG.angle = 70;
+            leverImg.setTexture('lever_open').setDisplaySize(openW, LEVER_H);
             label.setText('⚙ PULLED!').setColor('#aaffaa');
             glow.setFillStyle(0x44ff88, 0.22);
             this.tweens.add({ targets: glow, alpha: 0.08, duration: 600, yoyo: true, repeat: -1 });

@@ -281,7 +281,9 @@ export class L8_DecorateScene extends L8BaseScene {
     this.panelButton(td, W / 2, py + ph - 36, '🐾  Finish', 0x6ad06a, () => {
       if (this._heartTimer) this._heartTimer.remove();
       this.cameras.main.fadeOut(200, 0, 0, 0);
-      this.time.delayedCall(740, () => { this._wakeLoop(); this.scene.start('EndScene'); });
+      // Straight back to the Menu — no "Thank you for playing" ruby-heart
+      // celebration screen (EndScene) after this.
+      this.time.delayedCall(240, () => { this._wakeLoop(); this.scene.start('Menu'); });
     }, 200, 46);
   }
 }

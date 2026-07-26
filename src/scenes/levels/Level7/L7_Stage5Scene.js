@@ -142,7 +142,9 @@ export class L7_Stage5Scene extends L7BaseScene {
     // V7 plays once all 5 stages are done, then the level-complete modal.
     this.playStoryVideos(['l7_v7'], () => {
       const points = this.registry.get('points') ?? 0;
-      showLevelCompleteModal(this, points, { nextLevelKey: 'EndScene' });
+      // No "Thank you for playing" ruby-heart celebration screen (EndScene)
+      // anymore — the points modal's only button returns to the Menu.
+      showLevelCompleteModal(this, points, { menuKey: 'Menu' });
     });
   }
 

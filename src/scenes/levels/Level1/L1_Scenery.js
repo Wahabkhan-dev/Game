@@ -56,16 +56,17 @@ export function buildL1Ground(scene, config) {
   const worldW = config.worldWidth || 2000;
   const gaps   = config.gaps || [];
 
-  // ── Physics collision tiles — IDENTICAL to BaseLevelScene (unchanged gameplay)
-  let x = 0;
-  while (x < worldW) {
-    const inGap = gaps.some(g => x + 16 > g.x && x < g.x + g.w);
-    if (!inGap) {
-      const tile = scene.groundGroup.create(x + 16, H - 16, 'ground');
-      tile.setDisplaySize(32, 32).setAlpha(0).refreshBody();
-    }
-    x += 32;
-  }
+  // ── Physics collision — ONE wide invisible static body per solid segment
+  // (the spans between gaps), instead of ~530 individual 32px tiles across the
+  // 17000-wide world. Same flat top surface (centre y=H-16, 32 tall → top at
+  // H-32), so jumping/landing/gap-falling is IDENTICAL — but the level's
+  // create() no longer freezes building hundreds of static bodies the instant
+  // the intro video ends. This was the "game takes time to load after the
+  // video" delay for Level 1.
+  scene._groundSections(worldW, gaps).forEach(sec => {
+    const seg = scene.groundGroup.create(sec.start + sec.width / 2, H - 16, 'ground');
+    seg.setDisplaySize(sec.width, 32).setAlpha(0).refreshBody();
+  });
 
   // ── Visual forest-floor surface, per non-gap segment (gaps stay visually
   // open), starting EXACTLY where the background ends (GROUND_TOP) — no seam
