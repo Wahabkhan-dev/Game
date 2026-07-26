@@ -106,18 +106,16 @@ export class L9_BowRunScene extends L9BaseScene {
   }
 
   _buildLedges() {
-    // The snow-mound art's bounding box already starts almost exactly at its
-    // tallest snow peak (only ~1-2px of transparent margin above it) — the
-    // previous +8 nudge pushed the collision line (and with it, the player's
-    // feet) 8px further down INTO the ~22px-tall sprite, which is what made
-    // her legs visibly poke out below the snow instead of standing on it.
-    // A tiny +2 keeps her feet right at the visible snow line.
-    const STAND_Y_NUDGE = 2;
+    // See L9BaseScene._getTrimmedTexture — the snow art is cropped to its
+    // exact opaque pixels first (removing its transparent canvas padding
+    // entirely), so the physics body built from it below (setDisplaySize +
+    // refreshBody) always matches the visible snow exactly. No more manual
+    // pixel-nudge guessing, which kept over/under-shooting.
+    const platKey = this._getTrimmedTexture('l9_platform');
     LEDGES.forEach(p => {
-      const baseY = p.y + STAND_Y_NUDGE;
-      const src = this.textures.get('l9_platform').getSourceImage();
+      const src = this.textures.get(platKey).getSourceImage();
       const h = Math.round(p.w / (src.width / src.height));
-      const pl = this._platforms.create(p.x, baseY, 'l9_platform');
+      const pl = this._platforms.create(p.x, p.y, platKey);
       pl.setDisplaySize(p.w, h).refreshBody();
       pl.body.checkCollision.down = false; pl.body.checkCollision.left = false; pl.body.checkCollision.right = false;
       pl.setDepth(6);
@@ -127,7 +125,7 @@ export class L9_BowRunScene extends L9BaseScene {
       // made the player look like she was standing in mid-air with her legs
       // sunk a little into the platform.
       this.tweens.add({
-        targets: pl, y: baseY - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        targets: pl, y: p.y - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
         onUpdate: () => pl.refreshBody(),
       });
     });

@@ -7,6 +7,7 @@ import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMen
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
 import { showTryAgainModal } from '../../../utils/EndModals.js';
 import { playVideoSequence } from '../../../utils/VideoOverlay.js';
+import { toCanvas, bboxOf } from '../GlendaSkinCore.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // L9BaseScene — shared scaffolding for Level 9 "A Holiday for the Puppies".
@@ -123,6 +124,29 @@ export class L9BaseScene extends Phaser.Scene {
       fg.fillStyle(0xf4f8ff, 1); fg.fillRect(0, surfaceY, W, surfaceH);
     }
     return body;
+  }
+
+  // Trims a texture down to the exact bounding box of its opaque pixels
+  // (reusing the same alpha-bbox crop GlendaSkinCore uses for the character
+  // skins) and caches the result under '<key>_trimmed'. Used for the floating
+  // snow-ledge platforms: their source art has a chunk of transparent canvas
+  // padding around the actual snow mound, so sizing setDisplaySize()/
+  // refreshBody() off the RAW texture made the invisible collision box sit
+  // above or below the visible snow depending on how much padding was
+  // guessed away — repeated manual pixel-nudge attempts kept over/under-
+  // shooting. Trimming the texture itself removes the guesswork entirely:
+  // whatever size the (now padding-free) texture is displayed at, the
+  // physics body built from it lines up with the visible art exactly.
+  _getTrimmedTexture(key) {
+    const trimmedKey = `${key}_trimmed`;
+    if (this.textures.exists(trimmedKey)) return trimmedKey;
+    const cv = toCanvas(this.textures.get(key).getSourceImage());
+    const box = bboxOf(cv);
+    const out = document.createElement('canvas');
+    out.width = box.w; out.height = box.h;
+    out.getContext('2d').drawImage(cv, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    this.textures.addCanvas(trimmedKey, out);
+    return trimmedKey;
   }
 
   // ── Gleeda: JUMP + SLIDE ─────────────────────────────────────────────────────
