@@ -14,15 +14,9 @@ import { generateL9Assets } from './L9Assets.js';
 // A calm drag-and-drop scene, mirroring the Level-8 Decorate scene.
 // ════════════════════════════════════════════════════════════════════════════
 
-const PUPS = [
-  { name: 'Max' },
-  { name: 'Bella' },
-  { name: 'Coco' },
-  { name: 'Milo' },
-  { name: 'Daisy' },
-  { name: 'Luna' },
-  { name: 'Teddy' },
-];
+// Default names — used only if Level 6's naming ceremony was skipped
+// (e.g. jumping straight into this scene from the debug menu).
+const DEFAULT_PUP_NAMES = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
 
 const BOW_COUNT = 7;
 
@@ -47,13 +41,19 @@ export class L9_BowTieScene extends L9BaseScene {
     this.cameras.main.fadeIn(220, 0, 0, 0);
     this._done = false; this._dressed = 0;
 
+    // Real puppy names, as given during Level 6's naming ceremony (persisted
+    // via registry since it survives every scene hop in between).
+    const names = this.registry.get('l6_puppy_names');
+    this._pups = (Array.isArray(names) && names.length >= 1 ? names : DEFAULT_PUP_NAMES)
+      .map(name => ({ name }));
+
     this.buildRoomBg();
 
     this.buildTopBanner('LEVEL 9', 'BOW-TIE PUPPIES', null);
     this._buildTray();
     this._buildPuppies();
     // progress lives at the bottom, same spot as Level 8's Feeding scene
-    this._counter = this.buildProgressBar('🎀 DRESSED', PUPS.length);
+    this._counter = this.buildProgressBar('🎀 DRESSED', this._pups.length);
 
     this.time.delayedCall(400, () => this.toast('🎀 Drag a bow onto each puppy to dress them up!', 3000));
   }
@@ -66,7 +66,7 @@ export class L9_BowTieScene extends L9BaseScene {
     const pupSrc = this.textures.get('l9_puppy_real').getSourceImage();
     const pupRatio = pupSrc.width / pupSrc.height;
     const pupH = 96, pupW = pupH * pupRatio;
-    this._puppies = PUPS.map((pd, i) => {
+    this._puppies = this._pups.map((pd, i) => {
       const x = startX + i * gap;
       // gentle stand shadow
       this.add.ellipse(x, py + 34, 62, 14, 0x000000, 0.14).setDepth(4);
@@ -162,8 +162,8 @@ export class L9_BowTieScene extends L9BaseScene {
       this.addScore(140);
       this._dressed++;
       this._counter(this._dressed);
-      if (this._dressed >= PUPS.length) this.time.delayedCall(700, () => this._finish());
-      else this.toast(`🎀 ${this._dressed} / ${PUPS.length} puppies dressed!`, 1100);
+      if (this._dressed >= this._pups.length) this.time.delayedCall(700, () => this._finish());
+      else this.toast(`🎀 ${this._dressed} / ${this._pups.length} puppies dressed!`, 1100);
     } else {
       // snap back to the tray
       this.tweens.add({ targets: obj, x: obj.getData('homeX'), y: obj.getData('homeY'), duration: 240, ease: 'Back.easeOut' });
@@ -203,7 +203,7 @@ export class L9_BowTieScene extends L9BaseScene {
     const cardPupSrc = this.textures.get('l9_puppy_bow').getSourceImage();
     const cardPupRatio = cardPupSrc.width / cardPupSrc.height;
     const cardPupH = 46, cardPupW = cardPupH * cardPupRatio;
-    PUPS.forEach((pd, i) => {
+    this._pups.forEach((pd, i) => {
       const x = cx - 180 + i * 60, y = 190;
       this.add.image(x, y, 'l9_puppy_bow').setDisplaySize(cardPupW, cardPupH).setScrollFactor(0).setDepth(122);
       this.add.text(x, y + 26, pd.name, { fontSize: '8px', fontFamily: 'Georgia, serif', color: '#5a3a1a' }).setOrigin(0.5).setScrollFactor(0).setDepth(123);

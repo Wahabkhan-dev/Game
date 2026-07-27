@@ -513,7 +513,7 @@ export class Level6Scene extends Phaser.Scene {
     generatePremiumHudTextures(this);
     this._hdr = buildStandardHeader(this, {
       chapterLabel: 'LEVEL 6', title: '🐾 Collect 7 Puppy Names!',
-      timer: null, coinValue: this._score,
+      timer: 90, coinValue: this._score,
       lives: this._lives, hp: this._hp,
       onMenu: () => this._togglePause(), depth: 48,
     });
@@ -523,6 +523,13 @@ export class Level6Scene extends Phaser.Scene {
     this._progTxt  = this._hdr.titleTxt;
     this._hdr.setLives(this._lives);
     this._hdr.setHP(this._hp);
+
+    // Functional countdown timer — same "time-up = lose 1 full life, respawn
+    // at last checkpoint" rule used everywhere else in the game.
+    this._timerTxt  = this._hdr.timerTxt;
+    this._timerFull = 90;
+    this._timerLeft = 90;
+    this._timerEvt  = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickTimer() });
 
     // Puppy-name collection board — same checkpoint-banner design as L4/5/6 runners.
     // No icon given, so each slot shows the name itself (in letters) instead of an image.
@@ -909,6 +916,46 @@ export class Level6Scene extends Phaser.Scene {
         p.setVelocityX(0);
       }
     }
+  }
+
+  // Countdown tick — at 0, refill the clock and cost a full life (same rule
+  // as the pit-fall / HP-loss paths below, not a partial HP hit).
+  _tickTimer() {
+    if (this._done || this._paused || this._miniActive || this._miniGameOpen) return;
+    this._timerLeft = Math.max(0, this._timerLeft - 1);
+    if (this._timerTxt) {
+      this._timerTxt.setText(`${this._timerLeft}s`);
+      this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff5a3a' : THEME.goldTxt);
+    }
+    if (this._timerLeft <= 0) {
+      this._timerLeft = this._timerFull;
+      if (this._timerTxt) { this._timerTxt.setText(`${this._timerFull}s`); this._timerTxt.setColor(THEME.goldTxt); }
+      this._onTimeUp();
+    }
+  }
+
+  _onTimeUp() {
+    if (this._done || this._damageCD) return;
+    this._damageCD = true;
+
+    this.cameras.main.flash(320, 0, 0, 0, true);
+    this._lives--;
+    this._hdr?.setLives(this._lives);
+    this._hp = 3;
+    this._hdr?.setHP(this._hp);
+    this._toast("⏰ Time's up!");
+    this.cameras.main.shake(200, 0.012);
+
+    if (this._lives <= 0) {
+      this.time.delayedCall(400, () => {
+        showTryAgainModal(this, () => {
+          this.cameras.main.fadeOut(500, 0, 0, 0);
+          this.time.delayedCall(210, () => this.scene.restart());
+        });
+      });
+      return;
+    }
+    this._respawnAtCheckpoint();
   }
 
   _fallIntoPit() {

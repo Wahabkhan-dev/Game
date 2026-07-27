@@ -15,7 +15,9 @@ import { showStoryCard } from '../../../utils/VideoOverlay.js';
 // A calm tap-interaction scene (no running), mirroring the Level-8 Feeding scene.
 // ════════════════════════════════════════════════════════════════════════════
 
-const PUPS = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
+// Default names — used only if Level 6's naming ceremony was skipped
+// (e.g. jumping straight into this scene from the debug menu).
+const DEFAULT_PUP_NAMES = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
 const WRAP_TEX = ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe'];
 const SURPRISES = ['l9_toy_ball', 'l9_toy_bone', 'l9_candy', 'l9_ornament', 'l9_star'];
 
@@ -40,7 +42,12 @@ export class L9_UnwrapScene extends L9BaseScene {
 
     this.buildRoomBg();
 
-    this._total = PUPS.length;
+    // Real puppy names, as given during Level 6's naming ceremony (persisted
+    // via registry since it survives every scene hop in between).
+    const names = this.registry.get('l6_puppy_names');
+    this._pups = Array.isArray(names) && names.length >= 1 ? names : DEFAULT_PUP_NAMES;
+
+    this._total = this._pups.length;
     this._opened = 0;
 
     this.buildTopBanner('LEVEL 9 · PART 1', '🎀 Unwrapping Time!', 'Tap each gift to open it');
@@ -63,7 +70,7 @@ export class L9_UnwrapScene extends L9BaseScene {
     const pupH = 96, pupW = pupH * pupRatio;
 
     this._gifts = [];
-    PUPS.forEach((name, i) => {
+    this._pups.forEach((name, i) => {
       const x = startX + i * gap;
 
       // the waiting puppy

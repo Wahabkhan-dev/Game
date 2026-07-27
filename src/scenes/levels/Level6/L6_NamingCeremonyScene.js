@@ -43,6 +43,10 @@ export class L6_NamingCeremonyScene extends Phaser.Scene {
     // The collected names define the "correct" set; fall back to all 7.
     this._correct = (data && Array.isArray(data.names) && data.names.length >= 1)
       ? data.names : CORRECT_NAMES;
+    // Persist across every later scene (registry survives scene-data hops
+    // that plain scene.start(key, data) does not) so Level 9's bow-tying
+    // scene can address the puppies by the names given here.
+    this.registry.set('l6_puppy_names', this._correct);
     this._stars  = (data && data.stars) || 0;
     this._found  = 0;
     this._tiles  = [];
