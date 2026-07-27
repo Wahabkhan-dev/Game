@@ -233,63 +233,93 @@ export class L7_CutsceneScene extends Phaser.Scene {
 
     const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
+    const isRunning = () => {
+      const sceneObj = this.game.scene.getScene(target);
+      const status = sceneObj ? sceneObj.sys.settings.status : -1;
+      return status === 5 || status === 8 || status === 9 || this.game.scene.isActive(target);
+    };
+
     const go = () => {
       if (this._started) return;
       this._started = true;
       console.log(`[L7_Cutscene] Starting transition to ${target}`);
-      
+
       // Immediately try to start the scene — don't wait for events that may never fire
       this._wakeLoop();
-      try { 
+      try {
         this.scene.start(target, data);
         console.log(`[L7_Cutscene] scene.start() called for ${target}`);
       } catch (e) {
         console.warn('[L7_Cutscene] scene.start failed:', e);
       }
-      
-      // Aggressively step the RAF loop to force the scene through INIT→START→LOADING→CREATING→RUNNING
-      let tries = 0;
-      const maxTries = 600; // 30 seconds (600 * 50ms)
-      this._finishIv = setInterval(() => {
-        const sceneObj = this.game.scene.getScene(target);
-        const status = sceneObj ? sceneObj.sys.settings.status : -1;
-        
-        // Check if the scene is running (status 5 = RUNNING)
-        if (status === 5 || this.game.scene.isActive(target)) {
+
+      // On a HEALTHY loop, scene.start() is processed on the very next
+      // requestAnimationFrame tick with no help needed — check via rAF first
+      // (free) so a normal transition never touches game.step() at all (the
+      // old unconditional setInterval here raced a manually-forced step
+      // against the browser's own already-ticking RAF loop, double-stepping
+      // the game for a beat — a visible "jerk" going into Stage 1).
+      // The "has it been a second yet" fallback below runs on setTimeout,
+      // NOT inside the rAF callback: gating it behind rAF re-scheduling
+      // itself would mean that if the loop was EVER actually stalled (the
+      // one case this mechanism exists for), rAF would never fire again to
+      // notice the timeout had elapsed — freezing the game on a black screen
+      // forever instead of recovering. setTimeout doesn't depend on the
+      // rendering pipeline, so it still fires even when rAF has stopped.
+      const rafCheck = () => {
+        if (this._finishDone) return;
+        if (isRunning()) {
           console.log(`[L7_Cutscene] Scene ${target} is now RUNNING. Cleanup.`);
           this._clearFinish();
           return;
         }
-        
-        // If scene got destroyed/errored, give up
-        if (status === 9 || status === 8) {
-          console.warn(`[L7_Cutscene] Scene ${target} failed (status=${status}). Cleanup.`);
-          this._clearFinish();
-          return;
-        }
-        
-        // Wake the loop (restores hasFocus so the already-queued RAF callback
-        // actually calls game.step instead of returning early).
-        this._wakeLoop();
-        try {
-          const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
-          this.game.step(t, 16);   // bypass TimeStep entirely — process queue now
-        } catch (e) { console.warn('[L7_Cutscene] game.step failed:', e); }
-        
-        if (++tries >= maxTries) {
-          console.error(`[L7_Cutscene] Max retries exceeded for ${target}. Status=${status}`);
-          this._clearFinish();
-        }
-      }, 50);
+        this._finishRaf = requestAnimationFrame(rafCheck);
+      };
+      this._finishRaf = requestAnimationFrame(rafCheck);
+
+      this._finishTO = setTimeout(() => {
+        if (this._finishDone || isRunning()) { this._clearFinish(); return; }
+        // Loop appears genuinely stalled — fall back to forcing steps.
+        console.warn(`[L7_Cutscene] Loop appears stalled after 1s — forcing steps for ${target}.`);
+        let tries = 0;
+        const maxTries = 300; // 15 seconds (300 * 50ms)
+        this._finishIv = setInterval(() => {
+          if (isRunning()) {
+            console.log(`[L7_Cutscene] Scene ${target} is now RUNNING. Cleanup.`);
+            this._clearFinish();
+            return;
+          }
+          // Wake the loop (restores hasFocus so the already-queued RAF callback
+          // actually calls game.step instead of returning early).
+          this._wakeLoop();
+          try {
+            const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            this.game.step(t, 16);   // bypass TimeStep entirely — process queue now
+          } catch (e) { console.warn('[L7_Cutscene] game.step failed:', e); }
+
+          if (++tries >= maxTries) {
+            console.error(`[L7_Cutscene] Max retries exceeded for ${target}.`);
+            this._clearFinish();
+          }
+        }, 50);
+      }, 1000);
     };
-    
+
     // Try immediately (don't wait for fade event which might not fire if loop is sleeping)
     // The fade will happen visually while we're trying to boot the next scene
     this.time.delayedCall(50, go);
-    this.events.once('shutdown', () => this._clearFinish());
+    // NOTE: deliberately NOT cleared on this.events.once('shutdown', ...) —
+    // this.scene.start(target) queues a STOP of THIS scene as part of the
+    // same operation, so shutdown fires almost immediately regardless of
+    // whether target ever finishes booting, which would kill the rAF/
+    // setTimeout/setInterval watchdog right when it's needed to recover from
+    // a genuine stall. See L7BaseScene.js's _forceSceneStart for the full
+    // writeup of this bug (same root cause, independent copy of the code).
   }
 
   _clearFinish() {
+    this._finishDone = true;
+    if (this._finishRaf) { cancelAnimationFrame(this._finishRaf); this._finishRaf = null; }
     if (this._finishIv) { clearInterval(this._finishIv); this._finishIv = null; }
     if (this._finishTO) { clearTimeout(this._finishTO); this._finishTO = null; }
   }

@@ -341,6 +341,9 @@ export class Level4Scene extends Phaser.Scene {
   _buildControls() {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('A,D,W,SPACE');
+    // Esc pauses the game and opens the menu modal (and resumes on a second
+    // press) — same as the ☰ menu button.
+    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC).on('down', () => { if (!this._miniGameOpen) this._togglePause(); });
     const footer = document.getElementById('game-footer');
     if (footer) footer.style.display = 'flex';
     this.events.once('shutdown', () => { const f = document.getElementById('game-footer'); if (f) f.style.display = 'none'; });

@@ -948,23 +948,10 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     const roadH   = 80;
     const hx      = CFG.CAR_X + CFG.HOSPITAL_SPRITE;
 
-    // ── Hospital sign — pole above yellow border only (same as warning signs) ─
+    // ── Hospital sign REMOVED — the green sign box + white "plus" cross (and
+    // its pole) are gone per request. An empty graphics object is kept only so
+    // the update() positioning code (this._hospGfx.x = …) still has a target.
     const g = this.add.graphics().setDepth(8);
-    // Visible pole: box bottom (RS-56) to yellow border (RS-52) — 84 px above
-    g.fillStyle(0xddddee, 1);
-    g.fillRect(-3, RS - 140, 6, 88);     // top=RS-140, bottom=RS-52 (yellow border)
-    // Bracket at yellow border
-    g.fillStyle(0x55566a, 1);
-    g.fillRect(-8, RS - 55, 16, 6);
-    // Green sign box entirely above yellow border
-    g.fillStyle(0x0a5c1a, 1);
-    g.fillRoundedRect(-42, RS - 142, 84, 84, 8);
-    g.lineStyle(3, 0x44dd44, 1);
-    g.strokeRoundedRect(-42, RS - 142, 84, 84, 8);
-    // White cross
-    g.fillStyle(0xffffff, 1);
-    g.fillRect(-10, RS - 132, 20, 64);   // vertical
-    g.fillRect(-32, RS - 108, 64, 20);   // horizontal
     g.x = hx;
     this._hospGfx = g;
 

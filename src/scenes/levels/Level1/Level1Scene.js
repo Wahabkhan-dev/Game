@@ -100,9 +100,25 @@ export class Level1Scene extends BaseLevelScene {
   //   • restart THAT zone's timer from full (each zone set _timerFull on entry), and
   //   • if they died mid-boss-fight, silently re-arm the encounter so no stale
   //     prompt / attack UI lingers and no intro prompt reappears (those show once).
+  //   • undo any lever+bridge that was solved but never "locked in" — i.e. the
+  //     player pulled the lever and built the bridge, then died to something
+  //     else before actually reaching the checkpoint just past it. Respawning
+  //     puts them back BEFORE that lever, so it must look/behave unsolved
+  //     again instead of leaving a already-open lever + already-built bridge
+  //     sitting there for free.
   _respawnAtCheckpoint() {
     this._resetBossEncounterIfActive();
     if (this._timerFull != null) this._resetTimer(this._timerFull);
+    if (!this._zone2Entered && this._bridge1Objs) {
+      this._teardownBridge(this._bridge1Objs);
+      this._bridge1Objs = null;
+      this._resetLever1?.();
+    }
+    if (!this._zone3Entered && this._bridge2Objs) {
+      this._teardownBridge(this._bridge2Objs);
+      this._bridge2Objs = null;
+      this._resetLever2?.();
+    }
     super._respawnAtCheckpoint();
   }
 
@@ -238,20 +254,25 @@ export class Level1Scene extends BaseLevelScene {
     this.add.text(5750, 348, '⚠️', { fontSize: '22px' }).setDepth(14);
     this.add.text(11550, 348, '⚠️', { fontSize: '22px' }).setDepth(14);
 
+    // Bridge tile/plank objects, kept so a death-before-checkpoint respawn can
+    // tear them back down (see _respawnAtCheckpoint below).
+    this._bridge1Objs = null;
+    this._bridge2Objs = null;
+
     // ── LEVER 1: end of Zone 1 ─────────────────────────────────────────────
-    this._spawnLever(5350, async (resetLever) => {
+    this._resetLever1 = this._spawnLever(5350, async (resetLever) => {
       const game1 = await pickRandomGame(1);
       if (game1) this._launchMiniGame(game1, () => {
-        this._buildBridge(5400, 350);
+        this._bridge1Objs = this._buildBridge(5400, 350);
       }, resetLever);   // fail (time up / exit) → re-arm the lever for another try
       else this._freezeForMini = false;   // no game → don't leave the player frozen
     });
 
     // ── LEVER 2: end of Zone 2 ─────────────────────────────────────────────
-    this._spawnLever(11150, async (resetLever) => {
+    this._resetLever2 = this._spawnLever(11150, async (resetLever) => {
       const game2 = await pickRandomGame(1);
       if (game2) this._launchMiniGame(game2, () => {
-        this._buildBridge(11200, 350);
+        this._bridge2Objs = this._buildBridge(11200, 350);
       }, resetLever);   // fail (time up / exit) → re-arm the lever for another try
       else this._freezeForMini = false;   // no game → don't leave the player frozen
     });
@@ -277,15 +298,13 @@ export class Level1Scene extends BaseLevelScene {
     const THORN_GROUND_Y = 423;
     this._thorns = [];
     // Zone 1 end section (x=4200–5100): break the blank stretch before the lever
+    // Display size reduced ~15% then a further ~7% (60 → 51 → 47) per art-pass request.
     [4280, 4650, 5050].forEach(tx => {
-      this.add.image(tx, THORN_GROUND_Y, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(60, 60).setDepth(9);
+      this.add.image(tx, THORN_GROUND_Y, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(47, 47).setDepth(9);
       this._thorns.push({ x: tx - 12, y: 370, w: 28, h: 28 });
     });
-    // Zone 3 thorns
-    [12200, 13700, 15360].forEach(tx => {
-      this.add.image(tx, THORN_GROUND_Y, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(68, 68).setDepth(9);
-      this._thorns.push({ x: tx - 12, y: 370, w: 30, h: 30 });
-    });
+    // Zone 3 no longer has the cactus-thorn hazard (removed per request) —
+    // the swamp-water gaps + rock rain + boss snake already carry Zone 3.
 
     // ── Gap visuals (Zone 1 short gaps) — plain dark pit, no water ────────
     [{ x: 700, w: 110 }, { x: 1900, w: 110 }, { x: 3200, w: 110 }].forEach(gap => {
@@ -395,7 +414,7 @@ export class Level1Scene extends BaseLevelScene {
     // Looping video (dog + cage baked in, continuously animated) replaces the
     // old procedural back-wall/bars + static gemma_idle sprite combo.
     {
-      const gx = 16700, gy = 406;
+      const gx = 16700, gy = 423;   // true ground line — same as the thorns/snake
       // Sized to match Shadow/Gleeda's own on-screen size (122×66) + 10%.
       this.gemmaGoal = addLoopingVideo(this, gx, gy, 'gemma_cage_loop', {
         originY: 1, depth: 9, width: 134, height: 73,
@@ -459,10 +478,15 @@ export class Level1Scene extends BaseLevelScene {
   }
 
   // ── Bridge ────────────────────────────────────────────────────────────────
+  // Returns every object it created (ground tiles + plank/grain visuals) so a
+  // death before the next checkpoint can tear it back down — see
+  // _teardownBridge / _respawnAtCheckpoint below.
   _buildBridge(startX, width) {
+    const objs = [];
     for (let tx = startX; tx < startX + width; tx += 32) {
       const tile = this.groundGroup.create(tx + 16, H - 16, 'ground');
       tile.setDisplaySize(32, 32).setAlpha(0).refreshBody();
+      objs.push(tile);
     }
     this.groundGroup.refresh();
 
@@ -476,21 +500,32 @@ export class Level1Scene extends BaseLevelScene {
       const grain = this.add.rectangle(px, H - 40, plankW - 2, 3, 0x5a3010, 0.65).setDepth(8);
       grain.y = H - 200;
       this.tweens.add({ targets: grain, y: H - 40, duration: 300, delay: i * 38, ease: 'Bounce.easeOut' });
+      objs.push(plank, grain);
     }
 
     this.cameras.main.shake(300, 0.012);
     this.time.delayedCall(count * 38 + 200, () =>
       this._showMessage('🌉 Bridge built! Cross now! 🐾')
     );
+    return objs;
+  }
+
+  // Tears a built bridge back down — used when the player dies and respawns
+  // at a checkpoint BEFORE the zone this bridge unlocks, so that "provisional"
+  // progress (lever pulled, bridge built) that was never actually locked in
+  // by reaching the next checkpoint doesn't survive the respawn.
+  _teardownBridge(objs) {
+    if (!objs) return;
+    objs.forEach(o => { try { this.tweens.killTweensOf(o); o.destroy(); } catch (_) {} });
+    if (this.groundGroup?.refresh) this.groundGroup.refresh();
   }
 
   // ── Lever ──────────────────────────────────────────────────────────────────
   _spawnLever(x, onPull) {
     const GRASS_Y = H - 46;
     // Real-art lever (base box + pole + ball, closed/open baked in as two
-    // separate images) — same on-screen height as the old procedural
-    // pedestal+handle (~78px) so the footprint/scale in the scene is unchanged.
-    const LEVER_H = 78;
+    // separate images). Height reduced ~22% (78 → 61) per art-pass request.
+    const LEVER_H = 61;
     const closedSrc = this.textures.get('lever_closed').getSourceImage();
     const openSrc   = this.textures.get('lever_open').getSourceImage();
     const closedW = LEVER_H * (closedSrc.width / closedSrc.height);
@@ -591,6 +626,11 @@ export class Level1Scene extends BaseLevelScene {
         hint.setAlpha(d < 190 ? Math.min(1, (190 - d) / 70) : 0);
       }
     });
+
+    // Exposed so a death-before-checkpoint respawn can force this lever back
+    // to closed even after it's already been successfully pulled — see
+    // _respawnAtCheckpoint.
+    return resetLever;
   }
 
   // ── Boss snake (Zone 3) ──────────────────────────────────────────────────

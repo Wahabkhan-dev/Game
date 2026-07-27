@@ -317,25 +317,77 @@ export class L7BaseScene extends Phaser.Scene {
   // stalled right as it fired — a single _wakeLoop() call isn't enough,
   // because scene.start() only gets PROCESSED on the next loop tick, and if
   // that tick never comes the game silently stays on the old scene forever
-  // (this is what made stage-to-stage progress randomly get stuck). Retries
-  // game.step() until the target scene is confirmed active, or gives up
-  // after ~15s.
+  // (this is what made stage-to-stage progress randomly get stuck).
+  //
+  // On a HEALTHY loop (the normal case — nothing stalled, tab in focus),
+  // scene.start() is processed on the very next requestAnimationFrame tick
+  // with no help needed. The old version skipped straight to forcing
+  // game.step() on a fixed setInterval regardless, so on every transition it
+  // raced a manually-forced step against the browser's own already-ticking
+  // RAF loop — occasionally double-stepping the game for a beat, which is
+  // what caused the visible "jerk" going into Stage 3.
+  //
+  // Fixed by checking via rAF first (free — piggybacks on frames already
+  // being rendered) so the healthy path never touches game.step() at all.
+  // IMPORTANT: the "has it been a second yet" fallback timer below runs on
+  // setTimeout, NOT inside the rAF callback — a first attempt at this bug
+  // gated the fallback behind rAF re-scheduling itself, which meant that if
+  // the loop was EVER actually stalled (the one case this whole mechanism
+  // exists for), rAF would never fire again to notice the timeout had
+  // elapsed, and the game froze on a black screen forever instead of
+  // recovering. setTimeout doesn't depend on the rendering pipeline, so it
+  // still fires and triggers the forced-step fallback even when rAF itself
+  // has stopped ticking.
   _forceSceneStart(nextScene, nextData = {}) {
     this._wakeLoop();
     this.scene.start(nextScene, nextData);
-    let tries = 0;
-    const iv = setInterval(() => {
+
+    const isRunning = () => {
       const sceneObj = this.game.scene.getScene(nextScene);
       const status = sceneObj ? sceneObj.sys.settings.status : -1;
-      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
-      if (status === 8 || status === 9) { clearInterval(iv); return; }
-      this._wakeLoop();
-      try {
-        const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
-        this.game.step(t, 16);
-      } catch (_) {}
-      if (++tries >= 300) clearInterval(iv);
-    }, 50);
+      return status === 5 || status === 8 || status === 9 || this.game.scene.isActive(nextScene);
+    };
+
+    let done = false, rafId = null, iv = null, timeoutId = null;
+    const stopAll = () => {
+      done = true;
+      if (rafId != null) cancelAnimationFrame(rafId);
+      if (iv != null) clearInterval(iv);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+
+    const rafCheck = () => {
+      if (done) return;
+      if (isRunning()) { stopAll(); return; }
+      rafId = requestAnimationFrame(rafCheck);
+    };
+    rafId = requestAnimationFrame(rafCheck);
+
+    // Independent, timer-based fallback — fires after 1s regardless of
+    // whether rAF above ever ticks again.
+    timeoutId = setTimeout(() => {
+      if (done || isRunning()) { stopAll(); return; }
+      let tries = 0;
+      iv = setInterval(() => {
+        if (isRunning()) { stopAll(); return; }
+        this._wakeLoop();
+        try {
+          const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          this.game.step(t, 16);
+        } catch (_) {}
+        if (++tries >= 300) stopAll();
+      }, 50);
+    }, 1000);
+
+    // NOTE: deliberately NOT tied to this.events.once('shutdown', stopAll).
+    // this.scene.start(nextScene) queues a STOP of THIS scene as part of the
+    // very same operation (see Phaser's ScenePlugin.start), so "this" scene's
+    // shutdown fires almost immediately — within about one frame — regardless
+    // of whether nextScene ever actually finishes booting. Cancelling the
+    // watchdog on that shutdown event killed the entire recovery mechanism on
+    // every single transition, right as it was needed most. The rAF/timeout/
+    // interval here don't depend on this scene being alive, so they're safe
+    // to just keep running until isRunning() is true or tries run out.
   }
 
   // ── Pause menu — finalized wood/gold Game-Menu modal (approved via Theme Design)

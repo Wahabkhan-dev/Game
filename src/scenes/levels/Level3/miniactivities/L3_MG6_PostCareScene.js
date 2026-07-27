@@ -83,9 +83,12 @@ export class L3_MG6_PostCareScene extends Phaser.Scene {
     this.tweens.add({ targets: this._bowl, y: by - 5, duration: 600, yoyo: true, repeat: -1 });
     this.add.text(bx, by - 30, '🍲 Food', { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#ffcc44' }).setOrigin(0.5).setDepth(14);
 
-    // Medicine bottle
+    // Medicine bottle — sized to the art's own aspect ratio (fixed 50px height)
+    // so the real bottle image isn't stretched.
     const mx = 220, my = H - 132;
-    this._medBottle = this.add.image(mx, my, 'l3_med_ok').setDisplaySize(30, 50).setDepth(15).setInteractive({ useHandCursor: true });
+    const _mbSrc = this.textures.get('l3_med_ok').getSourceImage();
+    const _mbW = Math.round(50 * ((_mbSrc.width || 30) / (_mbSrc.height || 50)));
+    this._medBottle = this.add.image(mx, my, 'l3_med_ok').setDisplaySize(_mbW, 50).setDepth(15).setInteractive({ useHandCursor: true });
     this._medBottle._origX = mx; this._medBottle._origY = my;
     this._medBottle._type  = 'medicine';
     this.tweens.add({ targets: this._medBottle, y: my - 5, duration: 600, yoyo: true, repeat: -1, delay: 300 });

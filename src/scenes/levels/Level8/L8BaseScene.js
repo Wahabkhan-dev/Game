@@ -373,6 +373,36 @@ export class L8BaseScene extends Phaser.Scene {
     }
   }
 
+  // Lays out the collection-banner item icons (food run / prop run) so they:
+  //   • sit with a real 20px gap from the panel's left AND right edges, and
+  //   • keep each image's OWN aspect ratio (fit to a 24px height, capped to the
+  //     per-slot width) instead of being squashed into one wrong 30×26 box —
+  //     that squash is what made the icons look mismatched.
+  // Sets/returns this._slots = [{ icon, chk }], read by the collection logic.
+  _layoutCollectSlots(items, px, py, PW) {
+    const MARGIN = 20, IH = 24, NOM_HW = 13;
+    const N = items.length;
+    const first = px + MARGIN + NOM_HW;
+    const last  = px + PW - MARGIN - NOM_HW;
+    const step  = N > 1 ? (last - first) / (N - 1) : 0;
+    const iy = py + 48;
+    this._slots = items.map((it, i) => {
+      const ix = N > 1 ? first + i * step : px + PW / 2;
+      const src = this.textures.get(it.tex)?.getSourceImage();
+      const ratio = (src && src.width && src.height) ? src.width / src.height : 1;
+      let iw = IH * ratio, ih = IH;
+      const maxW = Math.min(32, (step || 32) - 6);
+      if (iw > maxW) { iw = maxW; ih = iw / ratio; }
+      const icon = this.add.image(ix, iy, it.tex).setDisplaySize(iw, ih)
+        .setScrollFactor(0).setDepth(61).setAlpha(0.32);
+      const chk = this.add.text(ix, iy + 16, '·', {
+        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#7a8898'
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(62);
+      return { icon, chk };
+    });
+    return this._slots;
+  }
+
   // Counter pill, e.g. "🧺 FOOD COLLECTED  3/8" — sits just below the banner
   // (the level's checkpoint/collection module). Returns an updater(n).
   buildCounterPill(icon, label, total) {
@@ -639,22 +669,66 @@ export class L8BaseScene extends Phaser.Scene {
 
   // Start a scene and GUARANTEE it takes effect even if the RAF loop stalled the
   // instant it fired (scene.start() is only processed on a loop tick; if that
-  // tick never comes, the game silently sits on a black screen). Pumps
-  // game.step() until the target scene is confirmed active, then stops.
+  // tick never comes, the game silently sits on a black screen).
+  //
+  // On a HEALTHY loop (the normal case), scene.start() is processed on the
+  // very next requestAnimationFrame tick with no help needed. Forcing
+  // game.step() on a fixed setInterval regardless of loop health (the old
+  // behaviour) raced a manually-forced step against the browser's own
+  // already-ticking RAF loop, occasionally double-stepping the game for a
+  // beat — a visible "jerk" right as the new scene loaded.
+  //
+  // Fixed by checking via rAF first so the healthy path never touches
+  // game.step() at all. IMPORTANT: the "has it been a second yet" fallback
+  // timer runs on setTimeout, NOT inside the rAF callback — gating it behind
+  // rAF re-scheduling itself meant that if the loop was EVER actually
+  // stalled (the one case this mechanism exists for), rAF would never fire
+  // again to notice the timeout had elapsed, freezing the game on a black
+  // screen forever instead of recovering. setTimeout doesn't depend on the
+  // rendering pipeline, so it still fires and triggers the forced-step
+  // fallback even when rAF itself has stopped ticking.
   _forceSceneStart(nextScene, data = {}) {
     this._wakeLoop();
     try { this.scene.start(nextScene, data); } catch (_) {}
-    let tries = 0;
-    const iv = setInterval(() => {
+
+    const isRunning = () => {
       const s = this.game.scene.getScene(nextScene);
       const status = s ? s.sys.settings.status : -1;
-      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
-      if (status === 8 || status === 9) { clearInterval(iv); return; }
-      this._wakeLoop();
-      try { const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()); this.game.step(t, 16); } catch (_) {}
-      if (++tries >= 300) clearInterval(iv);
-    }, 50);
-    this.events.once('shutdown', () => clearInterval(iv));
+      return status === 5 || status === 8 || status === 9 || this.game.scene.isActive(nextScene);
+    };
+
+    let done = false, rafId = null, iv = null, timeoutId = null;
+    const stopAll = () => {
+      done = true;
+      if (rafId != null) cancelAnimationFrame(rafId);
+      if (iv != null) clearInterval(iv);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+
+    const rafCheck = () => {
+      if (done) return;
+      if (isRunning()) { stopAll(); return; }
+      rafId = requestAnimationFrame(rafCheck);
+    };
+    rafId = requestAnimationFrame(rafCheck);
+
+    timeoutId = setTimeout(() => {
+      if (done || isRunning()) { stopAll(); return; }
+      let tries = 0;
+      iv = setInterval(() => {
+        if (isRunning()) { stopAll(); return; }
+        this._wakeLoop();
+        try { const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()); this.game.step(t, 16); } catch (_) {}
+        if (++tries >= 300) stopAll();
+      }, 50);
+    }, 1000);
+
+    // NOTE: deliberately NOT tied to this.events.once('shutdown', stopAll) —
+    // this.scene.start(nextScene) queues a STOP of THIS scene as part of the
+    // same operation, so shutdown fires almost immediately regardless of
+    // whether nextScene ever finishes booting, which would kill the watchdog
+    // right when it's needed. See L7BaseScene.js's _forceSceneStart for the
+    // full writeup of this bug.
   }
 
   _wakeLoop() {

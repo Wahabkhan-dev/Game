@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
+import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { playVideoSequence, showStoryCard } from '../../../utils/VideoOverlay.js';
+import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 4 — DRIVE TO HOSPITAL  (rainy city highway)
@@ -50,7 +52,7 @@ const CAR_TEX = (scene) => scene.textures.exists('l7_jeep_fixed') ? 'l7_jeep_fix
 const CAR_FRAMES = Array.from({ length: 9 }, (_, i) => `l7s4_car_${i + 1}`);
 const CAR_FPS = 14;
 
-export class L7_Stage4Scene extends Phaser.Scene {
+export class L7_Stage4Scene extends L7BaseScene {
   constructor() { super('L7_Stage4'); }
 
   preload() {
@@ -563,28 +565,17 @@ export class L7_Stage4Scene extends Phaser.Scene {
   }
   _runQTE(q) {
     if (this._done) return;
-    const td = this._overlay('⚠️ Quick-Time Event!', 'TAP SWERVE before the bar runs out!');
-    const barX = W / 2, barY = H / 2 + 6, barW = 280;
-    const fr = this.add.graphics().setDepth(63).setScrollFactor(0); td.push(fr);
-    fr.lineStyle(2, 0xffffff, 0.8); fr.strokeRoundedRect(barX - barW / 2, barY, barW, 22, 6);
-    const bar = this.add.graphics().setDepth(64).setScrollFactor(0); td.push(bar);
-    let tLeft = 1.5; const total = 1.5; let resolved = false;
-    const tick = this.time.addEvent({ delay: 30, loop: true, callback: () => {
-      tLeft -= 0.03; const f = Phaser.Math.Clamp(tLeft / total, 0, 1);
-      bar.clear(); bar.fillStyle(f > 0.4 ? 0x44dd66 : 0xff5555, 1); bar.fillRoundedRect(barX - barW / 2 + 2, barY + 2, (barW - 4) * f, 18, 5);
-      if (tLeft <= 0 && !resolved) done(false);
-    }});
-    const done = (ok) => {
-      if (resolved) return; resolved = true; tick.remove();
+    // The old tap-to-swerve quick-time event is replaced by a folder mini-game
+    // (a random educational iframe game from the Level-7 pool). Driving is
+    // already frozen here (_speed=0, _blocking=true); once the mini-game is
+    // solved, clear the branch and resume the drive.
+    launchRandomMiniGame(this, 7, () => {
       q.done = true; this._completeObj(3);
       this.tweens.add({ targets: [q.img, q.sign], y: '-=46', x: '+=60', alpha: 0, duration: 420 });
-      if (ok) { this.tweens.add({ targets: this._carC, x: CAR_X + 70, duration: 180, yoyo: true }); this._floatTxt('🌀 Swerved!', '#88ffaa', 16); }
-      else    { this._hitObstacle('💥 Too slow!'); }
-      td.forEach(o => { try { o.destroy(); } catch (_) {} });
+      this.tweens.add({ targets: this._carC, x: CAR_X + 70, duration: 180, yoyo: true });
+      this._floatTxt('🌀 Cleared the road!', '#88ffaa', 16);
       this.time.delayedCall(300, () => { this._blocking = false; });
-    };
-    const btn = this._overlayButton(td, W / 2, H / 2 + 70, '🌀  SWERVE!', () => done(true));
-    const sp = this.keys.SPACE, h = () => done(true); sp.on('down', h); td.push({ destroy: () => sp.off('down', h) });
+    });
   }
 
   // ── Steep climb: hold gas ───────────────────────────────────────────────────
@@ -669,11 +660,11 @@ export class L7_Stage4Scene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 - 40, '🏥', { fontSize: '52px' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 14, 'Hospital Reached!', { fontSize: '24px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
       this.add.text(W / 2, H / 2 + 48, `Puppies' safety: ${this._lives}/3 ❤️`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5).setDepth(51).setScrollFactor(0);
-      this.time.delayedCall(2000, () => {
+      this.time.delayedCall(1500, () => {
         // V6 plays after reaching the hospital (end of Stage 4), then on to Stage 5.
-        playVideoSequence(this, ['l7_v6'], () => {
-          this.cameras.main.fadeOut(200, 0, 0, 0);
-          this.time.delayedCall(740, () => {
+        this.playStoryVideos(['l7_v6'], () => {
+          this.cameras.main.fadeOut(120, 0, 0, 0);
+          this.time.delayedCall(80, () => {
             this._forceSceneStart('L7_Stage5');
           });
         });
@@ -694,22 +685,62 @@ export class L7_Stage4Scene extends Phaser.Scene {
   // _wakeLoop() call isn't enough since scene.start() only gets PROCESSED on
   // the next loop tick, and if that tick never comes (RAF stalled from a
   // webview focus loss) the game silently stays on this scene forever.
+  //
+  // Kept in sync with L7BaseScene.js's version (this scene overrides it
+  // locally rather than inheriting it) — see that file for the full
+  // reasoning: check via rAF first so a HEALTHY loop never touches
+  // game.step() (the old unconditional setInterval here raced a manual step
+  // against the browser's own already-ticking RAF loop, double-stepping the
+  // game for a beat — a visible "jerk"), and run the "has it been a second
+  // yet" fallback on setTimeout rather than inside the rAF callback, so it
+  // still fires and recovers even if rAF itself has genuinely stopped
+  // ticking (gating it behind rAF re-scheduling would mean a real stall
+  // never gets noticed, freezing the game on a black screen forever).
   _forceSceneStart(nextScene, nextData = {}) {
     this._wakeLoop();
     this.scene.start(nextScene, nextData);
-    let tries = 0;
-    const iv = setInterval(() => {
+
+    const isRunning = () => {
       const sceneObj = this.game.scene.getScene(nextScene);
       const status = sceneObj ? sceneObj.sys.settings.status : -1;
-      if (status === 5 || this.game.scene.isActive(nextScene)) { clearInterval(iv); return; }
-      if (status === 8 || status === 9) { clearInterval(iv); return; }
-      this._wakeLoop();
-      try {
-        const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
-        this.game.step(t, 16);
-      } catch (_) {}
-      if (++tries >= 300) clearInterval(iv);
-    }, 50);
+      return status === 5 || status === 8 || status === 9 || this.game.scene.isActive(nextScene);
+    };
+
+    let done = false, rafId = null, iv = null, timeoutId = null;
+    const stopAll = () => {
+      done = true;
+      if (rafId != null) cancelAnimationFrame(rafId);
+      if (iv != null) clearInterval(iv);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+
+    const rafCheck = () => {
+      if (done) return;
+      if (isRunning()) { stopAll(); return; }
+      rafId = requestAnimationFrame(rafCheck);
+    };
+    rafId = requestAnimationFrame(rafCheck);
+
+    timeoutId = setTimeout(() => {
+      if (done || isRunning()) { stopAll(); return; }
+      let tries = 0;
+      iv = setInterval(() => {
+        if (isRunning()) { stopAll(); return; }
+        this._wakeLoop();
+        try {
+          const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          this.game.step(t, 16);
+        } catch (_) {}
+        if (++tries >= 300) stopAll();
+      }, 50);
+    }, 1000);
+
+    // NOTE: deliberately NOT tied to this.events.once('shutdown', stopAll) —
+    // this.scene.start(nextScene) queues a STOP of THIS scene as part of the
+    // same operation, so shutdown fires almost immediately regardless of
+    // whether nextScene ever finishes booting, which would kill the watchdog
+    // right when it's needed. See L7BaseScene.js's _forceSceneStart for the
+    // full writeup of this bug.
   }
 
   _gameOver(msg) {

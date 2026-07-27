@@ -51,7 +51,7 @@ export class L7_Stage5Scene extends L7BaseScene {
     this._breathe();
 
     this.buildStageHUD(5, 'Treat the Puppies',
-      ['Pup 1 — temperature', 'Pup 1 — medicine', 'Pup 2 — heartbeat', 'Pup 2 — injection', 'Pup 3 — bandage', 'Pup 3 — recovery']);
+      ['Pup 1 — temperature', 'Pup 1 — medicine', 'Pup 2 — injection', 'Pup 3 — bandage', 'Pup 3 — recovery']);
 
     this._taskObjs = [];
     this.time.delayedCall(600, () => this._beginTask(1));
@@ -111,12 +111,12 @@ export class L7_Stage5Scene extends L7BaseScene {
   _beginTask(n) {
     this._task = n;
     const tasks = {
+      // Heart Monitor (the "press A·S·D in rhythm" game) removed per request.
       1: ['🌡️', 'Check Temperature', 'Drag the thermometer onto\nthe puppy and hold.',         0, () => this._tTemperature()],
       2: ['💊', 'Give Medicine',     'Drag the medicine to the\npuppy\'s mouth.',               0, () => this._tMedicine()],
-      3: ['💚', 'Heart Monitor',     'Press A · S · D in rhythm\nas the beats reach the line.', 1, () => this._tHeartbeat()],
-      4: ['💉', 'Give Injection',    'Drag the syringe to the spot,\nthen HOLD steady to inject.',1, () => this._tInjection()],
-      5: ['🩹', 'Bandage the Wound', 'Drag the bandages onto\nthe wound to cover it.',          2, () => this._tBandage()],
-      6: ['❤️', 'Recovery & Comfort','Stroke the puppy to soothe it\nback to health.',          2, () => this._tRecovery()],
+      3: ['💉', 'Give Injection',    'Drag the syringe to the spot,\nthen HOLD steady to inject.',1, () => this._tInjection()],
+      4: ['🩹', 'Bandage the Wound', 'Drag the bandages onto\nthe wound to cover it.',          2, () => this._tBandage()],
+      5: ['❤️', 'Recovery & Comfort','Stroke the puppy to soothe it\nback to health.',          2, () => this._tRecovery()],
     };
     const [e, t, d, pupIdx, fn] = tasks[n];
     if (this._curPup !== pupIdx) { this._curPup = pupIdx; this._setPuppy(pupIdx); }
@@ -128,7 +128,7 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.sparkleBurst(PUP_X, PUP_Y, 14);
     this.toast(msg, 1800);
     this._clearTask();
-    if (this._task >= 6) this.time.delayedCall(900, () => this._allSafe());
+    if (this._task >= 5) this.time.delayedCall(900, () => this._allSafe());
     else this.time.delayedCall(900, () => this._beginTask(this._task + 1));
   }
 
@@ -278,7 +278,7 @@ export class L7_Stage5Scene extends L7BaseScene {
         const loop = this.time.addEvent({ delay: 30, loop: true, callback: () => {
           if (done) return;
           prog += holding ? 1.4 : -0.8; prog = Phaser.Math.Clamp(prog, 0, 100); draw();
-          if (prog >= 100) { done = true; loop.remove(); this.cameras.main.flash(200, 120, 220, 140); this.time.delayedCall(300, () => this._taskDone(3, '💉 Injection complete!')); }
+          if (prog >= 100) { done = true; loop.remove(); this.cameras.main.flash(200, 120, 220, 140); this.time.delayedCall(300, () => this._taskDone(2, '💉 Injection complete!')); }
         }});
         this._taskObjs.push({ destroy: () => loop.remove() });
       } else if (!placed) {
@@ -304,7 +304,7 @@ export class L7_Stage5Scene extends L7BaseScene {
           s.disableInteractive();
           this.tweens.add({ targets: s, x: woundX, y: woundY, angle: wraps * 25 - 25, scale: 0.5, duration: 200 });
           wraps++; counter.setText(`Wraps: ${wraps}/${need}`); this.sparkleBurst(woundX, woundY, 5);
-          if (wraps >= need) { wound.setVisible(false); this.cameras.main.flash(200, 120, 220, 140); this.time.delayedCall(400, () => this._taskDone(4, '🩹 Wound bandaged!')); }
+          if (wraps >= need) { wound.setVisible(false); this.cameras.main.flash(200, 120, 220, 140); this.time.delayedCall(400, () => this._taskDone(3, '🩹 Wound bandaged!')); }
           else makeStrip();
         } else {
           this.tweens.add({ targets: s, x: W / 2 - 250, y: 350, duration: 250, ease: 'Back.easeOut' });
@@ -342,7 +342,7 @@ export class L7_Stage5Scene extends L7BaseScene {
             // intended size instead of a gentle happy bounce.
             const s = this._puppyBaseScale;
             this.tweens.add({ targets: this._puppy, scale: { from: s, to: s * 1.3 }, duration: 300, yoyo: true });
-            this.time.delayedCall(400, () => this._taskDone(5, '❤️ Puppy 3 recovered!'));
+            this.time.delayedCall(400, () => this._taskDone(4, '❤️ Puppy 3 recovered!'));
           }
         }
       }

@@ -30,18 +30,31 @@
     "14-emotion-matching",
     "15-rhyme-time",
     "16-plant-growth-sequence",
-    "17-traffic-light-rules"
+    "17-traffic-light-rules",
+    "09-pattern-sequence",
+    "03-shape-sorter",
+    "22-fruit-vegetable-sort",
+    "26-space-objects-match"
   ],
   "Level5": [
     "10-sorting-by-size",
     "19-weather-dress-up",
-    "20-musical-instrument-match"
+    "20-musical-instrument-match",
+    "24-time-telling-clock",
+    "23-shadow-matching",
+    "29-odd-one-out",
+    "28-sink-or-float",
+    "27-community-helpers-match"
   ],
   "Level6": [
     "23-shadow-matching",
     "24-time-telling-clock",
     "25-opposites-match",
-    "26-space-objects-match"
+    "26-space-objects-match",
+    "22-fruit-vegetable-sort",
+    "09-pattern-sequence",
+    "03-shape-sorter",
+    "30-counting-by-groups"
   ],
   "Level7": [
     "27-community-helpers-match",

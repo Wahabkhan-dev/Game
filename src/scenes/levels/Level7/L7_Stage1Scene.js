@@ -58,7 +58,7 @@ export class L7_Stage1Scene extends L7BaseScene {
     this._buildGround();
     this._buildStations();
     this._buildPlayer();
-    this.buildStageHUD(1, 'Find the House Key',
+    this.buildStageHUD(1, 'Find the Car Key',
       ['Restore the power', 'Search the basement', 'Assemble the jeep key']);
     this.buildFog(18, 0.18);
     this.startLightning();
@@ -192,14 +192,14 @@ export class L7_Stage1Scene extends L7BaseScene {
     this.sparkleBurst(key.x, key.y, 20);
     this.tweens.add({ targets: key, scale: 0.5, duration: 600, ease: 'Back.easeOut', yoyo: true, hold: 400, onComplete: () => key.destroy() });
     this.cameras.main.flash(300, 255, 220, 120);
-    this.time.delayedCall(1100, () => {
+    this.time.delayedCall(400, () => {
       this.registry.set('lives', this._lives);
       this.registry.set('l7_checkpoint', 'L7_Stage2');
       // V2 now plays here — at the END of Stage 1 — instead of being merged
       // into the intro. Once it finishes (or is skipped), continue to Stage 2.
       this.playStoryVideos(['l7_v2'], () => {
-        this.cameras.main.fadeOut(300, 0, 0, 0);
-        this.time.delayedCall(320, () => this._forceSceneStart('L7_Stage2'));
+        this.cameras.main.fadeOut(120, 0, 0, 0);
+        this.time.delayedCall(80, () => this._forceSceneStart('L7_Stage2'));
       });
     });
   }

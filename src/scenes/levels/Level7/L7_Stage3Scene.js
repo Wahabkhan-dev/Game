@@ -22,25 +22,53 @@ export class L7_Stage3Scene extends L7BaseScene {
   constructor() { super('L7_Stage3'); }
 
   preload() {
+    console.log('[L7_Stage3] preload() start');
     preloadGlendaSkin(this);
     const P = 'assets/images/Level7/Stage3/';
     // Real Gemini art for Stage 3. A procedural placeholder for these keys may
     // already exist (generateL7Assets in an earlier scene); drop it so the real
     // PNG loads. If a file is missing, generateL7Assets() in create() regenerates it.
-    // (Sky/ground are NOT in this list — Stage 3 uses Level 2's l2_bg/l2_surface,
-    // already loaded globally by BootScene, see _buildWorld()/_buildGround().)
     ['l7_s3_station', 'l7_barrel', 'l7_generator',
      'l7_barrier', 'l7_pipe_straight', 'l7_pipe_elbow', 'l7_fuelcan']
       .forEach(k => { if (this.textures.exists(k)) this.textures.remove(k); this.load.image(k, `${P}${k}.png`); });
+    // Ensure Level 2 sky/ground are loaded (needed for Stage 3 visuals)
+    // Do NOT remove if they exist — they might still be in use, just reload to be safe
+    if (!this.textures.exists('l2_bg')) this.load.image('l2_bg', 'assets/images/Level 2/l2_bg.png');
+    if (!this.textures.exists('l2_surface')) this.load.image('l2_surface', 'assets/images/Level 2/l2_surface.png');
     // reused jeep from Stage 2
     if (!this.textures.exists('l7_jeep_side')) this.load.image('l7_jeep_side', 'assets/images/Level7/Stage2/l7_jeep_side.png');
-    this.load.on('loaderror', () => { /* generateL7Assets regenerates a fallback */ });
+    this.load.on('filecomplete', (key) => console.log(`[L7_Stage3] loaded ${key}`));
+    this.load.on('loaderror', (file) => console.error(`[L7_Stage3] loaderror ${file?.key} @ ${file?.src}`));
   }
 
   // size an image by target HEIGHT, preserving its native aspect ratio
-  _wh(key, h) { const s = this.textures.get(key).getSourceImage(); return [h * s.width / s.height, h]; }
+  _wh(key, h) {
+    const tex = this.textures.get(key);
+    const s = tex.getSourceImage();
+    if (!s || !s.width || !s.height) {
+      console.error(`[L7_Stage3] _wh('${key}') — texture missing or has no source image`, tex);
+      return [h, h];   // 1:1 fallback so layout doesn't NaN/crash the rest of create()
+    }
+    return [h * s.width / s.height, h];
+  }
 
   create() {
+    console.log('[L7_Stage3] create() start');
+    try {
+      this._createInner();
+    } catch (err) {
+      // Surface the REAL failure instead of a silent blank screen — this is
+      // the exact spot that's been going blank after Stage 2, so log the
+      // full error and put it on-screen too (in case DevTools isn't open).
+      console.error('[L7_Stage3] create() THREW:', err);
+      this.add.rectangle(W / 2, H / 2, W, H, 0x1a0505, 1).setDepth(999);
+      this.add.text(W / 2, H / 2, `Stage 3 failed to load:\n${err?.message || err}\n\nSee console for details.`, {
+        fontSize: '13px', fontFamily: 'monospace', color: '#ff8888', align: 'center', wordWrap: { width: W - 60 },
+      }).setOrigin(0.5).setDepth(1000);
+    }
+  }
+
+  _createInner() {
     // Explicit opaque cover, faded out in parallel with the camera's own
     // fadeIn below — a redundant safety net so no unrendered/default frame
     // can ever flash through during the scene handoff from Stage 2's video,
@@ -63,12 +91,14 @@ export class L7_Stage3Scene extends L7BaseScene {
     this._buildPlayer();
     this.buildStageHUD(3, 'Collect the Fuel',
       ['Move the barrel', 'Start the generator', 'Connect the pipes', 'Unlock the tank', 'Fill the fuel']);
-    this._buildFuelMeter();
+    // Fuel bar (visual meter) removed per request — the fuel VALUE still tracks
+    // internally so the stations/progression work, just no on-screen bar.
     this.buildFog(18, 0.4);
     this.buildRain(140, 0x9fb8ff);
     this.startLightning();
 
     this.time.delayedCall(500, () => this.toast('⛽ Out of fuel! Reach the station and refuel. Walk right →', 3200));
+    console.log('[L7_Stage3] create() done');
   }
 
   _buildWorld() {
@@ -119,14 +149,9 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.physics.add.existing(body, true);
     this._ground = body;
 
-    // Roadblock barriers (jump hurdles)
-    const [bw, bh] = this._wh('l7_barrier', 58);
-    this._barriers = [850, 1850].map(x => {
-      this.add.image(x, GROUND_Y + 14, 'l7_barrier').setOrigin(0.5, 1).setDisplaySize(bw, bh).setDepth(8);
-      const b = this.add.rectangle(x, GROUND_Y - 8, 80, 30, 0, 0);
-      this.physics.add.existing(b, true);
-      return b;
-    });
+    // Roadblock barriers (l7_barrier) removed per request — no jump hurdles in
+    // Stage 3 now. Empty array keeps the collider loop in _buildPlayer safe.
+    this._barriers = [];
   }
 
   _buildStations() {
@@ -171,6 +196,7 @@ export class L7_Stage3Scene extends L7BaseScene {
   }
 
   _drawFuel() {
+    if (!this._fuelFill || !this._fuelMeterPos) return;   // fuel bar removed — nothing to draw
     const { x, y } = this._fuelMeterPos;
     this._fuelFill.clear();
     const cells = 6, filled = Math.round(this._fuel / 100 * cells);
@@ -243,12 +269,10 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.registry.set('lives', this._lives);
     this.registry.set('l7_checkpoint', 'L7_Stage4');
     // End-of-Stage-3 bridge cinematic (V5) → then Stage 4 (drive).
-    this.time.delayedCall(600, () => {
-      this.playStoryVideos(['l7_v5'], () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(520, () => {
-          this._forceSceneStart('L7_Stage4');
-        });
+    this.playStoryVideos(['l7_v5'], () => {
+      this.cameras.main.fadeOut(120, 0, 0, 0);
+      this.time.delayedCall(80, () => {
+        this._forceSceneStart('L7_Stage4');
       });
     });
   }

@@ -22,7 +22,7 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
     this._health  = this.registry.get('l3_health') || 100;
 
     this._buildHUD(1);
-    this._buildTitle('💊 Select the correct medicines!', 'Drag GREEN bottles to the tray. Avoid RED ones.');
+    this._buildTitle('💊 Select the correct medicines!', 'Drag the MEDICINE bottles to the tray. Avoid the RED ones.');
     this._buildTable();
     this._buildTray();
     this._buildBottles();
@@ -90,7 +90,13 @@ export class L3_MG1_MedicineScene extends Phaser.Scene {
 
     items.forEach((it, i) => {
       const ox = startX + i * gap, oy = baseY;
-      const img = this.add.image(ox, oy, it.key).setDisplaySize(42, 74).setDepth(10).setInteractive({ useHandCursor: true });
+      // Size to the image's OWN aspect ratio at a fixed height (74px) so the
+      // real medicine-bottle art (portrait) isn't stretched into the old fixed
+      // 42×74 box — width is derived, never forced.
+      const _bh = 74;
+      const _bsrc = this.textures.get(it.key).getSourceImage();
+      const _bw = Math.round(_bh * ((_bsrc.width || 42) / (_bsrc.height || 74)));
+      const img = this.add.image(ox, oy, it.key).setDisplaySize(_bw, _bh).setDepth(10).setInteractive({ useHandCursor: true });
       img._correct = it.correct;
       img._origX = ox; img._origY = oy;
       img._used = false;

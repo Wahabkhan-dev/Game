@@ -18,7 +18,16 @@ export function addLoopingVideo(scene, x, y, key, opts = {}) {
   // against 0 (broken) and Phaser never re-applies it once the real frame
   // size lands, which renders the clip at its raw, unscaled pixel size.
   if (opts.width && opts.height) {
-    vid.on('created', () => vid.setDisplaySize(opts.width, opts.height));
+    // 'created' hands back the clip's REAL pixel size — fit it inside the
+    // requested (width, height) box preserving that aspect ratio (never
+    // force both dimensions independently), otherwise any clip whose native
+    // ratio doesn't match the box gets visibly squashed/stretched sideways
+    // (e.g. a ~4:3 clip forced into a wider box reads as horizontally
+    // stretched).
+    vid.on('created', (_v, vw, vh) => {
+      const scale = Math.min(opts.width / vw, opts.height / vh);
+      vid.setDisplaySize(vw * scale, vh * scale);
+    });
   }
   vid.play(true); // native loop — starts immediately, no delay between cycles
   return vid;
@@ -77,7 +86,18 @@ export function playVideoSequence(scene, keys, onDone) {
 // this same pattern, used by Level 1/2). Pauses arcade physics for the
 // duration if the scene has it.
 export function playVideoOverlay(scene, key, onDone, opts = {}) {
-  if (scene._videoOverlayOpen) return;
+  if (scene._videoOverlayOpen) {
+    // A previous overlay on this scene is still playing (e.g. a stage's own
+    // intro video hadn't finished yet when the player already finished the
+    // stage's mini-games and triggered the end-of-stage video/transition).
+    // Queue this request to run the instant the current one finishes, rather
+    // than dropping it — dropping it silently ate onDone() forever, which is
+    // what left the game on a permanent blank screen after Stage 2 whenever
+    // the player was faster than Stage 2's own intro cutscene.
+    if (!scene._videoOverlayQueue) scene._videoOverlayQueue = [];
+    scene._videoOverlayQueue.push(() => playVideoOverlay(scene, key, onDone, opts));
+    return;
+  }
   scene._videoOverlayOpen = true;
   if (scene.physics?.world) scene.physics.pause();
 
@@ -117,22 +137,37 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
     // that onDone() is about to trigger would freeze on a black screen.
     wakeLoop();
     if (onDone) onDone();
+    // Now that this overlay is fully closed, run the next queued request (if
+    // any queued up while this one was still playing).
+    if (scene._videoOverlayQueue && scene._videoOverlayQueue.length) {
+      const next = scene._videoOverlayQueue.shift();
+      next();
+    }
   };
 
   if (!scene.cache.video.exists(key)) { finish(); return; }
 
   video = scene.add.video(W / 2, H / 2, key).setScrollFactor(0).setDepth(201);
+  // DOM safety net armed IMMEDIATELY, before 'created' — if the video never
+  // even fires 'created' (decoder unavailable, autoplay silently rejected,
+  // slow/broken buffering — all more likely deep into a play session with
+  // several videos already using up the browser's limited concurrent video
+  // decoders), this is the ONLY thing that can ever unblock the game from a
+  // permanent black-screen hang. Uses setTimeout (not the Phaser clock, which
+  // may be frozen while the video plays), and is independent of every other
+  // event below firing.
+  safetyTO = setTimeout(finish, 12000);
   video.on('created', () => {
     const scale = Math.min(W / video.width, H / video.height);
     video.setScale(scale);
-    // DOM safety net: some webviews / blocked-autoplay / cut streams never emit
-    // 'complete'. Auto-finish a bit after the clip's own length so the game can
-    // never hang on the black overlay. Uses setTimeout (not the Phaser clock,
-    // which may be frozen while the video plays).
+    // Now that we know the clip's real length, tighten the fallback to a bit
+    // past its own duration instead of the generic ceiling above.
     let durMs = 0;
     try { const d = video.getDuration?.(); if (Number.isFinite(d) && d > 0) durMs = d * 1000; } catch (_) {}
-    if (safetyTO) clearTimeout(safetyTO);
-    safetyTO = setTimeout(finish, (durMs || 45000) + 2000);
+    if (durMs > 0) {
+      clearTimeout(safetyTO);
+      safetyTO = setTimeout(finish, durMs + 2000);
+    }
   });
   video.on('complete', finish);
   video.on('error', finish);

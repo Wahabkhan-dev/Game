@@ -60,36 +60,15 @@ export class Level2Scene extends BaseLevelScene {
     if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
     this._timerFired = true;
     this._isDying = true;
-    this._showMessage('⏱ Time\'s up! Returning to the zone start... 💀');
+    this._showMessage('⏱ Time\'s up! -1 Life! Back to the last checkpoint 💀');
     this.cameras.main.shake(300, 0.012);
     this.time.delayedCall(800, () => {
       this._timerFired = false;
-      const sx = this.shadow?.x ?? this._checkpointX ?? 80;
-      let zoneTimer = 90;
-      if (sx > 12000) {
-        this._checkpointX = 12020;
-        this._checkpointY = 360;
-        zoneTimer = 95;   // Zone 3 keeps its +20s allowance on respawn too
-      } else if (sx > 6000) {
-        this._checkpointX = 6020;
-        this._checkpointY = 360;
-      } else {
-        this._checkpointX = 80;
-        this._checkpointY = 370;
-      }
-      this._resetTimer(zoneTimer);
-      // Time-up only costs 1 sub-health pip, like any other hazard hit —
-      // only falling into a gap costs a full life (see _onFallDeath).
-      // A life is lost only once HP is already at 0 when time also runs out.
-      this._shadowHP--;
-      this._updateHPDots();
-      if (this._shadowHP <= 0) {
-        this._loseLife(0.012);
-      } else {
-        // Same teleport-to-checkpoint animation _loseLife uses — it clears
-        // _isDying itself once the fade/teleport finishes.
-        this._respawnAtCheckpoint();
-      }
+      // Time-up costs one FULL life (not health) and respawns at the LAST
+      // saved checkpoint — same rule as every other level now. _loseLife
+      // handles the life decrement, the checkpoint respawn, and the timer
+      // reset (see the _loseLife override just below).
+      this._loseLife(0.012);
     });
   }
 
@@ -356,8 +335,10 @@ export class Level2Scene extends BaseLevelScene {
     // Bottom-anchored at the same ground line the old center-origin/32px art
     // touched (H-46+16=420 / H-46+18=422), then doubled — so the visual
     // footprint on the ground stays put, only the cactus grows upward.
+    // Sized to EXACTLY match Level 1's cactus_thorn (47×47) — was 59, which is
+    // 59×0.8≈47, i.e. a further ~20% reduction to line up with Level 1.
     [7200, 10200].forEach(tx => {
-      this.add.image(tx, H - 30, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(74, 74).setDepth(9);
+      this.add.image(tx, H - 30, 'cactus_thorn').setOrigin(0.5, 1).setDisplaySize(47, 47).setDepth(9);
       this._thorns.push({ x: tx - 16, y: H - 60, w: 32 });
     });
 
@@ -371,23 +352,19 @@ export class Level2Scene extends BaseLevelScene {
     ];
 
     // ── Keys ──────────────────────────────────────────────────────────────
+    // Level-1-style reset: a key collected but NOT yet "locked in" by a
+    // checkpoint at/after it is dropped again on respawn (see _resetKey /
+    // _respawnAtCheckpoint) — so if you die after grabbing a key and go back,
+    // the key reappears AND its mini-activity re-triggers, same as Level 1's
+    // lever+bridge. key.png: 409×610 → display 72×107, ~6px transparent bottom.
     this._hasKey1 = false;
     this._hasKey2 = false;
-
-    // Key 1 — anchored at y=424 (same ground level as lamps/signals)
-    // key1.png: 409×610 → display 72×107, transparent bottom ~6px at display scale
-    const K1_X = 5680, K1_Y = 424;
-    const k1Glow = this.add.ellipse(K1_X, K1_Y - 8, 84, 18, 0x44ff44, 0.55).setDepth(11);
-    this.tweens.add({ targets: k1Glow, scaleX: 1.5, alpha: 0.1, duration: 700, yoyo: true, repeat: -1 });
-    this.key1Obj = this.physics.add.staticImage(K1_X, K1_Y, 'key1')
-      .setDisplaySize(72, 107).setOrigin(0.5, 1).setDepth(12).refreshBody();
-
-    // Key 2 — same ground level, key2.png has ~10px transparent bottom at display scale
-    const K2_X = 11500, K2_Y = 424;
-    const k2Glow = this.add.ellipse(K2_X, K2_Y - 8, 84, 18, 0x44ccff, 0.55).setDepth(11);
-    this.tweens.add({ targets: k2Glow, scaleX: 1.5, alpha: 0.1, duration: 800, yoyo: true, repeat: -1 });
-    this.key2Obj = this.physics.add.staticImage(K2_X, K2_Y, 'key2')
-      .setDisplaySize(72, 107).setOrigin(0.5, 1).setDepth(12).refreshBody();
+    this._keyCfg = {
+      1: { x: 5680,  y: 424, tex: 'key1', glowColor: 0x44ff44, glowDur: 700, sparkColor: 0xffee44, flash: [80, 160, 10], msg: '🔑 Key 1 found! Keep going — find Key 2! 🗝️' },
+      2: { x: 11500, y: 424, tex: 'key2', glowColor: 0x44ccff, glowDur: 800, sparkColor: 0x44ccff, flash: [20, 140, 80], msg: '🗝️ Key 2 found! Find Gemma\'s cage! 🐾' },
+    };
+    this._spawnKey(1);
+    this._spawnKey(2);
 
     // ── Key HUD — premium gold-key slots, centered just below the title ──
     this._buildKeyHud();
@@ -459,42 +436,7 @@ export class Level2Scene extends BaseLevelScene {
       }
     });
 
-    // ── Key overlaps — collect in place, no mini-activity scene ─────────────
-    this.physics.add.overlap(this.shadow, this.key1Obj, () => {
-      if (this._hasKey1) return;
-      this._hasKey1 = true;
-      this.key1Obj.destroy();
-      this._lightKey(0);
-      const sp = this.add.ellipse(K1_X, H - 100, 40, 40, 0xffee44, 0.9).setDepth(20);
-      this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
-      this.cameras.main.flash(300, 80, 160, 10);
-      this._showMessage('🔑 Key 1 found! Keep going — find Key 2! 🗝️');
-    });
-
-    this.physics.add.overlap(this.shadow, this.key2Obj, () => {
-      if (this._hasKey2) return;
-      this._hasKey2 = true;
-      this.key2Obj.destroy();
-      this._lightKey(1);
-      const sp = this.add.ellipse(K2_X, H - 100, 40, 40, 0x44ccff, 0.9).setDepth(20);
-      this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
-      this.cameras.main.flash(300, 20, 140, 80);
-      this._showMessage('🗝️ Key 2 found! Find Gemma\'s cage! 🐾');
-
-      // "Dodge the Hazards" fires right on Key 2 pickup. Deliberately does NOT
-      // move the checkpoint up to here — dying anywhere before Zone 3's
-      // entrance (x=12020) should still send the player back to the Zone 2
-      // entrance (x=6020, saved on zone entry below), a meaningful setback,
-      // rather than reappearing right next to where they just died.
-      if (!this._cp2Done) {
-        this._cp2Done = true;
-        this._launchCheckpoint('L2_Dodge',
-          { emoji: '🐍', title: 'Dodge the Hazards', desc: 'Tap each creature before it bites you!' },
-          () => {
-            this._showMessage('✅ Path cleared! The dark jungle awaits! 🌑');
-          });
-      }
-    });
+    // (Key pickup overlaps are wired inside _spawnKey → _collectKey above.)
 
     // ── Reach cage — proximity, not a full body-overlap ─────────────────────
     // Checked every frame from update() (_checkGemmaReach) instead of a
@@ -620,6 +562,78 @@ export class Level2Scene extends BaseLevelScene {
     this.tweens.add({ targets: k.icon, scale: { from: 0.34, to: 0.44 }, duration: 220, yoyo: true, ease: 'Back.easeOut' });
     this.tweens.add({ targets: k.glow, alpha: { from: 0, to: 0.55 }, duration: 400, yoyo: true, repeat: 2,
       onComplete: () => k.glow.setAlpha(0.3) });
+  }
+
+  // Dim a key slot back to "not collected" — reverses _lightKey, used when a
+  // key is dropped on respawn (see _resetKey).
+  _dimKey(i) {
+    const k = this._keySlots?.[i];
+    if (!k) return;
+    this.tweens.killTweensOf(k.icon);
+    this.tweens.killTweensOf(k.glow);
+    k.collected = false;
+    k.icon.clearTint().setTint(0x5a4a2a).setAlpha(0.5).setScale(0.34);
+    k.glow.setAlpha(0);
+  }
+
+  // ── Keys — spawn / collect / reset (Level-1-style bridge reset applied to
+  // Level 2's keys) ─────────────────────────────────────────────────────────
+  // Builds a key (glowing ellipse + static sprite + pickup overlap) from its
+  // _keyCfg entry. Re-callable, so _resetKey can respawn a dropped key.
+  _spawnKey(n) {
+    const cfg = this._keyCfg[n];
+    const glow = this.add.ellipse(cfg.x, cfg.y - 8, 84, 18, cfg.glowColor, 0.55).setDepth(11);
+    this.tweens.add({ targets: glow, scaleX: 1.5, alpha: 0.1, duration: cfg.glowDur, yoyo: true, repeat: -1 });
+    const obj = this.physics.add.staticImage(cfg.x, cfg.y, cfg.tex)
+      .setDisplaySize(72, 107).setOrigin(0.5, 1).setDepth(12).refreshBody();
+    this['key' + n + 'Glow'] = glow;
+    this['key' + n + 'Obj']  = obj;
+    this.physics.add.overlap(this.shadow, obj, () => this._collectKey(n));
+  }
+
+  _collectKey(n) {
+    if (this['_hasKey' + n]) return;
+    this['_hasKey' + n] = true;
+    const cfg = this._keyCfg[n];
+    try { this['key' + n + 'Obj'].destroy(); } catch (_) {}
+    const glow = this['key' + n + 'Glow'];
+    if (glow) { this.tweens.killTweensOf(glow); glow.destroy(); }
+    this._lightKey(n - 1);
+    const sp = this.add.ellipse(cfg.x, H - 100, 40, 40, cfg.sparkColor, 0.9).setDepth(20);
+    this.tweens.add({ targets: sp, scaleX: 4, scaleY: 4, alpha: 0, duration: 500, onComplete: () => sp.destroy() });
+    this.cameras.main.flash(300, cfg.flash[0], cfg.flash[1], cfg.flash[2]);
+    this._showMessage(cfg.msg);
+
+    // Key 2 pickup fires "Dodge the Hazards". Deliberately does NOT move the
+    // checkpoint up to here — dying before Zone 3 sends the player back to the
+    // Zone 2 entrance, and (now) drops Key 2 so it must be re-grabbed + redone.
+    if (n === 2 && !this._cp2Done) {
+      this._cp2Done = true;
+      this._launchCheckpoint('L2_Dodge',
+        { emoji: '🐍', title: 'Dodge the Hazards', desc: 'Tap each creature before it bites you!' },
+        () => { this._showMessage('✅ Path cleared! The dark jungle awaits! 🌑'); });
+    }
+  }
+
+  // Drops key n back into the world (un-collects it) and re-arms its
+  // mini-activity, so walking back re-triggers the whole step. Called from
+  // _respawnAtCheckpoint when the respawn point is BEFORE the key.
+  _resetKey(n) {
+    if (!this['_hasKey' + n]) return;
+    this['_hasKey' + n] = false;
+    if (n === 1) this._cp1Done = false;   // Zone-1 "Catch the Supplies" re-arms (fires from update)
+    if (n === 2) this._cp2Done = false;   // Zone-2 "Dodge the Hazards" re-arms (fires on re-pickup)
+    this._dimKey(n - 1);
+    this._spawnKey(n);
+    this._showMessage(`🔑 You dropped Key ${n}! Grab it again to re-open the way.`);
+  }
+
+  // Level-1-style reset: any collected key whose position is PAST the respawn
+  // checkpoint wasn't "locked in", so drop it (and re-arm its mini-activity).
+  _respawnAtCheckpoint() {
+    if (this._hasKey2 && (this._checkpointX ?? 0) < this._keyCfg[2].x) this._resetKey(2);
+    if (this._hasKey1 && (this._checkpointX ?? 0) < this._keyCfg[1].x) this._resetKey(1);
+    super._respawnAtCheckpoint();
   }
 
   // ── Gemma HP bar ─────────────────────────────────────────────────────────

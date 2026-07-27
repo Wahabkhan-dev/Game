@@ -126,24 +126,17 @@ export class L8_HomeRunScene extends L8BaseScene {
   _buildPropPanel() {
     const PW = 320, PH = 68;
     const px = W / 2 - PW / 2, py = (this._hdr?.bottom ?? 68) + 6;
-    const bg = this.add.graphics().setScrollFactor(0).setDepth(60);
-    bg.fillStyle(0x1a0904, 0.88); bg.fillRoundedRect(px, py, PW, PH, 11);
-    bg.lineStyle(2, 0xf5c87a, 0.85); bg.strokeRoundedRect(px, py, PW, PH, 11);
+    // Real wood/gold board (ui_life_bg) — same "collecting modal" art as the
+    // approved Theme Design reference (ThemeDesignScene's checkpoint+items
+    // section), replacing the old flat dark-graphics panel.
+    this.add.image(W / 2, py + PH / 2, 'ui_life_bg').setDisplaySize(PW, PH)
+      .setScrollFactor(0).setDepth(60);
     this.add.text(W / 2, py + 13, '🎄  Collect 6 Christmas Props!', {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#1a0904', strokeThickness: 2
     }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-    // centred prop slots
-    const spacing = 58;
-    const startX = px + PW / 2 - ((ITEMS.length - 1) * spacing) / 2;
-    this._slots = ITEMS.map((it, i) => {
-      const ix = startX + i * spacing, iy = py + 48;
-      const icon = this.add.image(ix, iy, it.tex).setDisplaySize(30, 26)
-        .setScrollFactor(0).setDepth(61).setAlpha(0.32);
-      const chk = this.add.text(ix, iy + 16, '·', {
-        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#7a8898'
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(62);
-      return { icon, chk };
-    });
+    // Prop slots — evenly spread with a 20px gap from the panel's left/right
+    // edges, each icon at its own aspect ratio (shared helper on L8BaseScene).
+    this._layoutCollectSlots(ITEMS, px, py, PW);
   }
 
   // ── Fly the collected prop from world-space into its HUD slot — same
@@ -208,10 +201,17 @@ export class L8_HomeRunScene extends L8BaseScene {
         this.tweens.add({ targets: spr, y: y - 4, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         return { ...o, spr };
       }
-      const y = GROUND_Y + 16;
+      // Ground obstacle — planted on the floor with a soft contact shadow
+      // (matches the FoodRun look). Was bottom-anchored at GROUND_Y+16 with NO
+      // shadow, which made it read as floating; now centre-anchored on a
+      // slightly lower ground line (GROUND_Y+24) so it sits near the bottom.
+      const baseY = GROUND_Y + 24;
       const pad = (OBS_BOTTOM_PAD[o.tex] || 0) * o.h;
-      const spr = this.add.image(o.x, y + pad, o.tex).setOrigin(0.5, 1).setDisplaySize(w, o.h).setDepth(11);
-      return { ...o, spr, clearY: y - o.h - 6, w };
+      const sh = this.add.graphics({ x: o.x, y: baseY }).setDepth(10);
+      sh.fillStyle(0x000000, 0.22); sh.fillEllipse(0, 0, w + 16, 11);
+      const spr = this.add.image(o.x, baseY - o.h / 2 + pad, o.tex)
+        .setOrigin(0.5, 0.5).setDisplaySize(w, o.h).setDepth(11);
+      return { ...o, spr, clearY: baseY - o.h - 6, w };
     });
   }
 

@@ -253,24 +253,19 @@ export class L8_FoodRunScene extends L8BaseScene {
   _buildFoodPanel() {
     const PW = 476, PH = 68;
     const px = W / 2 - PW / 2, py = (this._hdr?.bottom ?? 68) + 6;
-    const bg = this.add.graphics().setScrollFactor(0).setDepth(60);
-    bg.fillStyle(0x1a0904, 0.88); bg.fillRoundedRect(px, py, PW, PH, 11);
-    bg.lineStyle(2, 0xf5c87a, 0.85); bg.strokeRoundedRect(px, py, PW, PH, 11);
+    // Real wood/gold board (ui_life_bg) — same "collecting modal" art as the
+    // approved Theme Design reference (ThemeDesignScene's checkpoint+items
+    // section), replacing the old flat dark-graphics panel.
+    this.add.image(W / 2, py + PH / 2, 'ui_life_bg').setDisplaySize(PW, PH)
+      .setScrollFactor(0).setDepth(60);
     this.add.text(W / 2, py + 13, '🐾  Collect 8 Foods for the Puppies!', {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#1a0904', strokeThickness: 2
     }).setOrigin(0.5).setScrollFactor(0).setDepth(61);
-    // centred food slots
-    const spacing = 58;
-    const startX  = px + PW / 2 - ((FOOD.length - 1) * spacing) / 2;
-    this._slots = FOOD.map((f, i) => {
-      const ix = startX + i * spacing, iy = py + 48;
-      const icon = this.add.image(ix, iy, f.tex).setDisplaySize(30, 26)
-        .setScrollFactor(0).setDepth(61).setAlpha(0.32);
-      const chk  = this.add.text(ix, iy + 16, '·', {
-        fontSize: '10px', fontFamily: 'Georgia, serif', color: '#7a8898'
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(62);
-      return { icon, chk };
-    });
+    // Food slots — evenly spread with a 20px gap from the panel's left/right
+    // edges, and each icon sized to its OWN aspect ratio (fit to a 24px height,
+    // capped to its slot width) so the different food art doesn't get squashed
+    // into one wrong 30×26 box (that mismatch is what looked off).
+    this._layoutCollectSlots(FOOD, px, py, PW);
   }
 
   // ── HUD: score + pause (top-right) ─────────────────────────────────────────

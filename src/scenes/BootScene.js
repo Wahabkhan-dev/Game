@@ -155,7 +155,7 @@ export class BootScene extends Phaser.Scene {
     // ── Level 3 hospital scene real artwork ─────────────────────────────────
     this.load.image('l3_hospital_bg',       'assets/images/Level 3/l3_hospital_bg.png');
     this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.png');
-    this.load.image('l3_med_ok',      'assets/images/Level 3/l3_med_ok.png');
+    this.load.image('l3_med_ok',      'assets/images/all/hurdle/medicine bottle.png');
     this.load.image('l3_med_wrong',   'assets/images/Level 3/l3_med_wrong.png');
     this.load.image('l3_syringe',     'assets/images/all/hurdle/injection.png');
     this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
