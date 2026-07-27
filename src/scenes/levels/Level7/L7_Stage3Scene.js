@@ -35,8 +35,6 @@ export class L7_Stage3Scene extends L7BaseScene {
     // Do NOT remove if they exist — they might still be in use, just reload to be safe
     if (!this.textures.exists('l2_bg')) this.load.image('l2_bg', 'assets/images/Level 2/l2_bg.png');
     if (!this.textures.exists('l2_surface')) this.load.image('l2_surface', 'assets/images/Level 2/l2_surface.png');
-    // reused jeep from Stage 2
-    if (!this.textures.exists('l7_jeep_side')) this.load.image('l7_jeep_side', 'assets/images/Level7/Stage2/l7_jeep_side.png');
     // Load transition videos (l7_v5 plays at end)
     if (!this.cache.video.exists('l7_v5')) this.load.video('l7_v5', 'assets/video/Level 7/Part 05.mp4');
     this.load.on('filecomplete', (key) => console.log(`[L7_Stage3] loaded ${key}`));
@@ -132,9 +130,7 @@ export class L7_Stage3Scene extends L7BaseScene {
     const STATION_Y_NUDGE = 38;
     const [stw, sth] = this._wh('l7_s3_station', 224);
     this.add.image(2750, GROUND_Y + 10 + STATION_Y_NUDGE, 'l7_s3_station').setOrigin(0.5, 1).setDisplaySize(stw, sth).setDepth(2);
-    // a parked jeep at the start (the one that ran dry)
-    const [jw, jh] = this._wh('l7_jeep_side', 118);
-    this.add.image(180, GROUND_Y + 12, 'l7_jeep_side').setOrigin(0.5, 1).setDisplaySize(jw, jh).setDepth(3).setAlpha(0.97);
+    // The parked jeep at the start was removed per request.
   }
 
   _buildGround() {

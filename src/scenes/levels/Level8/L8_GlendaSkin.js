@@ -51,7 +51,16 @@ export function applyGlendaSkin(scene) {
   const player = scene.player;
   if (!player) { console.warn('[L8 GlendaSkin] no player sprite (scene.player) — skipped'); return; }
 
-  const runKeys = Array.from({ length: RUN_N }, (_, i) => RUN_KEY(i + 1));
+  // Stop any playing animation BEFORE removing anim keys below — Phaser
+  // crashes (null frame → "Cannot read properties of null (reading
+  // 'sourceSize')") if you remove an animation a sprite is actively playing.
+  player.stop();
+
+  // Some frame files are missing on disk (10, 12, 20-23) — filter them out so
+  // the walk animation never references a texture that doesn't exist (that
+  // also crashes with the same null-frame error once the cycle reaches it).
+  const runKeys = Array.from({ length: RUN_N }, (_, i) => RUN_KEY(i + 1))
+    .filter(k => scene.textures.exists(k));
 
   const origScale = player.scaleX;
   const worldBW   = player.body.width  * origScale;
@@ -60,11 +69,13 @@ export function applyGlendaSkin(scene) {
   const odh0      = player.displayHeight;           // original on-screen height
   const odh       = odh0 * SIZE_BOOST;               // enlarged on-screen height
 
-  const groups = [{ keys: runKeys }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
+  const groups = [{ keys: runKeys.length > 0 ? runKeys : [IDLE_KEY] }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
   const { scale } = processGlendaGroups(scene, groups, odh, SS);
 
   ['gleeda_walk', 'gleeda_idle', 'gleeda_jump'].forEach(a => { if (scene.anims.exists(a)) scene.anims.remove(a); });
-  scene.anims.create({ key: 'gleeda_walk', frames: runKeys.map(key => ({ key })), frameRate: 26, repeat: -1 });
+  if (runKeys.length > 0) {
+    scene.anims.create({ key: 'gleeda_walk', frames: runKeys.map(key => ({ key })), frameRate: 26, repeat: -1 });
+  }
   scene.anims.create({ key: 'gleeda_idle', frames: [{ key: IDLE_KEY }],           frameRate: 1,  repeat: -1 });
   scene.anims.create({ key: 'gleeda_jump', frames: [{ key: JUMP_KEY }],           frameRate: 1,  repeat: -1 });
 

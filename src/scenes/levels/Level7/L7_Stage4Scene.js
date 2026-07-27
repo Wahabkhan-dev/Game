@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
-import { drawModalPanelBg } from '../ModalFrame.js';
 import { buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { playVideoSequence, showStoryCard } from '../../../utils/VideoOverlay.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
@@ -544,16 +543,14 @@ export class L7_Stage4Scene extends L7BaseScene {
   }
   _runBlock(b) {
     if (this._done) return;
-    const td = this._overlay('🚧 Road Block!', 'Tap CLEAR rapidly to push the barrier aside!');
-    let val = 0, fin = false;
-    const { fill, draw } = this._meter(td);
-    const push = () => { if (fin) return; val = Math.min(100, val + 9); draw(val); this.cameras.main.shake(40, 0.003);
-      if (val >= 100) { fin = true; b.solved = true; this._completeObj(2);
-        this.tweens.add({ targets: [b.img, b.sign], y: '-=80', alpha: 0, duration: 500 });
-        td.forEach(o => { try { o.destroy(); } catch (_) {} });
-        this._blocking = false; this.cameras.main.flash(250, 120, 220, 140); this._toast('✅ Road cleared!'); } };
-    const btn = this._overlayButton(td, W / 2, H / 2 + 70, '💪  CLEAR', push);
-    const sp = this.keys.SPACE, h = () => push(); sp.on('down', h); td.push({ destroy: () => sp.off('down', h) });
+    // Same as the Quick-Time Event below — a random folder mini-game from the
+    // Level-7 pool, not a custom hand-rolled meter. Driving is already frozen
+    // (_speed=0, _blocking=true); once it's solved, clear the barrier and resume.
+    launchRandomMiniGame(this, 7, () => {
+      b.solved = true; this._completeObj(2);
+      this.tweens.add({ targets: [b.img, b.sign], y: '-=80', alpha: 0, duration: 500 });
+      this._blocking = false; this.cameras.main.flash(250, 120, 220, 140); this._toast('✅ Road cleared!');
+    });
   }
 
   // ── Quick-Time Event: tap before the timer runs out ─────────────────────────
@@ -590,32 +587,13 @@ export class L7_Stage4Scene extends L7BaseScene {
   }
   _runClimb() {
     if (this._done) return;
-    const td = this._overlay('⛰️ Steep Climb!', 'HOLD GAS to power the jeep up the hill!');
+    // Same folder-mini-game system as the Road Block / Quick-Time Event above.
     this.tweens.add({ targets: this._carC, angle: -8, duration: 400 });
-    let val = 0, fin = false, holding = false;
-    const { draw } = this._meter(td);
-    const loop = this.time.addEvent({ delay: 30, loop: true, callback: () => {
-      if (fin) return; val += (holding ? 1.0 : -0.7); val = Phaser.Math.Clamp(val, 0, 100); draw(val);
-      if (val >= 100) { fin = true; this._climb.solved = true; this._completeObj(4); loop.remove();
-        this.tweens.add({ targets: this._carC, angle: 0, duration: 400 });
-        td.forEach(o => { try { o.destroy(); } catch (_) {} });
-        this._blocking = false; this.cameras.main.flash(250, 120, 220, 140); this._toast('⛰️ Over the top!'); } } });
-    td.push({ destroy: () => loop.remove() });
-    const btn = this._overlayButton(td, W / 2, H / 2 + 70, '⚡  HOLD GAS', () => {});
-    btn.on('pointerdown', () => holding = true); btn.on('pointerup', () => holding = false); btn.on('pointerout', () => holding = false);
-    const sp = this.keys.SPACE, dk = this.keys.D, dn = () => holding = true, up = () => holding = false;
-    sp.on('down', dn); sp.on('up', up); dk.on('down', dn); dk.on('up', up);
-    td.push({ destroy: () => { sp.off('down', dn); sp.off('up', up); dk.off('down', dn); dk.off('up', up); } });
-  }
-
-  _meter(td) {
-    const barX = W / 2, barY = H / 2 + 6, barW = 280;
-    const fr = this.add.graphics().setDepth(63).setScrollFactor(0); td.push(fr);
-    fr.fillStyle(0x101820, 1); fr.fillRoundedRect(barX - barW / 2, barY, barW, 22, 6); fr.lineStyle(2, 0x5a6a82, 1); fr.strokeRoundedRect(barX - barW / 2, barY, barW, 22, 6);
-    const fill = this.add.graphics().setDepth(64).setScrollFactor(0); td.push(fill);
-    const draw = (val) => { fill.clear(); fill.fillStyle(val > 80 ? 0x7dff88 : 0x44dd66, 1); fill.fillRoundedRect(barX - barW / 2 + 2, barY + 2, (barW - 4) * val / 100, 18, 5); };
-    draw(0);
-    return { fill, draw };
+    launchRandomMiniGame(this, 7, () => {
+      this._climb.solved = true; this._completeObj(4);
+      this.tweens.add({ targets: this._carC, angle: 0, duration: 400 });
+      this._blocking = false; this.cameras.main.flash(250, 120, 220, 140); this._toast('⛰️ Over the top!');
+    });
   }
 
   // ── Damage shared by speed breakers + QTE fail — same health model as
@@ -780,31 +758,6 @@ export class L7_Stage4Scene extends L7BaseScene {
     const t = this.add.text(W / 2, H - 40, msg, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#000', strokeThickness: 3, backgroundColor: '#000a', padding: { x: 12, y: 6 }, align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(40);
     this._toastObj = t;
     this.tweens.add({ targets: t, alpha: 0, delay: ms, duration: 400, onComplete: () => { try { t.destroy(); } catch (_) {} } });
-  }
-  _overlay(title, sub) {
-    this._blocking = true;
-    const td = [];
-    td.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setDepth(60).setScrollFactor(0).setInteractive());
-    // Premium wood/gold panel (shared Level-1 modal art), procedural fallback
-    const panelBg = drawModalPanelBg(this, W / 2 - 220, H / 2 - 110, 440, 220, 61);
-    if (panelBg) td.push(panelBg);
-    else {
-      const g = this.add.graphics().setDepth(61).setScrollFactor(0);
-      g.fillStyle(0x10141e, 0.98); g.fillRoundedRect(W / 2 - 220, H / 2 - 110, 440, 220, 14); g.lineStyle(2.5, 0xf0a830, 0.9); g.strokeRoundedRect(W / 2 - 220, H / 2 - 110, 440, 220, 14);
-      td.push(g);
-    }
-    td.push(this.add.text(W / 2, H / 2 - 78, title, { fontSize: '20px', fontFamily: 'Georgia, serif', color: '#f0c860', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(62).setScrollFactor(0));
-    td.push(this.add.text(W / 2, H / 2 - 48, sub, { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#b8c4d4', align: 'center' }).setOrigin(0.5).setDepth(62).setScrollFactor(0));
-    return td;
-  }
-  _overlayButton(td, cx, cy, label, cb, w = 200, h = 42) {
-    const g = this.add.graphics().setDepth(63).setScrollFactor(0);
-    g.fillStyle(0x1c2436, 0.96); g.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 9); g.lineStyle(2, 0x7dff88, 1); g.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 9);
-    td.push(g);
-    td.push(this.add.text(cx, cy, label, { fontSize: '15px', fontFamily: 'Georgia, serif', color: '#7dff88' }).setOrigin(0.5).setDepth(64).setScrollFactor(0));
-    const hit = this.add.rectangle(cx, cy, w, h, 0, 0).setDepth(65).setScrollFactor(0).setInteractive({ useHandCursor: true });
-    td.push(hit); hit.on('pointerdown', () => cb());
-    return hit;
   }
   // Finalized wood/gold Game-Menu modal (approved via Theme Design)
   _togglePause() {
