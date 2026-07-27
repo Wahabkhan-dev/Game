@@ -13,7 +13,7 @@ import { toCanvas, bboxOf } from '../GlendaSkinCore.js';
 // L9BaseScene — shared scaffolding for Level 9 "A Holiday for the Puppies".
 //
 // Provides: snowy-evening parallax OR cosy living-room background, snow-covered
-// ground, Gleeda (JUMP + SLIDE), a festive HUD (banner / hearts / score /
+// ground, Gleeda (JUMP only — no slide in Level 9), a festive HUD (banner / hearts / score /
 // counters / progress), a reusable modal-panel + button framework, toasts,
 // sparkles, gentle falling snow, HP/lives handling, and the freeze-proof scene
 // transition (fadeOut → _wakeLoop → start). Mirrors the proven Level 8 base so
@@ -149,9 +149,9 @@ export class L9BaseScene extends Phaser.Scene {
     return trimmedKey;
   }
 
-  // ── Gleeda: JUMP + SLIDE ─────────────────────────────────────────────────────
+  // ── Gleeda: JUMP only — no slide in Level 9 ───────────────────────────────────
   buildPlayer(x, groundY, runSpeed = 250, jumpV = -470) {
-    this._runSpeed = runSpeed; this._jumpV = jumpV; this._sliding = false; this._pose = null; this._facing = 1;
+    this._runSpeed = runSpeed; this._jumpV = jumpV; this._pose = null; this._facing = 1;
     if (!this.anims.exists('gleeda_walk')) {
       this.anims.create({ key: 'gleeda_walk', frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
       this.anims.create({ key: 'gleeda_idle', frames: [{ key: 'gleeda_idle' }], frameRate: 1, repeat: -1 });
@@ -163,18 +163,12 @@ export class L9BaseScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this._ground);
     this.player.play('gleeda_idle');
-    // applyGlendaSkin computes and stores _normalBodyW/H and _slideBodyW/H
-    // (world-space, derived from the ORIGINAL 0.18 scale before it changes
-    // this.player's scale) — _startSlide below uses those so the slide hitbox
-    // stays correct regardless of the scale the skin picks.
     applyGlendaSkin(this);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('A,D,W,S,SPACE');
     const footer = document.getElementById('game-footer'); if (footer) footer.style.display = 'flex';
-    const slideBtn = document.getElementById('btn-slide'); if (slideBtn) slideBtn.style.display = '';
     this.events.once('shutdown', () => {
       const f = document.getElementById('game-footer'); if (f) f.style.display = 'none';
-      const sb = document.getElementById('btn-slide'); if (sb) sb.style.display = 'none';
     });
     return this.player;
   }
@@ -185,20 +179,6 @@ export class L9BaseScene extends Phaser.Scene {
     if (pose === 'walk') this.player.play('gleeda_walk', true);
     else if (pose === 'idle') this.player.play('gleeda_idle', true);
     else if (pose === 'jump') this.player.play('gleeda_jump', true);
-  }
-
-  _startSlide() {
-    if (this._sliding) return;
-    this._sliding = true;
-    const s = this.player.scaleX;
-    this.player.body.setSize(this._slideBodyW / s, this._slideBodyH / s, true);
-    this._slideTimer = this.time.delayedCall(600, () => {
-      this._sliding = false;
-      if (this.player?.body) {
-        const s2 = this.player.scaleX;
-        this.player.body.setSize(this._normalBodyW / s2, this._normalBodyH / s2, true);
-      }
-    });
   }
 
   runMovement() {
@@ -212,14 +192,11 @@ export class L9BaseScene extends Phaser.Scene {
     else if (left && !right) { velX = -this._runSpeed; this._facing = -1; }
     p.setVelocityX(velX);
     p.setFlipX(this._facing < 0);
-    const jump  = this.cursors.up.isDown   || this.keys.W.isDown || this.keys.SPACE.isDown || ts.jump;
-    const slide = this.cursors.down.isDown || this.keys.S.isDown || ts.slide;
-    if (jump && onG && !this._sliding) { p.setVelocityY(this._jumpV); ts.jump = false; }
-    if (slide && onG && !this._sliding) this._startSlide();
-    if (!onG)               this._setPose('jump');
-    else if (this._sliding) this._setPose('slide');
-    else if (velX !== 0)    this._setPose('walk');
-    else                    this._setPose('idle');
+    const jump = this.cursors.up.isDown || this.keys.W.isDown || this.keys.SPACE.isDown || ts.jump;
+    if (jump && onG) { p.setVelocityY(this._jumpV); ts.jump = false; }
+    if (!onG)            this._setPose('jump');
+    else if (velX !== 0) this._setPose('walk');
+    else                  this._setPose('idle');
     return onG;
   }
 
@@ -251,7 +228,9 @@ export class L9BaseScene extends Phaser.Scene {
       this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
     }
 
-    if (subtitle) this.add.text(W / 2, this._hdr.bottom + 10, subtitle, {
+    // subtitle (objective line) — pinned to the bottom of the screen instead
+    // of under the banner, so it doesn't crowd the top HUD.
+    if (subtitle) this.add.text(W / 2, H - 20, subtitle, {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: L9.creamS, stroke: '#1a0f04', strokeThickness: 2,
       backgroundColor: '#2e1c0ecc', padding: { x: 8, y: 2 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(62);

@@ -320,7 +320,9 @@ export class L6_IntroductionScene extends Phaser.Scene {
         // leave the video and the modal after it invisible.
         playVideoOverlay(this, 'l6_conclusion_video', () => {
           const points = this._stars * 100;
-          showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+          // Straight to Level 7 (Stage 1 plays the L7 intro) — 'L7_Cutscene'
+          // without a `next` in its data defaulted back to the Menu.
+          showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Stage1', nextLevelData: { lives: 3, points: 0 } });
         });
       });
     });

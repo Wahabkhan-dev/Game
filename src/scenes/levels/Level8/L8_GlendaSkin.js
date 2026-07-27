@@ -6,15 +6,6 @@
 // ('gleeda_walk' / 'gleeda_idle' / 'gleeda_jump') — match that exactly so
 // _setPose() picks up the new frames with no other code changes.
 //
-// L8 also has a SLIDE move that temporarily resizes the physics body
-// (120×30 → restore to 73×56, both in source/unscaled px) via hardcoded
-// numbers tied to the ORIGINAL scale (0.18). If this skin changes the
-// player's scale (it does, for crisp supersampled art), those hardcoded
-// restores would produce a different world-space hitbox than before. See the
-// patch in L8BaseScene.js (_startSlide/_endSlide now derive source-space size
-// from stored WORLD-space constants ÷ current scale) — that patch is what
-// keeps slide collision consistent regardless of the scale this skin picks.
-//
 // Frames (public/assets/images/test/glenda-run) — ALL already transparent:
 //   run   frame_001.png … frame_026.png   (720×1280)
 //   idle  gelnda-idle-frame.png            (375×666)
@@ -66,8 +57,24 @@ export function applyGlendaSkin(scene) {
   const worldBW   = player.body.width  * origScale;
   const worldBH   = player.body.height * origScale;
   const SIZE_BOOST = 1.22;                          // visual-only enlargement, same as Level 2
-  const odh0      = player.displayHeight;           // original on-screen height
-  const odh       = odh0 * SIZE_BOOST;               // enlarged on-screen height
+
+  // IMPORTANT: the l8glenda_* textures are mutated in place by processGlendaGroups
+  // (cropped + rescaled canvases overwrite the original images) and Phaser's
+  // texture cache is GLOBAL across scenes. So the 2nd Level 8 scene to call this
+  // (e.g. Home Run, after Food Run already ran) would otherwise compute its
+  // "original" displayHeight from Food Run's ALREADY-SHRUNK canvas, cascading
+  // the size down each time a new scene applies the skin — this is what made
+  // Home Run's Glenda render visibly smaller than Food Run's. Cache the very
+  // first computed target height on the game registry and reuse it everywhere
+  // so every Level 8 scene renders Glenda at the exact same size, regardless
+  // of visit order (same fix already used by Level 7's GlendaSkin).
+  let odh = scene.registry.get('l8GlendaTargetHeight');
+  if (!odh) {
+    const odh0 = player.displayHeight;               // original on-screen height (pre-skin)
+    odh = odh0 * SIZE_BOOST;                          // enlarged on-screen height
+    scene.registry.set('l8GlendaTargetHeight', odh);
+  }
+  const odh0 = odh / SIZE_BOOST;
 
   const groups = [{ keys: runKeys.length > 0 ? runKeys : [IDLE_KEY] }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
   const { scale } = processGlendaGroups(scene, groups, odh, SS);
@@ -87,15 +94,6 @@ export function applyGlendaSkin(scene) {
   // within the frame so the extra height all goes UP (feet stay planted).
   player.body.setOffset(player.body.offset.x, player.body.offset.y + (odh - odh0) / 2 / scale);
   player.play('gleeda_idle', true);
-
-  // Slide's hardcoded (120,30)/(73,56) source-space restores are calibrated for
-  // the ORIGINAL scale. Recompute the world-space constants L8BaseScene's
-  // _startSlide/_endSlide now use, so the slide hitbox stays correct at the
-  // new scale too.
-  scene._normalBodyW = worldBW;
-  scene._normalBodyH = worldBH;
-  scene._slideBodyW  = 120 * origScale;
-  scene._slideBodyH  = 30  * origScale;
 
   console.log(`[L8 GlendaSkin] applied — scale ${scale.toFixed(3)}, world body ${worldBW.toFixed(0)}×${worldBH.toFixed(0)} (gameplay preserved).`);
 }

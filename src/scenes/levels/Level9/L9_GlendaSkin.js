@@ -6,12 +6,6 @@
 // 'gleeda_idle' / 'gleeda_jump'), same convention as Level 8 — match exactly
 // so _setPose() picks up the new frames with no other code changes.
 //
-// L9 also has the SAME slide move as Level 8 (120×30 → restore 73×56, source
-// px tied to the original 0.18 scale). See the L9BaseScene.js patch:
-// _startSlide/_endSlide now derive source-space size from stored WORLD-space
-// constants ÷ current scale, so slide collision stays correct at whatever
-// scale this skin picks.
-//
 // Frames (public/assets/images/test/glenda-run) — ALL already transparent:
 //   run   frame_001.png … frame_026.png   (720×1280)
 //   idle  gelnda-idle-frame.png            (375×666)
@@ -63,8 +57,28 @@ export function applyGlendaSkin(scene) {
   const worldBW   = player.body.width  * origScale;
   const worldBH   = player.body.height * origScale;
   const SIZE_BOOST = 1.22;                          // visual-only enlargement, same as Level 2
-  const odh0      = player.displayHeight;           // original on-screen height
-  const odh       = odh0 * SIZE_BOOST;               // enlarged on-screen height
+
+  // IMPORTANT: the l9glenda_* textures are mutated in place by processGlendaGroups
+  // and Phaser's texture cache is GLOBAL across scenes. Gift Run and Bow Run both
+  // call this — whichever runs SECOND would otherwise compute its "original"
+  // displayHeight from the FIRST scene's already-shrunk canvas, making the two
+  // runs' Glenda render at different sizes. Cache the first computed target
+  // height on the game registry and reuse it everywhere so both runs always
+  // render Glenda at the exact same size, regardless of which one loads first.
+  //
+  // The cached value is also anchored to Level 2's EXACT final height (same
+  // fix as Level 7/8's GlendaSkin) rather than trusting player.displayHeight
+  // in the moment: Level 2's buildPlayer() starts from gleeda_idle.png (369px
+  // tall) at the shared 0.18 base scale, boosted by the same 1.22× — so this
+  // constant guarantees Level 9 renders Glenda at IDENTICAL size to Level 2,
+  // with no dependency on which texture happens to be active on this scene's
+  // player sprite at the moment this runs.
+  let odh = scene.registry.get('l9GlendaTargetHeight');
+  if (!odh) {
+    odh = 369 * 0.18 * SIZE_BOOST;                    // ≈ 81px — matches Level 2
+    scene.registry.set('l9GlendaTargetHeight', odh);
+  }
+  const odh0 = odh / SIZE_BOOST;
 
   const groups = [{ keys: runKeys.length > 0 ? runKeys : [IDLE_KEY] }, { keys: [IDLE_KEY] }, { keys: [JUMP_KEY] }];
   const { scale } = processGlendaGroups(scene, groups, odh, SS);
@@ -84,14 +98,6 @@ export function applyGlendaSkin(scene) {
   // within the frame so the extra height all goes UP (feet stay planted).
   player.body.setOffset(player.body.offset.x, player.body.offset.y + (odh - odh0) / 2 / scale);
   player.play('gleeda_idle', true);
-
-  // Slide's hardcoded (120,30)/(73,56) source-space restores are calibrated for
-  // the ORIGINAL scale. Recompute the world-space constants L9BaseScene's
-  // _startSlide now uses, so the slide hitbox stays correct at the new scale.
-  scene._normalBodyW = worldBW;
-  scene._normalBodyH = worldBH;
-  scene._slideBodyW  = 120 * origScale;
-  scene._slideBodyH  = 30  * origScale;
 
   console.log(`[L9 GlendaSkin] applied — scale ${scale.toFixed(3)}, world body ${worldBW.toFixed(0)}×${worldBH.toFixed(0)} (gameplay preserved).`);
 }

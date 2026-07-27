@@ -24,7 +24,7 @@ const PUPS = [
   { name: 'Teddy' },
 ];
 
-const BOW_TEX = ['l9_bow_red', 'l9_bow_green', 'l9_bow_gold', 'l9_bow_blue', 'l9_bow_pink', 'l9_bow_purple', 'l9_bow_silver'];
+const BOW_COUNT = 7;
 
 export class L9_BowTieScene extends L9BaseScene {
   constructor() { super('L9_BowTie'); }
@@ -39,6 +39,7 @@ export class L9_BowTieScene extends L9BaseScene {
     load('l9_puppy_real',   'assets/images/level 09/puppy-without-bow.png');
     load('l9_puppy_bow',    'assets/images/level 09/Puppy_with_boo.png');
     load('l9_room_bg_real', 'assets/images/level 09/after-decoration.png');
+    load('l9_bow',          'assets/images/level 09/Bow.png');
   }
 
   create() {
@@ -89,6 +90,8 @@ export class L9_BowTieScene extends L9BaseScene {
 
   // Bow tray now sits at the top (same slot Level 8's Feeding food tray uses),
   // freeing the bottom of the screen for the puppy row + progress bar.
+  // Uses the real Bow.png art (same asset the Bow Run collectibles use)
+  // instead of the old procedurally-drawn colored bows.
   _buildTray() {
     const trayY = 102;
     const g = this.add.graphics().setDepth(30);
@@ -96,22 +99,27 @@ export class L9_BowTieScene extends L9BaseScene {
     g.lineStyle(2, L9.GOLD, 0.8); g.strokeRoundedRect(20, 74, W - 40, 56, 12);
     this.add.text(30, 70, '🎀 Bows — drag one onto each puppy', { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#ffe6a0' }).setOrigin(0, 1).setDepth(31);
 
-    const n = BOW_TEX.length;
+    const src = this.textures.get('l9_bow').getSourceImage();
+    const ratio = src.width / src.height;
+    this._bowH = 40; this._bowW = this._bowH * ratio;
+    this._bowDragH = 46; this._bowDragW = this._bowDragH * ratio;
+
+    const n = BOW_COUNT;
     const startX = 70, endX = W - 70;
     const step = (endX - startX) / (n - 1);
-    this._bows = BOW_TEX.map((tex, i) => {
+    this._bows = Array.from({ length: n }, (_, i) => {
       const hx = startX + i * step, hy = trayY;
-      const bow = this.add.image(hx, hy, tex).setDisplaySize(48, 40).setDepth(32);
+      const bow = this.add.image(hx, hy, 'l9_bow').setDisplaySize(this._bowW, this._bowH).setDepth(32);
       bow.setData('homeX', hx); bow.setData('homeY', hy); bow.setData('placed', false);
       bow.setInteractive({ useHandCursor: true, draggable: true });
       this.input.setDraggable(bow);
-      const b = { tex, bow, hx, hy };
+      const b = { tex: 'l9_bow', bow, hx, hy };
       bow.setData('b', b);
       return b;
     });
 
     // one global drag handler set (identifies the bow via getData)
-    this.input.on('dragstart', (ptr, obj) => { if (obj.getData && obj.getData('b')) { obj.setDepth(60); obj.setDisplaySize(56, 46); } });
+    this.input.on('dragstart', (ptr, obj) => { if (obj.getData && obj.getData('b')) { obj.setDepth(60); obj.setDisplaySize(this._bowDragW, this._bowDragH); } });
     this.input.on('drag',      (ptr, obj, dx, dy) => { if (obj.getData && obj.getData('b')) obj.setPosition(dx, dy); });
     this.input.on('dragend',   (ptr, obj) => this._onDrop(obj));
   }
@@ -119,7 +127,7 @@ export class L9_BowTieScene extends L9BaseScene {
   _onDrop(obj) {
     const b = obj.getData && obj.getData('b');
     if (!b || obj.getData('placed') || this._done) return;
-    obj.setDepth(32).setDisplaySize(48, 40);
+    obj.setDepth(32).setDisplaySize(this._bowW, this._bowH);
 
     // find nearest undressed puppy within reach
     let best = null, bestD = 9999;

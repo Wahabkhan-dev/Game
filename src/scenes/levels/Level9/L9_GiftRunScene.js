@@ -21,24 +21,19 @@ const WORLD_W  = 6400;
 const GROUND_Y = 380;
 const CEIL_Y   = 60;
 
-// 8 gifts to collect — alternate ground / high (jump-gated)
+// 8 gifts to collect — all ground-level (floating snow-ledge platforms removed).
+// Two carry a `activity` key — the mini-activity fires on COLLECTING that
+// specific gift (never by walking past a separate position marker), same
+// pattern Level 8's Food/Home Run already use.
 const GIFTS = [
   { x: 460,  tex: 'l9_gift_red',    high: false },
-  { x: 1050, tex: 'l9_gift_green',  high: true  },
-  { x: 1650, tex: 'l9_gift_gold',   high: false },
-  { x: 2400, tex: 'l9_gift_blue',   high: true  },
+  { x: 1050, tex: 'l9_gift_green',  high: false },
+  { x: 1650, tex: 'l9_gift_gold',   high: false, activity: 'match_ornaments' },
+  { x: 2400, tex: 'l9_gift_blue',   high: false },
   { x: 3150, tex: 'l9_gift_pink',   high: false },
-  { x: 3950, tex: 'l9_gift_purple', high: true  },
-  { x: 4750, tex: 'l9_gift_white',  high: false },
-  { x: 5500, tex: 'l9_gift_stripe', high: true  },
-];
-
-// One-way floating "snow ledges" to reach the high gifts
-const LEDGES = [
-  { x: 1050, y: 290, w: 110 },
-  { x: 2400, y: 286, w: 110 },
-  { x: 3950, y: 288, w: 110 },
-  { x: 5500, y: 286, w: 110 },
+  { x: 3950, tex: 'l9_gift_purple', high: false },
+  { x: 4750, tex: 'l9_gift_white',  high: false, activity: 'wrap_gift' },
+  { x: 5500, tex: 'l9_gift_stripe', high: false },
 ];
 
 // Ground obstacles (JUMP over)
@@ -53,17 +48,8 @@ const GROUND_OBS = [
   { x: 5850, tex: 'l9_snowman',  h: 74 },
 ];
 
-// Ice patches (flat — JUMP over)
-const ICE = [{ x: 1200 }, { x: 3300 }, { x: 4950 }];
-
 // Falling icicles — drop when the player passes
 const ICICLES = [{ x: 2200 }, { x: 4150 }, { x: 5700 }];
-
-// Festive mini-activity stops
-const GATES = [
-  { x: 1500, key: 'match_ornaments' },
-  { x: 4500, key: 'wrap_gift' },
-];
 
 const CP_XS = [1000, 2400, 3800, 5200];
 
@@ -78,7 +64,6 @@ export class L9_GiftRunScene extends L9BaseScene {
     // Real bg/ground art — same fit-height/tile technique as Level 4/8.
     load('l9_sky',      'assets/images/level 09/bg-l9.jpg');
     load('l9_ground',   'assets/images/level 09/bottom-l9.jpg');
-    load('l9_platform', 'assets/images/level 09/Platform.png');
     ['l9_hills', 'l9_room_bg', 'l9_tree', 'l9_lights', 'l9_house', 'l9_door']
       .forEach(k => load(k, `${B}bg/${k}.png`));
     ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe', 'l9_gift_open']
@@ -87,7 +72,7 @@ export class L9_GiftRunScene extends L9BaseScene {
       .forEach(k => load(k, `${B}bow/${k}.png`));
     ['l9_puppy', 'l9_gamma', 'l9_toy_ball', 'l9_toy_bone', 'l9_candy', 'l9_ornament']
       .forEach(k => load(k, `${B}char/${k}.png`));
-    ['l9_snowball', 'l9_snowman', 'l9_giftstack', 'l9_ice', 'l9_icicle', 'l9_cp']
+    ['l9_snowball', 'l9_snowman', 'l9_giftstack', 'l9_icicle', 'l9_cp']
       .forEach(k => load(k, `${B}obstacle/${k}.png`));
     this.load.on('loaderror', () => { /* procedural fallback covers it */ });
   }
@@ -108,21 +93,15 @@ export class L9_GiftRunScene extends L9BaseScene {
 
     this.buildSnowyBg(WORLD_W);
     this.buildGround(WORLD_W, GROUND_Y);
-    this._platforms = this.physics.add.staticGroup();
-    this._buildLedges();
     this._buildSigns();
     this._buildCPs();
     this._buildGifts();
     this._buildObstacles();
-    this._buildIce();
     this._buildIcicles();
 
     this.buildPlayer(80, GROUND_Y, 250, -470);
-    this.physics.add.collider(this.player, this._platforms);
     this.registry.set('l9_checkpointX', 80); this.registry.set('l9_checkpointY', GROUND_Y);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-
-    this._buildGates();
 
     this.buildTopBanner('LEVEL 9', 'GIFT RUN', null, { timer: 90 });
     this._giftHud = this.buildCounterPill('🎁', 'GIFTS', GIFTS.length);   // below banner
@@ -140,32 +119,6 @@ export class L9_GiftRunScene extends L9BaseScene {
     this.playStoryVideos(['l9_intro']);
   }
 
-  _buildLedges() {
-    // See L9BaseScene._getTrimmedTexture — the snow art is cropped to its
-    // exact opaque pixels first (removing its transparent canvas padding
-    // entirely), so the physics body built from it below (setDisplaySize +
-    // refreshBody) always matches the visible snow exactly. No more manual
-    // pixel-nudge guessing, which kept over/under-shooting.
-    const platKey = this._getTrimmedTexture('l9_platform');
-    LEDGES.forEach(p => {
-      const src = this.textures.get(platKey).getSourceImage();
-      const h = Math.round(p.w / (src.width / src.height));
-      const pl = this._platforms.create(p.x, p.y, platKey);
-      pl.setDisplaySize(p.w, h).refreshBody();
-      pl.body.checkCollision.down = false; pl.body.checkCollision.left = false; pl.body.checkCollision.right = false;
-      pl.setDepth(6);
-      // Floating bob — refreshBody() on every tick keeps the (static) physics
-      // body glued to the animated sprite; without it the collider stays
-      // frozen at the spawn position while the art drifts, which is what
-      // made the player look like she was standing in mid-air with her legs
-      // sunk a little into the platform.
-      this.tweens.add({
-        targets: pl, y: p.y - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-        onUpdate: () => pl.refreshBody(),
-      });
-    });
-  }
-
   _buildSigns() {
     const sign = (x, txt) => this.add.text(x, GROUND_Y - 150, txt, {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#0a1a0e', strokeThickness: 3,
@@ -179,8 +132,12 @@ export class L9_GiftRunScene extends L9BaseScene {
 
   _buildCPs() {
     this._cpObjs = CP_XS.map((x, i) => {
-      const beacon = this.add.image(x, GROUND_Y - 46, 'l9_cp').setDisplaySize(40, 68).setDepth(5).setAlpha(0.4);
-      const label = this.add.text(x, GROUND_Y - 92, `CP ${i + 1}`, { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#1c4a2e', strokeThickness: 2 }).setOrigin(0.5).setDepth(5).setAlpha(0.4);
+      // Real checkpoint_flag.png (same art/size/anchoring as every other
+      // level's checkpoints) instead of the old procedural 'l9_cp' beacon.
+      const beacon = this.add.image(x, GROUND_Y + 16, 'checkpoint_flag').setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(5).setAlpha(0.4);
+      // Label raised to clear the taller flag's top (was tuned for the old
+      // 68px-tall beacon; checkpoint_flag.png is 139px tall).
+      const label = this.add.text(x, GROUND_Y - 138, `CP ${i + 1}`, { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#1c4a2e', strokeThickness: 2 }).setOrigin(0.5).setDepth(5).setAlpha(0.4);
       return { x, beacon, label, triggered: false, idx: i + 1 };
     });
   }
@@ -192,8 +149,8 @@ export class L9_GiftRunScene extends L9BaseScene {
       this.tweens.add({ targets: glow, alpha: 0.6, scale: 0.85, duration: 800, yoyo: true, repeat: -1 });
       const img = this.add.image(gc.x, y, gc.tex).setDepth(9).setDisplaySize(46, 46);
       this.tweens.add({ targets: img, y: y - 10, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const hint = gc.high ? this.add.text(gc.x, y + 32, '⬆', { fontSize: '12px', color: '#ffe6a0' }).setOrigin(0.5).setDepth(9) : null;
-      return { ...gc, img, glow, hint, taken: false, y };
+      // No jump-hint text above high gifts — removed per request.
+      return { ...gc, img, glow, hint: null, taken: false, y };
     });
   }
 
@@ -209,15 +166,6 @@ export class L9_GiftRunScene extends L9BaseScene {
     });
   }
 
-  _buildIce() {
-    this._ice = ICE.map(a => {
-      const img = this.add.image(a.x, GROUND_Y - 4, 'l9_ice').setDisplaySize(90, 24).setDepth(8);
-      this.tweens.add({ targets: img, alpha: 0.7, duration: 800, yoyo: true, repeat: -1 });
-      this.add.text(a.x, GROUND_Y - 38, '⬆ jump', { fontSize: '9px', color: '#bfe6ff' }).setOrigin(0.5).setDepth(8);
-      return { ...a, img };
-    });
-  }
-
   _buildIcicles() {
     this._icicles = ICICLES.map(s => {
       const img = this.add.image(s.x, CEIL_Y + 16, 'l9_icicle').setDisplaySize(26, 56).setOrigin(0.5, 0).setDepth(11);
@@ -226,26 +174,14 @@ export class L9_GiftRunScene extends L9BaseScene {
     });
   }
 
-  _buildGates() {
-    this._gates = GATES.map(g => {
-      const marker = this.add.image(g.x, GROUND_Y - 100, 'l9_glow').setScale(0.7).setAlpha(0.5).setDepth(8).setTint(0xffe6a0);
-      const paw = this.add.text(g.x, GROUND_Y - 100, '🎄', { fontSize: '24px' }).setOrigin(0.5).setDepth(9);
-      this.tweens.add({ targets: [marker, paw], y: GROUND_Y - 110, duration: 720, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.add.text(g.x, GROUND_Y - 64, 'STOP HERE', { fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#1c4a2e', strokeThickness: 3 }).setOrigin(0.5).setDepth(9);
-      return { ...g, done: false, marker, paw };
-    });
-  }
-
   update(time) {
     if (this._done || this._paused || this._busy || this._miniGameOpen) return;
     const onG = this.runMovement();
     this.updateParallax();
     this._emitDust(onG);
-    this._checkGates();
     this._checkCPs();
     this._checkGifts();
     this._checkObstacles(onG);
-    this._checkIce();
     this._updateIcicles();
     this._checkDoor();
     this._updateDist(this.player.x);
@@ -259,19 +195,6 @@ export class L9_GiftRunScene extends L9BaseScene {
     const dir = this._facing < 0 ? 1 : -1;
     const puff = this.add.image(p.x + dir * 12, GROUND_Y + 6, 'l9_dust').setDepth(8).setAlpha(0.8);
     this.tweens.add({ targets: puff, x: puff.x + dir * 20, y: puff.y - 10, alpha: 0, scale: 1.8, duration: 420, onComplete: () => puff.destroy() });
-  }
-
-  _checkGates() {
-    for (const g of this._gates) {
-      if (g.done) continue;
-      if (this.player.x >= g.x) {
-        g.done = true; this.player.setVelocityX(0);
-        this.registry.set('l9_checkpointX', Math.max(80, g.x - 80));
-        this.tweens.add({ targets: [g.marker, g.paw], alpha: 0, duration: 220 });
-        this.runActivity(g.key, () => this.toast('✨ Nicely done! Keep collecting gifts!', 1600));
-        break;
-      }
-    }
   }
 
   _checkCPs() {
@@ -305,8 +228,19 @@ export class L9_GiftRunScene extends L9BaseScene {
         this._flyToHud(gc.img);
         if (this._streak >= 2) this.popText(gc.x, gc.img.y - 30, `COMBO x${this._streak}!`, '#ffe6a0');
         this._giftHud(this._collected);
-        if (this._collected >= GIFTS.length) this.popText(p.x, p.y - 50, 'All gifts found!', '#2f7a4a');
-        else this.toast(`🎁 Gift ${this._collected}/${GIFTS.length}!`, 1000);
+        // Mini-activity fires on collecting specific gifts (never by walking
+        // past a separate position marker) — see GIFTS' `activity` field above.
+        if (gc.activity) {
+          this.player.setVelocityX(0);
+          this.runActivity(gc.activity, () => {
+            if (this._collected >= GIFTS.length) this.popText(p.x, p.y - 50, 'All gifts found!', '#2f7a4a');
+            else this.toast('✨ Nicely done! Keep collecting gifts!', 1600);
+          });
+        } else if (this._collected >= GIFTS.length) {
+          this.popText(p.x, p.y - 50, 'All gifts found!', '#2f7a4a');
+        } else {
+          this.toast(`🎁 Gift ${this._collected}/${GIFTS.length}!`, 1000);
+        }
       }
     }
   }
@@ -331,20 +265,6 @@ export class L9_GiftRunScene extends L9BaseScene {
         this._streak = 0;
         this.loseLife();
         if (!this._done) this.toast('💥 Jump over it! (W or ↑)', 1500);
-        return;
-      }
-    }
-  }
-
-  _checkIce() {
-    if (this._invuln || this._done) return;
-    const p = this.player;
-    for (const a of this._ice) {
-      if (Math.abs(p.x - a.x) < 42 && p.body.bottom > GROUND_Y - 6) {
-        this._streak = 0;
-        const dir = this._facing < 0 ? 1 : -1; p.setVelocity(dir * 130, -170);
-        this.loseLife();
-        if (!this._done) this.toast('🧊 Jump over the ice!', 1400);
         return;
       }
     }

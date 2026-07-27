@@ -12,7 +12,8 @@ import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 // L8BaseScene — shared scaffolding for Level 8 "Puppy Care Day".
 //
 // Provides: bright daytime sky + parallax, runnable grass ground, an auto-running
-// caretaker (Gleeda) with JUMP + SLIDE, a cheerful HUD (banner / hearts / score /
+// caretaker (Gleeda) with JUMP-only movement (no slide in Level 8), a cheerful
+// HUD (banner / hearts / score /
 // progress), a reusable modal-panel + button framework, toasts, sparkles, life
 // handling, and the freeze-proof scene transition (fadeOut → _wakeLoop → start).
 // Every Level 8 scene extends this. Themed deliberately apart from Level 7.
@@ -214,9 +215,9 @@ export class L8BaseScene extends Phaser.Scene {
     this.loseLife(null, { fullLife: true });
   }
 
-  // ── Gleeda character (Glenda): JUMP + SLIDE ───────────────────────────────────
+  // ── Gleeda character (Glenda): JUMP only — no slide in Level 8 ────────────────
   buildPlayer(x, groundY, runSpeed = 250, jumpV = -470) {
-    this._runSpeed = runSpeed; this._jumpV = jumpV; this._sliding = false; this._pose = null; this._facing = 1;
+    this._runSpeed = runSpeed; this._jumpV = jumpV; this._pose = null; this._facing = 1;
     if (!this.anims.exists('gleeda_walk')) {
       this.anims.create({ key: 'gleeda_walk', frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
       this.anims.create({ key: 'gleeda_idle', frames: [{ key: 'gleeda_idle' }], frameRate: 1, repeat: -1 });
@@ -252,21 +253,8 @@ export class L8BaseScene extends Phaser.Scene {
     else if (pose === 'jump') this.player.play('gleeda_jump', true);
   }
 
-  _startSlide() {
-    if (this._sliding) return;
-    this._sliding = true;
-    const s = this.player.scaleX;
-    this.player.body.setSize(this._slideBodyW / s, this._slideBodyH / s, true);
-    this._slideTimer = this.time.delayedCall(620, () => {
-      this._sliding = false;
-      if (this.player?.body) {
-        const s2 = this.player.scaleX;
-        this.player.body.setSize(this._normalBodyW / s2, this._normalBodyH / s2, true);
-      }
-    });
-  }
-
   // Player-controlled movement (Level 5/6 style: manual left/right, no auto-run).
+  // No slide in Level 8 — jump is the only way past obstacles.
   runMovement() {
     if (this._paused || this._busy || !this.player) return false;
     const ts = window._touchState || {};
@@ -278,14 +266,11 @@ export class L8BaseScene extends Phaser.Scene {
     else if (left && !right) { velX = -this._runSpeed; this._facing = -1; }
     p.setVelocityX(velX);
     p.setFlipX(this._facing < 0);
-    const jump  = this.cursors.up.isDown   || this.keys.W.isDown || this.keys.SPACE.isDown || ts.jump;
-    const slide = this.cursors.down.isDown || this.keys.S.isDown || ts.slide;
-    if (jump && onG && !this._sliding) { p.setVelocityY(this._jumpV); ts.jump = false; }
-    if (slide && onG && !this._sliding) this._startSlide();
-    if (!onG)              this._setPose('jump');
-    else if (this._sliding) this._setPose('slide');
-    else if (velX !== 0)   this._setPose('walk');
-    else                   this._setPose('idle');
+    const jump = this.cursors.up.isDown || this.keys.W.isDown || this.keys.SPACE.isDown || ts.jump;
+    if (jump && onG) { p.setVelocityY(this._jumpV); ts.jump = false; }
+    if (!onG)            this._setPose('jump');
+    else if (velX !== 0) this._setPose('walk');
+    else                  this._setPose('idle');
     return onG;
   }
 
@@ -318,8 +303,9 @@ export class L8BaseScene extends Phaser.Scene {
       this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
     }
 
-    // subtitle (objective line) — just below the banner
-    if (subtitle) this.add.text(W / 2, this._hdr.bottom + 10, subtitle, {
+    // subtitle (objective line) — pinned to the bottom of the screen instead
+    // of under the banner, so it doesn't crowd the top HUD.
+    if (subtitle) this.add.text(W / 2, H - 20, subtitle, {
       fontSize: '11px', fontFamily: 'Georgia, serif', color: '#fff3d0', stroke: '#1a0f04', strokeThickness: 2,
       backgroundColor: '#2e1c0ecc', padding: { x: 8, y: 2 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(62);
@@ -378,9 +364,19 @@ export class L8BaseScene extends Phaser.Scene {
   //   • keep each image's OWN aspect ratio (fit to a 24px height, capped to the
   //     per-slot width) instead of being squashed into one wrong 30×26 box —
   //     that squash is what made the icons look mismatched.
+  // MAX_ICON_W / NOM_HW MUST stay in lockstep: NOM_HW is the half-width the
+  // margin math below reserves for the outermost icons, and MAX_ICON_W is the
+  // hard cap actually applied to icon width. They used to be different
+  // numbers (a guessed 13 vs an actual cap of 32) — whenever an icon rendered
+  // anywhere near that real 32px cap, its true half-width (16) exceeded the
+  // 13px the margin math had reserved, so it rendered a few px closer to the
+  // panel's edge than the intended 20px margin — occasionally poking past the
+  // wood/gold frame's inner edge. Deriving both from ONE constant makes that
+  // impossible: the outermost icon's half-width can never exceed what the
+  // margin math assumed.
   // Sets/returns this._slots = [{ icon, chk }], read by the collection logic.
   _layoutCollectSlots(items, px, py, PW) {
-    const MARGIN = 20, IH = 24, NOM_HW = 13;
+    const MARGIN = 20, IH = 24, MAX_ICON_W = 28, NOM_HW = MAX_ICON_W / 2;
     const N = items.length;
     const first = px + MARGIN + NOM_HW;
     const last  = px + PW - MARGIN - NOM_HW;
@@ -391,7 +387,9 @@ export class L8BaseScene extends Phaser.Scene {
       const src = this.textures.get(it.tex)?.getSourceImage();
       const ratio = (src && src.width && src.height) ? src.width / src.height : 1;
       let iw = IH * ratio, ih = IH;
-      const maxW = Math.min(32, (step || 32) - 6);
+      // Capped to MAX_ICON_W (matches the margin reservation above) AND to
+      // the per-slot pitch (so neighbouring icons can't overlap each other).
+      const maxW = Math.min(MAX_ICON_W, (step || MAX_ICON_W) - 6);
       if (iw > maxW) { iw = maxW; ih = iw / ratio; }
       const icon = this.add.image(ix, iy, it.tex).setDisplaySize(iw, ih)
         .setScrollFactor(0).setDepth(61).setAlpha(0.32);

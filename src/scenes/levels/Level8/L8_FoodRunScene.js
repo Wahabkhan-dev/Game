@@ -10,7 +10,7 @@ import { preloadGlendaSkin } from './L8_GlendaSkin.js';
 //
 // Mirrors Level 6 runner (L6_EquipmentRunScene) exactly:
 //   - Manual A/D + ←/→ movement (no auto-run)
-//   - JUMP over ground obstacles, SLIDE under overhead ones
+//   - JUMP over all ground obstacles — no slide in Level 8
 //   - 7 food collectibles with floating + glow FX
 //   - Auto-checkpoint every ~900 world units (flag + banner + score)
 //   - Level 6 style HUD: food slots top-centre, LIVES top-left,
@@ -123,7 +123,8 @@ export class L8_FoodRunScene extends L8BaseScene {
     load('l8_obs_crate',   `${OB}l8_obs_crate.png`);
     load('l8_obs_banner',  `${OB}l8_obs_banner.png`);
     load('l8_obs_balloon', `${OB}l8_obs_balloon.png`);
-    load('l8_cp_flag',     `${OB}l8_cp_flag.png`);
+    // l8_cp_flag no longer loaded — checkpoints now use the real
+    // checkpoint_flag.png (already loaded globally by BootScene).
     load('l8_house',       `${OB}l8_house.png`);
   }
 
@@ -196,13 +197,14 @@ export class L8_FoodRunScene extends L8BaseScene {
     }).setOrigin(0.5).setDepth(6);
   }
 
-  // ── Checkpoint flags (dimmed until triggered) ───────────────────────────────
+  // ── Checkpoint flags (dimmed until triggered) — real checkpoint_flag.png,
+  // same art + size + ground anchoring used by every other level's
+  // checkpoints, instead of the old small procedural flag. ────────────────────
   _buildCPs() {
     this._cpObjs = CP_XS.map((x, i) => {
-      this.add.rectangle(x, GROUND_Y - 38, 4, 76, 0x6e4a26).setDepth(5);
-      const flag  = this.add.image(x + 22, GROUND_Y - 68, 'l8_cp_flag')
-        .setDisplaySize(40, 50).setDepth(5).setAlpha(0.28);
-      const label = this.add.text(x + 6, GROUND_Y - 96, `CP ${i + 1}`, {
+      const flag  = this.add.image(x, GROUND_Y + 16, 'checkpoint_flag')
+        .setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(5).setAlpha(0.28);
+      const label = this.add.text(x, GROUND_Y - 96, `CP ${i + 1}`, {
         fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 2
       }).setOrigin(0.5).setDepth(5).setAlpha(0.28);
       return { x, flag, label, triggered: false, idx: i + 1 };
@@ -306,7 +308,7 @@ export class L8_FoodRunScene extends L8BaseScene {
   // ── update ──────────────────────────────────────────────────────────────────
   update() {
     if (this._done || this._paused || this._miniGameOpen) return;
-    const onG = this.runMovement();  // L8BaseScene manual left/right + jump/slide
+    const onG = this.runMovement();  // L8BaseScene manual left/right + jump
     this.updateParallax();
     this._emitDust(onG);
     this._checkCPs();

@@ -275,7 +275,9 @@ export class L6_DecorateScene extends Phaser.Scene {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(550, () => {
         const points = this._stars * 100;
-        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+        // Straight to Level 7 (Stage 1 plays the L7 intro) — 'L7_Cutscene'
+        // without a `next` in its data defaulted back to the Menu.
+        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Stage1', nextLevelData: { lives: 3, points: 0 } });
       });
     });
     this.time.addEvent({ delay: 200, repeat: 20, callback: () => this._sparkle(W / 2 - 130 + Math.random() * 260, H / 2 - 100 + Math.random() * 220) });

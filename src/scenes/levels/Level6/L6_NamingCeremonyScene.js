@@ -242,7 +242,11 @@ export class L6_NamingCeremonyScene extends Phaser.Scene {
         // Show the coins collected from solving mini-games (registry 'points'),
         // consistent with every other level — not a star-based score.
         const points = this.registry.get('points') || 0;
-        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Cutscene', nextLevelData: { lives: 3, points: 0 } });
+        // Go straight to Level 7 (Stage 1, which plays the L7 intro cinematic
+        // itself). Was 'L7_Cutscene' with no `next` in its data — L7_Cutscene
+        // defaults to the Menu when data.next is missing, so the old link sent
+        // the player back to the menu instead of into Level 7.
+        showLevelCompleteModal(this, points, { nextLevelKey: 'L7_Stage1', nextLevelData: { lives: 3, points: 0 } });
       });
     });
   }

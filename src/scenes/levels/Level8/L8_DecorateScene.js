@@ -5,10 +5,10 @@ import { generateL8Assets } from './L8Assets.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 7+8 — DECORATE THE HOME  →  HAPPY PUPPY HOME!
-// Magic Bag Reveal: tap the enchanted sack to reveal each collected Christmas
-// prop one at a time. Once all six have appeared, tap the center of the
-// screen to cast the final spell — an instant full-screen transformation
-// swaps the bare room for the fully decorated Christmas scene.
+// Decoration Bag Reveal: tap the bag to reveal each collected Christmas prop
+// one at a time. Once all six have appeared, tap the screen repeatedly to
+// decorate the room — an instant full-screen transformation swaps the bare
+// room for the fully decorated Christmas scene.
 // ════════════════════════════════════════════════════════════════════════════
 const PROPS_DIR = 'assets/images/level8/christmas props/';
 const PROPS = [
@@ -45,13 +45,13 @@ export class L8_DecorateScene extends L8BaseScene {
 
     this._bg = this.add.image(W / 2, H / 2, 'l8_deco_bg_before').setDisplaySize(W, H).setDepth(-40);
 
-    this.buildTopBanner(7, 'Decorate the Home', 'Tap the magic bag to reveal each decoration!');
+    this.buildTopBanner(7, 'Decorate the Home', 'Tap the Decoration Bag to reveal each decoration!');
     this.buildHearts();
     this._setCount = this.buildCounterPill('🎁', 'PROPS REVEALED', PROPS.length);
 
     this._buildBag();
 
-    this.time.delayedCall(400, () => this.toast('✨ Tap the magic bag to reveal a decoration!'));
+    this.time.delayedCall(400, () => this.toast('✨ Tap the Decoration Bag to reveal a decoration!'));
   }
 
   // ── Step 1: Magic Bag Reveal ─────────────────────────────────────────────
@@ -68,7 +68,7 @@ export class L8_DecorateScene extends L8BaseScene {
     this.tweens.add({ targets: this._bagImg, y: by - 10, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this._bagImg.on('pointerdown', () => this._onBagTap());
 
-    this._bagLabel = this.add.text(bx, by + bagH / 2 + 30, '👆 Tap the Magic Bag!', {
+    this._bagLabel = this.add.text(bx, by + bagH / 2 + 30, '👆 Tap the Decoration Bag!', {
       fontSize: '13px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#3a1a5a', strokeThickness: 3
     }).setOrigin(0.5).setDepth(10);
     this.tweens.add({ targets: this._bagLabel, alpha: 0.45, duration: 650, yoyo: true, repeat: -1 });
@@ -152,12 +152,12 @@ export class L8_DecorateScene extends L8BaseScene {
     });
   }
 
-  // ── Step 2: Final Magic Decoration ───────────────────────────────────────
+  // ── Step 2: Final Decoration ──────────────────────────────────────────────
   _startMagicCasting() {
     this._magicTaps = 0;
-    this.toast('🪄 Tap anywhere to cast magic!', 1800);
+    this.toast('👆 Tap again and again to decorate the room!', 1800);
 
-    this._castPrompt = this.add.text(W / 2, H - 46, '🪄 Tap anywhere to cast magic!', {
+    this._castPrompt = this.add.text(W / 2, H - 46, '👆 Tap again and again to decorate the room!', {
       fontSize: '15px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 3
     }).setOrigin(0.5).setDepth(15);
     this.tweens.add({ targets: this._castPrompt, alpha: 0.45, duration: 700, yoyo: true, repeat: -1 });
@@ -187,7 +187,7 @@ export class L8_DecorateScene extends L8BaseScene {
     }
 
     if (this._magicTaps >= MAGIC_TAPS_NEEDED) this._triggerFinalTransformation();
-    else this.toast(`✨ Casting magic... (${this._magicTaps}/${MAGIC_TAPS_NEEDED})`, 800);
+    else this.toast(`✨ Decorating... (${this._magicTaps}/${MAGIC_TAPS_NEEDED})`, 800);
   }
 
   _triggerFinalTransformation() {

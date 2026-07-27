@@ -25,16 +25,14 @@ const ITEMS = [
   { x: 4000, tex: 'l8_prop_lantern',   label: 'Lantern',        high: true  },
 ];
 
+// Ground obstacles only — jump over, no slide in Level 8 (the old branch/
+// banner overhead hazards needed sliding under, so they're gone).
 const OBSTACLES = [
-  { x: 700,  tex: 'l8_obs_pot',     type: 'ground',   h: 62 },
-  { x: 1300, tex: 'l8_obs_branch',  type: 'overhead', h: 58 },
-  { x: 1950, tex: 'l8_obs_crate',   type: 'ground',   h: 56 },
-  { x: 2350, tex: 'l8_obs_balloon', type: 'overhead', h: 84 },
-  { x: 3550, tex: 'l8_obs_banner',  type: 'overhead', h: 52 },
-  { x: 4100, tex: 'l8_obs_pot',     type: 'ground',   h: 62 },
-  { x: 4600, tex: 'l8_obs_crate',   type: 'ground',   h: 56 },
-  { x: 5200, tex: 'l8_obs_balloon', type: 'overhead', h: 84 },
-  { x: 5750, tex: 'l8_obs_pot',     type: 'ground',   h: 62 },
+  { x: 700,  tex: 'l8_obs_pot',     type: 'ground', h: 62 },
+  { x: 1950, tex: 'l8_obs_crate',   type: 'ground', h: 56 },
+  { x: 4100, tex: 'l8_obs_pot',     type: 'ground', h: 62 },
+  { x: 4600, tex: 'l8_obs_crate',   type: 'ground', h: 56 },
+  { x: 5750, tex: 'l8_obs_pot',     type: 'ground', h: 62 },
 ];
 
 // Fall-through ground holes (Level-2/6 style) — walk/jump-mistimed into one
@@ -42,6 +40,13 @@ const OBSTACLES = [
 const PITS = [
   { x: 2900, hw: 80 },
 ];
+
+// Checkpoint flags — this run had NO visual checkpoint markers at all before
+// (only a silent registry save on each prop pickup); adds real, visible
+// checkpoint_flag.png landmarks + a save/reveal moment, same pattern as the
+// Food Run. Positions picked clear of ITEMS/OBSTACLES/PITS above so the flag
+// never sits dead-center on top of another sprite.
+const CP_XS = [1550, 2350, 3900, 5000];
 
 // Each ground-obstacle PNG has a chunk of transparent canvas padding below
 // the actual visible art (measured from the source alpha channel — the real
@@ -86,10 +91,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     load('l8_prop_lantern',   `${CP}08.png`);
 
     load('l8_obs_pot',     `${OB}l8_obs_pot.png`);
-    load('l8_obs_branch',  `${OB}l8_obs_branch.png`);
     load('l8_obs_crate',   `${OB}l8_obs_crate.png`);
-    load('l8_obs_balloon', `${OB}l8_obs_balloon.png`);
-    load('l8_obs_banner',  `${OB}l8_obs_banner.png`);
     load('l8_house',       `${OB}l8_house.png`);
   }
 
@@ -106,6 +108,7 @@ export class L8_HomeRunScene extends L8BaseScene {
     this.buildSky('l8_home_bg');
     this.buildGround(WORLD_W, GROUND_Y, PITS, 'l8_home_surface');
     this._buildDecor();
+    this._buildCPs();
     this._buildItems();
     this._buildObstacles();
     this.buildPlayer(80, GROUND_Y, 250, -470);
@@ -114,10 +117,10 @@ export class L8_HomeRunScene extends L8BaseScene {
     this.registry.set('l8_checkpointY', GROUND_Y);
     this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
 
-    this.buildTopBanner(5, 'Run & Collect Christmas Props', 'JUMP & SLIDE — grab all 6 decorations!', { timer: 90 });
+    this.buildTopBanner(5, 'Run & Collect Christmas Props', 'JUMP — grab all 6 decorations!', { timer: 90 });
     this._buildPropPanel();
 
-    this.time.delayedCall(400, () => this.toast('🎁 Collect 6 Christmas props! A/D or ←/→ = Move, W/↑/SPACE = Jump, S/↓ = Slide'));
+    this.time.delayedCall(400, () => this.toast('🎁 Collect 6 Christmas props! A/D or ←/→ = Move, W/↑/SPACE = Jump'));
   }
 
   // ── HUD: prop collection panel — same "collecting modal" look as the Food
@@ -191,20 +194,14 @@ export class L8_HomeRunScene extends L8BaseScene {
     });
   }
 
+  // Every obstacle is a ground hazard now (jump over) — no overhead/slide type.
   _buildObstacles() {
     this._obsObjs = OBSTACLES.map(o => {
       const img = this.textures.get(o.tex).getSourceImage();
       const w = o.h * (img.width / img.height);
-      if (o.type === 'overhead') {
-        const y = GROUND_Y - 70;
-        const spr = this.add.image(o.x, y, o.tex).setOrigin(0.5, 0).setDisplaySize(w, o.h).setDepth(12);
-        this.tweens.add({ targets: spr, y: y - 4, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        return { ...o, spr };
-      }
-      // Ground obstacle — planted on the floor with a soft contact shadow
-      // (matches the FoodRun look). Was bottom-anchored at GROUND_Y+16 with NO
-      // shadow, which made it read as floating; now centre-anchored on a
-      // slightly lower ground line (GROUND_Y+24) so it sits near the bottom.
+      // Planted on the floor with a soft contact shadow (matches the FoodRun
+      // look). Centre-anchored on a slightly lower ground line (GROUND_Y+24)
+      // so it sits near the bottom instead of floating.
       const baseY = GROUND_Y + 24;
       const pad = (OBS_BOTTOM_PAD[o.tex] || 0) * o.h;
       const sh = this.add.graphics({ x: o.x, y: baseY }).setDepth(10);
@@ -219,10 +216,51 @@ export class L8_HomeRunScene extends L8BaseScene {
     if (this._done || this._paused || this._miniGameOpen) return;
     const onG = this.runMovement();
     this.updateParallax();
+    this._checkCPs();
     this._checkItems();
     this._checkObstacles(onG);
     this._checkPits();
     if (this.player.x > WORLD_W - 240) this._finish();
+  }
+
+  // ── Checkpoint flags (dimmed until triggered) — real checkpoint_flag.png,
+  // same art/size/anchoring as every other level's checkpoints. Was entirely
+  // missing from this run before (checkpoints only saved silently on prop
+  // pickup, with no visible landmark). ───────────────────────────────────────
+  _buildCPs() {
+    this._cpObjs = CP_XS.map((x, i) => {
+      const flag  = this.add.image(x, GROUND_Y + 16, 'checkpoint_flag')
+        .setDisplaySize(56, 139).setOrigin(0.5, 1).setDepth(5).setAlpha(0.28);
+      const label = this.add.text(x, GROUND_Y - 96, `CP ${i + 1}`, {
+        fontSize: '9px', fontFamily: 'Georgia, serif', color: '#fff', stroke: '#6a3fa0', strokeThickness: 2
+      }).setOrigin(0.5).setDepth(5).setAlpha(0.28);
+      return { x, flag, label, triggered: false, idx: i + 1 };
+    });
+  }
+
+  _checkCPs() {
+    for (const cp of this._cpObjs) {
+      if (!cp.triggered && this.player.x > cp.x) {
+        cp.triggered = true;
+        this._hitCP(cp);
+      }
+    }
+  }
+
+  _hitCP(cp) {
+    this.registry.set('l8_checkpointX', Math.max(80, cp.x - 50));
+    this.registry.set('l8_checkpointY', GROUND_Y);
+    cp.flag.setAlpha(1); cp.label.setAlpha(1);
+    this.tweens.add({
+      targets: cp.flag, y: cp.flag.y - 14, duration: 320, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: cp.flag, y: cp.flag.y + 8, duration: 200, yoyo: true, repeat: 2
+      })
+    });
+    this.sparkleBurst(cp.x, GROUND_Y - 64, 14);
+    this.addScore(50);
+    this.banner('✅ Checkpoint Reached!', '#6ad06a');
+    this.toast(`Checkpoint ${cp.idx} / ${CP_XS.length} — Keep going! 🎄`, 1800);
   }
 
   _checkItems() {
@@ -261,19 +299,12 @@ export class L8_HomeRunScene extends L8BaseScene {
     const p = this.player;
     for (const o of this._obsObjs) {
       if (Math.abs(p.x - o.x) > 40) continue;
-      let hit = false;
-      if (o.type === 'overhead') {
-        const grounded = p.body.blocked.down || p.body.touching.down;
-        hit = grounded && !this._sliding;
-      } else {
-        hit = p.body.bottom > o.clearY + 4;
-      }
+      const hit = p.body.bottom > o.clearY + 4;
       if (hit) {
         p.setVelocityY(-180); p.x -= 14;
         this.cameras.main.shake(160, 0.01);
-        const tip = o.type === 'overhead' ? '↓ SLIDE to duck under!' : '↑ JUMP to leap over!';
         this.loseLife();
-        if (!this._done) this.toast(`💥 ${tip}`, 1600);
+        if (!this._done) this.toast('💥 ↑ JUMP to leap over!', 1600);
         break;
       }
     }
