@@ -37,6 +37,8 @@ export class L7_Stage3Scene extends L7BaseScene {
     if (!this.textures.exists('l2_surface')) this.load.image('l2_surface', 'assets/images/Level 2/l2_surface.png');
     // reused jeep from Stage 2
     if (!this.textures.exists('l7_jeep_side')) this.load.image('l7_jeep_side', 'assets/images/Level7/Stage2/l7_jeep_side.png');
+    // Load transition videos (l7_v5 plays at end)
+    if (!this.cache.video.exists('l7_v5')) this.load.video('l7_v5', 'assets/video/Level 7/Part 05.mp4');
     this.load.on('filecomplete', (key) => console.log(`[L7_Stage3] loaded ${key}`));
     this.load.on('loaderror', (file) => console.error(`[L7_Stage3] loaderror ${file?.key} @ ${file?.src}`));
   }
@@ -54,16 +56,20 @@ export class L7_Stage3Scene extends L7BaseScene {
 
   create() {
     console.log('[L7_Stage3] create() start');
+    console.log('[L7_Stage3] checking textures:', {
+      l2_bg: this.textures.exists('l2_bg'),
+      l2_surface: this.textures.exists('l2_surface'),
+      l7_s3_station: this.textures.exists('l7_s3_station'),
+      l7_jeep_side: this.textures.exists('l7_jeep_side'),
+    });
     try {
       this._createInner();
+      console.log('[L7_Stage3] create() completed successfully');
     } catch (err) {
-      // Surface the REAL failure instead of a silent blank screen — this is
-      // the exact spot that's been going blank after Stage 2, so log the
-      // full error and put it on-screen too (in case DevTools isn't open).
-      console.error('[L7_Stage3] create() THREW:', err);
+      console.error('[L7_Stage3] create() THREW:', err, err.stack);
       this.add.rectangle(W / 2, H / 2, W, H, 0x1a0505, 1).setDepth(999);
-      this.add.text(W / 2, H / 2, `Stage 3 failed to load:\n${err?.message || err}\n\nSee console for details.`, {
-        fontSize: '13px', fontFamily: 'monospace', color: '#ff8888', align: 'center', wordWrap: { width: W - 60 },
+      this.add.text(W / 2, H / 2, `STAGE 3 ERROR:\n${err?.message || err}`, {
+        fontSize: '16px', fontFamily: 'monospace', color: '#ff8888', align: 'center', wordWrap: { width: W - 60 },
       }).setOrigin(0.5).setDepth(1000);
     }
   }

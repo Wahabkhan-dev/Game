@@ -102,12 +102,7 @@ export class L7BaseScene extends Phaser.Scene {
 
   // ── Glenda side-scroller player ─────────────────────────────────────────────
   buildPlayer(x, groundY) {
-    if (!this.anims.exists('gleeda_walk')) {
-      this.anims.create({ key: 'gleeda_walk',      frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'gleeda_idle_anim', frames: [{ key: 'gleeda_idle' }], frameRate: 1, repeat: -1 });
-      this.anims.create({ key: 'gleeda_jump_anim', frames: [{ key: 'gleeda_jump' }], frameRate: 1, repeat: -1 });
-    }
-    this.player = this.physics.add.sprite(x, groundY - 40, 'gleeda_idle').setDepth(20);
+    this.player = this.physics.add.sprite(x, groundY - 40, 'l7glenda_idle').setDepth(20);
     this.player.setScale(0.18);
     this.player.body.setSize(73, 56, true);
     this.player.setCollideWorldBounds(true);

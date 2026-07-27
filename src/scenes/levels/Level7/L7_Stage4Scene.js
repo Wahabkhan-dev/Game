@@ -68,6 +68,8 @@ export class L7_Stage4Scene extends L7BaseScene {
       const key = `l7s4_car_${i}`;
       if (!this.textures.exists(key)) this.load.image(key, `${S4}car/frame_${String(i).padStart(3, '0')}.png`);
     }
+    // Load transition videos (l7_v6 plays at end)
+    if (!this.cache.video.exists('l7_v6')) this.load.video('l7_v6', 'assets/video/Level 7/Part 06.mp4');
   }
 
   create() {

@@ -20,6 +20,9 @@ export class L7_Stage2Scene extends L7BaseScene {
       if (this.textures.exists(k)) this.textures.remove(k);
       this.load.image(k, `${P}${k}.png`);
     });
+    // Load transition videos (l7_v3 plays at start, l7_v4 plays at end)
+    if (!this.cache.video.exists('l7_v3')) this.load.video('l7_v3', 'assets/video/Level 7/Part 03.mp4');
+    if (!this.cache.video.exists('l7_v4')) this.load.video('l7_v4', 'assets/video/Level 7/Part 04.mp4');
     this.load.on('loaderror', (file) => console.error(`[L7_Stage2] load error: ${file?.key}`));
   }
 
@@ -51,6 +54,11 @@ export class L7_Stage2Scene extends L7BaseScene {
   }
 
   _beginStep(n) {
+    // Past the last step → hand off to Stage 3 instead of either crashing on
+    // `steps[n]` being undefined ("undefined is not iterable") OR silently
+    // returning (which left Stage 2 stuck and Stage 3 never loading = blank).
+    if (n > 5) { this._finishStage(); return; }
+    if (n < 1) { console.error(`[L7_Stage2] invalid step: ${n}`); return; }
     this._step = n;
     const steps = {
       1: ['🧰', 'Find the Tools', 'Search the garage and click the\njack, wrench and patch kit.', () => this._stepFindTools()],
@@ -68,7 +76,7 @@ export class L7_Stage2Scene extends L7BaseScene {
     this.toast(msg, 1800);
     if (this._step >= 5) {
       this.time.delayedCall(900, () => this._finishStage());
-    } else {
+    } else if (this._step < 5) {
       this.time.delayedCall(900, () => this._beginStep(this._step + 1));
     }
   }

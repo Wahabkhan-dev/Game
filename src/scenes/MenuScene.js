@@ -31,8 +31,8 @@ export class MenuScene extends Phaser.Scene {
     this._playBtn(colB, r[1], '🏠 Level 4', () => this._go('L4_Intro'), BW);
     this._playBtn(colA, r[2], '🐶 Level 5', () => this._go('L5_Intro'), BW);
     this._playBtn(colB, r[2], '🐾 Level 6', () => this._go('Level6'), BW);
-    // Level 7 — Combined: all 5 stages in one continuous world (no scene transitions)
-    this._playBtn(colA, r[3], '🚑 Level 7', () => this._go('L7Combined', { lives: 3, points: 0 }), BW);
+    // Level 7 goes straight into Stage 1, which plays the intro cinematic
+    this._playBtn(colA, r[3], '🚑 Level 7', () => this._go('L7_Stage1', { lives: 3, points: 0 }), BW);
 
     this._playBtn(colB, r[3], '🐾 Level 8', () => this._go('L8_FoodRun', { lives: 3, points: 0, l8_score: 0, l8_hp: 3 }), BW);
 

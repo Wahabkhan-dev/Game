@@ -23,6 +23,8 @@ export class L7_Stage5Scene extends L7BaseScene {
     if (!this.textures.exists('l7_s5_puppy_basket')) {
       this.load.image('l7_s5_puppy_basket', 'assets/images/Level 5/treatment/puppy_in_basket.png');
     }
+    // Load transition videos (l7_v7 plays at end when all stages complete)
+    if (!this.cache.video.exists('l7_v7')) this.load.video('l7_v7', 'assets/video/Level 7/Part 07.mp4');
   }
 
   create() {

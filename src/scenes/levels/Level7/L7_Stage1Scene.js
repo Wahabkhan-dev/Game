@@ -33,6 +33,10 @@ export class L7_Stage1Scene extends L7BaseScene {
       }
     });
 
+    // Load transition videos (l7_v1 at start, l7_v2 at end)
+    if (!this.cache.video.exists('l7_v1')) this.load.video('l7_v1', 'assets/video/Level 7/Part 01.mp4');
+    if (!this.cache.video.exists('l7_v2')) this.load.video('l7_v2', 'assets/video/Level 7/Part 02.mp4');
+
     this.load.on('filecomplete', (key) => {
       console.log(`[L7_Stage1] loaded ${key}`);
     });

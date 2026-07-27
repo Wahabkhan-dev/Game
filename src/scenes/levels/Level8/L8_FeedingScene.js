@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
 import { generateL8Assets } from './L8Assets.js';
-import { showStoryCard } from '../../../utils/VideoOverlay.js';
+// (showStoryCard no longer used — the Feeding→HomeRun bridge plays its two
+//  videos back-to-back with no intermediate card.)
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 3+4 — PUPPY FEEDING TIME
@@ -162,12 +163,15 @@ export class L8_FeedingScene extends L8BaseScene {
       const h = this.add.image(Phaser.Math.Between(120, 680), H / 2 + 60, 'l8_heart').setScale(0.5).setDepth(112);
       this.tweens.add({ targets: h, y: h.y - 140, alpha: 0, duration: 1500, onComplete: () => h.destroy() });
     });
-    this.time.delayedCall(2000, () => {
-      this.playStoryVideos(['l8_after_eat'], () => {
-        showStoryCard(this, "🍽️ Bellies full and happy...\nnow it's time to build their perfect home! 🏡", () => {
-          this.playStoryVideos(['l8_decorate_intro'], () => this.goToScene('L8_HomeRun'));
-        });
-      });
+    this.time.delayedCall(1600, () => {
+      // Both bridge videos play back-to-back as ONE overlay, then straight into
+      // the Home Run. Removed the intermediate showStoryCard that sat BETWEEN
+      // the two videos: its scene-clock timer could freeze if the RAF loop
+      // slept after the first video, hanging the Feeding → Home Run handoff on
+      // a black screen. This now matches the clean single-path transition every
+      // other Level 8 stage uses (playStoryVideos → goToScene), so the "food
+      // part → home run" connection can't stall or jerk.
+      this.playStoryVideos(['l8_after_eat', 'l8_decorate_intro'], () => this.goToScene('L8_HomeRun'));
     });
   }
 }
