@@ -698,13 +698,6 @@ export class Level1Scene extends BaseLevelScene {
     this.tweens.killTweensOf(this.gemmaGoal);
     this.tweens.add({ targets: this.gemmaGoal, y: '-=12', duration: 260, yoyo: true, repeat: 4 });
 
-    for (let i = 0; i < 8; i++) {
-      this.time.delayedCall(i * 180, () => {
-        const hrt = this.add.image(16700 + (Math.random() - 0.5) * 60, 320, 'heart').setDepth(60);
-        this.tweens.add({ targets: hrt, y: hrt.y - 65, alpha: 0, duration: 950, onComplete: () => hrt.destroy() });
-      });
-    }
-
     this._destroyGemmaLifeBar();
 
     // Auto-transition to feed round — no button needed. Was a scripted ~4.8s
