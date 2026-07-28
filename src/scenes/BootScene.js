@@ -60,7 +60,7 @@ export class BootScene extends Phaser.Scene {
     // Short looping "Gemma in cage" video — replaces the static gemma-in-cage
     // image/drawn-bars combo at Level 1's end-zone, Level 1's fruit part, and
     // Level 2's end-zone (already H.264, no transcode needed).
-    this.load.video('gemma_cage_loop', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784949837/shadow-gamma/video/all/gemma-cage-loop.mp4');
+    this.load.video('gemma_cage_loop', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784949837/shadow-gamma/video/all/gemma-cage-loop.mp4');
     this.load.image('shadow_idle',   'assets/images/shadow/shadow_idle.png');
     this.load.image('shadow_run1',   'assets/images/shadow/shadow_run1.png');
     this.load.image('shadow_run2',   'assets/images/shadow/shadow_run2.png');
@@ -72,67 +72,67 @@ export class BootScene extends Phaser.Scene {
     preloadPorcupineSkin(this);
     preloadSnakeSkin(this);
     this.load.image('road_bg',        'assets/images/road_bg.jpg');
-    this.load.video('intro_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658241/shadow-gamma/video/Level%2001/intro.mp4');
+    this.load.video('intro_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658241/shadow-gamma/video/Level%2001/intro.mp4');
     // ── Level 1 story videos (game-over + food-collected feeding scene) ──────
-    this.load.video('l1_gameover_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658150/shadow-gamma/video/Level%2001/exceptional.mp4');
-    this.load.video('l1_food_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658183/shadow-gamma/video/Level%2001/food.mp4');
+    this.load.video('l1_gameover_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658150/shadow-gamma/video/Level%2001/exceptional.mp4');
+    this.load.video('l1_food_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658183/shadow-gamma/video/Level%2001/food.mp4');
     // Source file is HEVC (hvc1) — most browsers can't play that; vc_h264
     // asks Cloudinary to transcode on-the-fly to H.264 (avc1) for playback,
     // matching every other video's codec.
-    this.load.video('l1_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784685880/shadow-gamma/video/Level%2001/conclusion-l1.mp4');
+    this.load.video('l1_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264,q_auto/v1784685880/shadow-gamma/video/Level%2001/conclusion-l1.mp4');
     // ── Level 2 story videos ────────────────────────────────────────────────
-    this.load.video('l2_intro_video',          'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658537/shadow-gamma/video/level%2002/intro-level2.mp4');
-    this.load.video('l2_gameover_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658322/shadow-gamma/video/level%2002/exceptional.mp4');
-    this.load.video('l2_transition_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658601/shadow-gamma/video/level%2002/street-to-jungle.mp4');
-    this.load.video('l2_cage_video',           'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658260/shadow-gamma/video/level%2002/after-reaching-to-cage.mp4');
-    this.load.video('l2_conclusion_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658301/shadow-gamma/video/level%2002/conclusion-l2.mp4');
+    this.load.video('l2_intro_video',          'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658537/shadow-gamma/video/level%2002/intro-level2.mp4');
+    this.load.video('l2_gameover_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658322/shadow-gamma/video/level%2002/exceptional.mp4');
+    this.load.video('l2_transition_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658601/shadow-gamma/video/level%2002/street-to-jungle.mp4');
+    this.load.video('l2_cage_video',           'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658260/shadow-gamma/video/level%2002/after-reaching-to-cage.mp4');
+    this.load.video('l2_conclusion_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658301/shadow-gamma/video/level%2002/conclusion-l2.mp4');
     // ── Level 4 story videos (3-part intro + reach-home cinematic) ───────────
-    this.load.video('l4_intro1',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658616/shadow-gamma/video/Level%2004/intro-1.mp4');
-    this.load.video('l4_intro2',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658637/shadow-gamma/video/Level%2004/intro-2.mp4');
-    this.load.video('l4_intro3',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658733/shadow-gamma/video/Level%2004/intro-3.mp4');
-    this.load.video('l4_after_home',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658610/shadow-gamma/video/Level%2004/after-reach-home.mp4');
+    this.load.video('l4_intro1',      'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658616/shadow-gamma/video/Level%2004/intro-1.mp4');
+    this.load.video('l4_intro2',      'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658637/shadow-gamma/video/Level%2004/intro-2.mp4');
+    this.load.video('l4_intro3',      'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658733/shadow-gamma/video/Level%2004/intro-3.mp4');
+    this.load.video('l4_after_home',  'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658610/shadow-gamma/video/Level%2004/after-reach-home.mp4');
     // ── Level 5 story videos (2-part intro + reach-home + conclusion) ────────
-    this.load.video('l5_intro1',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658751/shadow-gamma/video/Level%2005/intro-l5-pain.mp4');
-    this.load.video('l5_intro2',      'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658743/shadow-gamma/video/Level%2005/after-intro.mp4');
-    this.load.video('l5_reach_home',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658777/shadow-gamma/video/Level%2005/reaching-home-l5.mp4');
-    this.load.video('l5_conclusion',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658746/shadow-gamma/video/Level%2005/conclusion.mp4');
+    this.load.video('l5_intro1',      'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658751/shadow-gamma/video/Level%2005/intro-l5-pain.mp4');
+    this.load.video('l5_intro2',      'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658743/shadow-gamma/video/Level%2005/after-intro.mp4');
+    this.load.video('l5_reach_home',  'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658777/shadow-gamma/video/Level%2005/reaching-home-l5.mp4');
+    this.load.video('l5_conclusion',  'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658746/shadow-gamma/video/Level%2005/conclusion.mp4');
     // ── Level 6 story videos ─────────────────────────────────────────────────
     // Source files are HEVC (hvc1) — audio plays but video doesn't render in
     // most browsers. vc_h264 asks Cloudinary to transcode on-the-fly to H.264
     // (avc1), same fix already used for l1_conclusion_video below.
-    this.load.video('l6_intro_video',      'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784771946/shadow-gamma/video/Level%206/intro-l6.mp4');
-    this.load.video('l6_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264/v1784771954/shadow-gamma/video/Level%206/conclusion-l6.mp4');
+    this.load.video('l6_intro_video',      'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264,q_auto/v1784771946/shadow-gamma/video/Level%206/intro-l6.mp4');
+    this.load.video('l6_conclusion_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/vc_h264,q_auto/v1784771954/shadow-gamma/video/Level%206/conclusion-l6.mp4');
     // ── Level 7 story videos (8 clips; already H.264/avc1, no transcode needed) ──
     // v1+v2 = merged intro (before Stage 1); v3 = Stage 2 start; v4+v5 = merged,
     // end of Stage 2 → Stage 3; v6 = Stage 4 start; v7 = Stage 4 end (reached
     // hospital) → Stage 5; v8 = game-over cinematic (all lives lost).
-    this.load.video('l7_v1', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777635/shadow-gamma/video/Level%207/video-1.mp4');
-    this.load.video('l7_v2', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777635/shadow-gamma/video/Level%207/video-2.mp4');
-    this.load.video('l7_v3', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777637/shadow-gamma/video/Level%207/video-3.mp4');
-    this.load.video('l7_v4', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777645/shadow-gamma/video/Level%207/video-4.mp4');
-    this.load.video('l7_v5', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777654/shadow-gamma/video/Level%207/video-5.mp4');
-    this.load.video('l7_v6', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777661/shadow-gamma/video/Level%207/video-6.mp4');
-    this.load.video('l7_v7', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777665/shadow-gamma/video/Level%207/video-7.mp4');
-    this.load.video('l7_v8', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784777669/shadow-gamma/video/Level%207/video-8.mp4');
+    this.load.video('l7_v1', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777635/shadow-gamma/video/Level%207/video-1.mp4');
+    this.load.video('l7_v2', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777635/shadow-gamma/video/Level%207/video-2.mp4');
+    this.load.video('l7_v3', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777637/shadow-gamma/video/Level%207/video-3.mp4');
+    this.load.video('l7_v4', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777645/shadow-gamma/video/Level%207/video-4.mp4');
+    this.load.video('l7_v5', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777654/shadow-gamma/video/Level%207/video-5.mp4');
+    this.load.video('l7_v6', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777661/shadow-gamma/video/Level%207/video-6.mp4');
+    this.load.video('l7_v7', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777665/shadow-gamma/video/Level%207/video-7.mp4');
+    this.load.video('l7_v8', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784777669/shadow-gamma/video/Level%207/video-8.mp4');
     this.load.image('street_lamp',    'assets/images/Street_Lamp_Post.png');
     this.load.image('traffic_signal', 'assets/images/Traffic_Signal.png');
 
     // ── Level 8 story videos (already H.264/avc1, no transcode needed) ──────────
-    this.load.video('l8_intro',                'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936466/shadow-gamma/video/Level%208/intro-l8.mp4');
-    this.load.video('l8_reach_home_food',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936478/shadow-gamma/video/Level%208/reach-home-food.mp4');
-    this.load.video('l8_after_eat',             'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936496/shadow-gamma/video/Level%208/after-eat-l8.mp4');
-    this.load.video('l8_decorate_intro',        'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936511/shadow-gamma/video/Level%208/decorate-intro-l8.mp4');
-    this.load.video('l8_decorate_home_reach',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936527/shadow-gamma/video/Level%208/decorate-home-reach-l8.mp4');
-    this.load.video('l8_end',                   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936550/shadow-gamma/video/Level%208/l8-end.mp4');
+    this.load.video('l8_intro',                'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936466/shadow-gamma/video/Level%208/intro-l8.mp4');
+    this.load.video('l8_reach_home_food',       'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936478/shadow-gamma/video/Level%208/reach-home-food.mp4');
+    this.load.video('l8_after_eat',             'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936496/shadow-gamma/video/Level%208/after-eat-l8.mp4');
+    this.load.video('l8_decorate_intro',        'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936511/shadow-gamma/video/Level%208/decorate-intro-l8.mp4');
+    this.load.video('l8_decorate_home_reach',   'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936527/shadow-gamma/video/Level%208/decorate-home-reach-l8.mp4');
+    this.load.video('l8_end',                   'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936550/shadow-gamma/video/Level%208/l8-end.mp4');
 
     // ── Level 9 story videos (already H.264/avc1, no transcode needed) ──────────
-    this.load.video('l9_intro',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936576/shadow-gamma/video/Level%209/intro-l10.mp4');
-    this.load.video('l9_gift_open',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936594/shadow-gamma/video/Level%209/gift-open-l10.mp4');
-    this.load.video('l9_bow_intro',   'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784936616/shadow-gamma/video/Level%209/bow-intro-l10.mp4');
+    this.load.video('l9_intro',       'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936576/shadow-gamma/video/Level%209/intro-l10.mp4');
+    this.load.video('l9_gift_open',   'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936594/shadow-gamma/video/Level%209/gift-open-l10.mp4');
+    this.load.video('l9_bow_intro',   'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784936616/shadow-gamma/video/Level%209/bow-intro-l10.mp4');
     // Reused in two spots: reaching home after the Bow Run, and the "all
     // puppies dressed" ending — same clip, one upload (see
     // scripts/upload-l9-part2.mjs).
-    this.load.video('l9_part2',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1785026510/shadow-gamma/video/Level%209/part-02.mp4');
+    this.load.video('l9_part2',       'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1785026510/shadow-gamma/video/Level%209/part-02.mp4');
     this.load.image('cone',           'assets/images/Traffic_Cone.png');
     this.load.image('road_barrier',   'assets/images/Road Construction_ Barrier.png');
     this.load.image('barrel',         'assets/images/Oil_Barrel.png');
@@ -165,83 +165,26 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l2_bg',      'assets/images/Level 2/level-2-bg.jpg');
     this.load.image('l2_surface', 'assets/images/Level 2/Level -02-bottom.jpg');
     // ── Level 2 mini-game artwork ───────────────────────────────────────────
-    ['l2mg_bg_catch', 'l2mg_bg_dodge', 'l2mg_bg_fireflies', 'l2mg_basket', 'l2mg_bush', 'l2mg_firefly',
-     'l2cal_bg', 'l2cal_speak', 'l2cal_bark', 'l2cal_run',
-     'l2feed_bg', 'l2feed_bowl', 'l2feed_meat', 'l2feed_bone', 'l2feed_chicken', 'l2feed_cheese',
-     'l2feed_choc', 'l2feed_grapes', 'l2feed_candy', 'l2feed_mushroom']
-      .forEach(k => this.load.image(k, `assets/images/Level 2/${k}.png`));
-    // ── Level 3 real artwork ────────────────────────────────────────────────
-    this.load.image('l3_car',         'assets/images/Level 3/l3_car.png');
-    this.load.image('l3_road',        'assets/images/Level 3/l3_road.jpg');
-    this.load.image('l3_bg_city',     'assets/images/Level 3/l3_city_bg.jpg');
-    this.load.image('l3_bg_jungle',   'assets/images/Level 3/l3_jungle_bg.jpg');
-    this.load.image('l3_bg_highway',  'assets/images/Level 3/l3_highway_bg.jpg');
-    this.load.image('l3_cone',        'assets/images/Level 3/l3_cone.png');
-    this.load.image('l3_hosp_sign',   'assets/images/Level 3/l3_hosp_sign.png');
-    // ── Level 3 car-journey background + road (dusk city street art) ────────
-    this.load.image('l3_bg_main',     'assets/images/Level 3/Level 03.jpg');
-    this.load.image('l3_road_bottom', 'assets/images/Level 3/Level 03 bottom.png');
+    // 'jpg' entries are re-encoded from the original opaque PNG backgrounds —
+    // same trick as elsewhere in this file, ~85-90% smaller with no visual change.
+    [
+      ['l2mg_bg_catch', 'jpg'], ['l2mg_bg_dodge', 'jpg'], ['l2mg_bg_fireflies', 'jpg'],
+      ['l2mg_basket', 'png'], ['l2mg_bush', 'png'], ['l2mg_firefly', 'png'],
+      ['l2cal_bg', 'jpg'], ['l2cal_speak', 'png'], ['l2cal_bark', 'png'], ['l2cal_run', 'png'],
+      ['l2feed_bg', 'jpg'], ['l2feed_bowl', 'png'], ['l2feed_meat', 'png'], ['l2feed_bone', 'png'],
+      ['l2feed_chicken', 'png'], ['l2feed_cheese', 'png'], ['l2feed_choc', 'png'],
+      ['l2feed_grapes', 'png'], ['l2feed_candy', 'png'], ['l2feed_mushroom', 'png'],
+    ].forEach(([k, ext]) => this.load.image(k, `assets/images/Level 2/${k}.${ext}`));
     // ── Level 3 story videos (intro, arrival, fail, pre-injection, recovery) ─
-    this.load.video('l3_intro_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658828/shadow-gamma/video/Level%203/intro.mp4');
-    this.load.video('l3_reaching_video',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658837/shadow-gamma/video/Level%203/reaching-hospital.mp4');
-    this.load.video('l3_exception_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658796/shadow-gamma/video/Level%203/exception.mp4');
-    this.load.video('l3_injection_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658820/shadow-gamma/video/Level%203/Injection.mp4');
-    this.load.video('l3_recovery_video',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658790/shadow-gamma/video/Level%203/after-recovery.mp4');
-    // ── Level 3 hospital scene real artwork ─────────────────────────────────
-    this.load.image('l3_hospital_bg',       'assets/images/Level 3/l3_hospital_bg.jpg');
-    this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.jpg');
-    this.load.image('l3_med_ok',      'assets/images/all/hurdle/medicine bottle.png');
-    this.load.image('l3_med_wrong',   'assets/images/Level 3/l3_med_wrong.png');
-    this.load.image('l3_syringe',     'assets/images/all/hurdle/injection.png');
-    this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
-    this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
-    this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
-    this.load.image('l3_stretcher',   'assets/images/Level 3/stretcher.png');
-    // Same byte-identical modal art as shared_modal_bg — reuse the file so this
-    // is a free HTTP-cache hit instead of a 3rd ~155KB duplicate download.
-    this.load.image('l3_modal_frame', 'assets/images/level1/Level1_modal.png');
+    // (load.video() never downloads bytes here — see _preloadDeferred's header
+    // note — so these cost nothing to declare up front regardless of level.)
+    this.load.video('l3_intro_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658828/shadow-gamma/video/Level%203/intro.mp4');
+    this.load.video('l3_reaching_video',  'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658837/shadow-gamma/video/Level%203/reaching-hospital.mp4');
+    this.load.video('l3_exception_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658796/shadow-gamma/video/Level%203/exception.mp4');
+    this.load.video('l3_injection_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658820/shadow-gamma/video/Level%203/Injection.mp4');
+    this.load.video('l3_recovery_video',  'https://res.cloudinary.com/jlvxvo5r/video/upload/q_auto/v1784658790/shadow-gamma/video/Level%203/after-recovery.mp4');
     // NOTE: l3_ekg_screen & l3_vitals_bg stay PROCEDURAL — the game draws live
     // animated EKG line / vitals readouts on top, which need a blank screen.
-    // ── Level 4 real artwork (society / neighbourhood) ──────────────────────
-    const L4 = 'assets/images/Level 4/';
-    [
-      'l4_bg_sky', 'l4_bg_houses', 'l4_ground', 'l4_garage_bg',
-      'l4_house_finished', 'l4_bush', 'l4_bench',
-      'l4_wood', 'l4_roof', 'l4_nails', 'l4_paint', 'l4_bed', 'l4_food_bowl',
-      'l4_cone', 'l4_bin', 'l4_boxes', 'l4_bike', 'l4_puddle', 'l4_pothole',
-    ].forEach(k => this.load.image(k, `${L4}${k}.png`));
-    // Missing optional L4 files fall back to vector art
-    this.load.on('loaderror', (f) => { if (f && f.key && f.key.startsWith('l4_')) { /* vector fallback in generators */ } });
-    // Real-art background + ground (same technique as Level 3's Level 03 art)
-    // -opt versions are the same pixels re-encoded at a leaner JPEG quality —
-    // dimensions untouched (already exactly the resolution this scene needs).
-    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
-    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
-    // New garage-build background (replaces the old l4_garage_bg) — .jpg is a
-    // re-encode of the same opaque art, ~85% smaller than the source PNG.
-    this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.jpg');
-    // ── Level 5 real artwork (rainy neighborhood + garage birth) ────────────
-    // Level 5 reuses almost all of Level 4's neighbourhood art byte-for-byte
-    // (2nd treatment cycle, same houses/garage/props) — load those keys from
-    // Level 4's own files so the browser's HTTP cache serves them for free
-    // instead of downloading a duplicate ~5MB copy. This also fixes l5_bush
-    // and l5_bench, whose OWN Level 5 files don't actually exist on disk
-    // (silent 404s before this fix) — Level 4's copies do exist.
-    const L5 = 'assets/images/Level 5/';
-    [
-      'l5_bg_sky', 'l5_bg_houses', 'l5_garage_bg', 'l5_house_finished',
-      'l5_bush', 'l5_bench', 'l5_wood', 'l5_roof', 'l5_nails', 'l5_paint', 'l5_bed',
-      'l5_food_bowl', 'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
-    ].forEach(k => this.load.image(k, `${L4}${k.replace('l5_', 'l4_')}.png`));
-    // l5_house / l5_tree / l5_ground have no (working) Level 4 counterpart —
-    // l4_ground.png doesn't actually exist on disk (pre-existing gap, falls
-    // back to vector art like every other missing l4_* key) — genuinely load
-    // these 3 from Level 5's own real files.
-    ['l5_house', 'l5_tree', 'l5_ground'].forEach(k => this.load.image(k, `${L5}${k}.png`));
-    // Byte-identical to Level 4's own backgorund-l4/Level 04 bottom — reuse
-    // those files (cache-dedupe trick, saves ~2.4MB of duplicate download).
-    this.load.image('l5_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
-    this.load.image('l5_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
     // ── Level 3 audio (fail silently if files not present) ──────────────────
     this.load.audio('bump_fast',      'assets/audio/bump_fast.mp3');
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');
@@ -251,10 +194,6 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     generateAssets(this);
-    // Some exported obstacle art has an opaque white backdrop baked in instead
-    // of real alpha transparency (e.g. the puddle sprites) — key it out here so
-    // it doesn't show as a white box behind the sprite in-game.
-    ['l4_puddle', 'l5_puddle'].forEach(k => this._stripWhiteBackground(k));
 
     // Start buffering every cinematic in the background NOW (Phaser doesn't
     // preload video data — it only records URLs), so each one plays instantly
@@ -264,7 +203,31 @@ export class BootScene extends Phaser.Scene {
     preparePorcupineSkin(this);
     prepareSnakeSkin(this);
 
-    this.scene.start('Menu');
+    // launch (not start) — Menu runs ON TOP of Boot WITHOUT stopping it, so
+    // Boot's own Loader stays alive to actually finish the background pass
+    // below. Using scene.start() here was the bug: it stops the CALLING
+    // scene (Boot) as part of the same operation, which killed Boot's Loader
+    // mid-download — any level reached before that in-flight download
+    // happened to finish got Phaser's placeholder "missing texture" (black/
+    // green stripes) instead of its real background art.
+    this.scene.launch('Menu');
+
+    // ── Deferred second load pass — Level 3/4/5's own real artwork (~15MB) ──
+    // isn't needed until the player has actually played through Level 1 and 2
+    // first, which takes real minutes — so it's queued here and downloaded in
+    // the BACKGROUND, AFTER Menu is already showing, instead of blocking the
+    // player on this screen. Boot is kept alive (see scene.launch above)
+    // specifically so this load can actually run to completion.
+    this._preloadDeferred();
+    this.load.once('complete', () => {
+      // Some exported obstacle art has an opaque white backdrop baked in
+      // instead of real alpha transparency (e.g. the puddle sprites) — key it
+      // out here so it doesn't show as a white box behind the sprite in-game.
+      ['l4_puddle', 'l5_puddle'].forEach(k => this._stripWhiteBackground(k));
+      // Boot's job is done — stop it now that the background load finished.
+      this.scene.stop();
+    });
+    this.load.start();
 
     // Debug: launch sprite simulator on Ctrl+Shift+S
     this.input.keyboard.on('keydown-S', (e) => {
@@ -286,6 +249,84 @@ export class BootScene extends Phaser.Scene {
       ls.style.opacity = '0';
       setTimeout(() => { ls.style.display = 'none'; }, 600);
     }
+  }
+
+  // ── Level 3/4/5's own real artwork — queued from create(), AFTER Menu has
+  // already started, so none of it blocks the player's very first screen.
+  // (Their story VIDEOS stay in preload() above — load.video() never actually
+  // fetches bytes at load time, see VideoWarmup.js's header note — only image
+  // downloads genuinely block the loader, which is what this whole method
+  // exists to move out of the critical path.)
+  _preloadDeferred() {
+    // ── Level 3 real artwork ────────────────────────────────────────────────
+    this.load.image('l3_car',         'assets/images/Level 3/l3_car.png');
+    this.load.image('l3_road',        'assets/images/Level 3/l3_road.jpg');
+    this.load.image('l3_bg_city',     'assets/images/Level 3/l3_city_bg.jpg');
+    this.load.image('l3_bg_jungle',   'assets/images/Level 3/l3_jungle_bg.jpg');
+    this.load.image('l3_bg_highway',  'assets/images/Level 3/l3_highway_bg.jpg');
+    this.load.image('l3_cone',        'assets/images/Level 3/l3_cone.png');
+    this.load.image('l3_hosp_sign',   'assets/images/Level 3/l3_hosp_sign.png');
+    // ── Level 3 car-journey background + road (dusk city street art) ────────
+    this.load.image('l3_bg_main',     'assets/images/Level 3/Level 03.jpg');
+    this.load.image('l3_road_bottom', 'assets/images/Level 3/Level 03 bottom.png');
+    // ── Level 3 hospital scene real artwork ─────────────────────────────────
+    this.load.image('l3_hospital_bg',       'assets/images/Level 3/l3_hospital_bg.jpg');
+    this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.jpg');
+    this.load.image('l3_med_ok',      'assets/images/all/hurdle/medicine bottle.png');
+    this.load.image('l3_med_wrong',   'assets/images/Level 3/l3_med_wrong.png');
+    this.load.image('l3_syringe',     'assets/images/all/hurdle/injection.png');
+    this.load.image('l3_oxygen',      'assets/images/Level 3/l3_oxygen.png');
+    this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
+    this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
+    this.load.image('l3_stretcher',   'assets/images/Level 3/stretcher.png');
+    // Same byte-identical modal art as shared_modal_bg — reuse the file so this
+    // is a free HTTP-cache hit instead of a duplicate ~155KB download.
+    this.load.image('l3_modal_frame', 'assets/images/level1/Level1_modal.png');
+    // ── Level 4 real artwork (society / neighbourhood) ──────────────────────
+    const L4 = 'assets/images/Level 4/';
+    [
+      'l4_bg_houses', 'l4_ground', 'l4_garage_bg',
+      'l4_house_finished', 'l4_bush', 'l4_bench',
+      'l4_wood', 'l4_roof', 'l4_nails', 'l4_paint', 'l4_bed', 'l4_food_bowl',
+      'l4_cone', 'l4_bin', 'l4_boxes', 'l4_bike', 'l4_puddle', 'l4_pothole',
+    ].forEach(k => this.load.image(k, `${L4}${k}.png`));
+    // .jpg re-encode of the same opaque art (was ~968KB PNG, now ~67KB).
+    this.load.image('l4_bg_sky', `${L4}l4_bg_sky.jpg`);
+    // Missing optional L4 files fall back to vector art
+    this.load.on('loaderror', (f) => { if (f && f.key && f.key.startsWith('l4_')) { /* vector fallback in generators */ } });
+    // Real-art background + ground (same technique as Level 3's Level 03 art)
+    // -opt versions are the same pixels re-encoded at a leaner JPEG quality —
+    // dimensions untouched (already exactly the resolution this scene needs).
+    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
+    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
+    // New garage-build background (replaces the old l4_garage_bg) — .jpg is a
+    // re-encode of the same opaque art, ~85% smaller than the source PNG.
+    this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.jpg');
+    // ── Level 5 real artwork (rainy neighborhood + garage birth) ────────────
+    // Level 5 reuses almost all of Level 4's neighbourhood art byte-for-byte
+    // (2nd treatment cycle, same houses/garage/props) — load those keys from
+    // Level 4's own files so the browser's HTTP cache serves them for free
+    // instead of downloading a duplicate ~5MB copy. This also fixes l5_bush
+    // and l5_bench, whose OWN Level 5 files don't actually exist on disk
+    // (silent 404s before this fix) — Level 4's copies do exist.
+    const L5 = 'assets/images/Level 5/';
+    [
+      'l5_bg_houses', 'l5_garage_bg', 'l5_house_finished',
+      'l5_bush', 'l5_bench', 'l5_wood', 'l5_roof', 'l5_nails', 'l5_paint', 'l5_bed',
+      'l5_food_bowl', 'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
+    ].forEach(k => this.load.image(k, `${L4}${k.replace('l5_', 'l4_')}.png`));
+    // l5_bg_sky reuses the .jpg re-encode (kept out of the forEach above since
+    // it needs a different extension than its siblings).
+    this.load.image('l5_bg_sky', `${L4}l4_bg_sky.jpg`);
+    // l5_house / l5_tree / l5_ground have no (working) Level 4 counterpart —
+    // l4_ground.png doesn't actually exist on disk (pre-existing gap, falls
+    // back to vector art like every other missing l4_* key) — genuinely load
+    // these 3 from Level 5's own real files.
+    ['l5_house', 'l5_tree', 'l5_ground'].forEach(k => this.load.image(k, `${L5}${k}.png`));
+    // Byte-identical to Level 4's own backgorund-l4/Level 04 bottom — reuse
+    // those files (cache-dedupe trick, saves ~2.4MB of duplicate download).
+    this.load.image('l5_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
+    this.load.image('l5_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
   }
 
   // Keys near-white pixels out to transparent, in place, for a texture whose

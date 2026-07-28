@@ -30,8 +30,19 @@ export function warmUpVideos(scene) {
   }
   // Level 1's cinematics warm FIRST (immediately, no stagger) — it's the very
   // first thing a player hits, so its intro must be buffered by the time they
-  // press "Level 1". The rest follow, staggered.
-  const PRIORITY = ['intro_video', 'l1_food_video', 'l1_conclusion_video', 'l1_gameover_video', 'gemma_cage_loop'];
+  // press "Level 1". Levels 7/8/9's videos are ALSO prioritized: those levels
+  // are reached last in a normal playthrough (so would otherwise sit at the
+  // very END of the staggered queue with the least buffer time of anyone),
+  // but are also the ones most often jumped into DIRECTLY via the Dev/QA menu
+  // for testing — which skips all the natural play-time that would otherwise
+  // have let their stagger slot finish buffering, causing exactly the
+  // hang-on-first-play this list exists to prevent. The rest follow, staggered.
+  const PRIORITY = [
+    'intro_video', 'l1_food_video', 'l1_conclusion_video', 'l1_gameover_video', 'gemma_cage_loop',
+    'l7_v1', 'l7_v2', 'l7_v3', 'l7_v4', 'l7_v5', 'l7_v6', 'l7_v7', 'l7_v8',
+    'l8_intro', 'l8_reach_home_food', 'l8_after_eat', 'l8_decorate_intro', 'l8_decorate_home_reach', 'l8_end',
+    'l9_intro', 'l9_gift_open', 'l9_bow_intro', 'l9_part2',
+  ];
   const orderedKeys = [
     ...PRIORITY.filter(k => keys.includes(k)),
     ...keys.filter(k => !PRIORITY.includes(k)),
