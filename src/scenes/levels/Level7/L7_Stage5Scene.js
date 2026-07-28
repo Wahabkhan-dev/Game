@@ -56,6 +56,11 @@ export class L7_Stage5Scene extends L7BaseScene {
       ['Pup 1 — temperature', 'Pup 1 — medicine', 'Pup 2 — injection', 'Pup 3 — bandage', 'Pup 3 — recovery']);
 
     this._taskObjs = [];
+    // Phaser reuses this same scene instance across every replay (dying
+    // elsewhere in Level 7 and coming back around, or a fresh game after
+    // finishing once) — _curPup gates the puppy-swap in _beginTask and must
+    // start clean each time, not carry over last run's final value.
+    this._curPup = -1;
     this.time.delayedCall(600, () => this._beginTask(1));
   }
 

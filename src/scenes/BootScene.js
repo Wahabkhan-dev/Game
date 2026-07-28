@@ -32,7 +32,10 @@ export class BootScene extends Phaser.Scene {
     // the procedurally-drawn bars + plain gemma_idle sprite combo in Level 1's
     // fruit part and Level 2's cage scene.
     this.load.image('l1_gemma_cage', 'assets/images/level1/gemma-in-cage.png');
-    this.load.image('l2_gemma_cage', 'assets/images/Level 2/gemma-in-cage.png');
+    // l1_gemma_cage and l2_gemma_cage are byte-identical art — load both KEYS
+    // from the SAME file so the browser's HTTP cache serves the 2nd one
+    // instantly instead of downloading the ~1.1MB image twice.
+    this.load.image('l2_gemma_cage', 'assets/images/level1/gemma-in-cage.png');
     // Short looping "Gemma in cage" video — replaces the static gemma-in-cage
     // image/drawn-bars combo at Level 1's end-zone, Level 1's fruit part, and
     // Level 2's end-zone (already H.264, no transcode needed).
@@ -123,7 +126,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui_coin_bg',   'assets/images/all/coin-bg.png');
     this.load.image('ui_menu_bg',   'assets/images/all/menu-bg.png');
     this.load.image('ui_health_bar','assets/images/all/health-bar.png');
-    this.load.image('l2_modal_bg',    'assets/images/Level 2/Level2_modal.png');
+    // l2_modal_bg is byte-identical to Level 1's modal panel — same file, same
+    // cache-dedupe trick as l2_gemma_cage above (saves a ~155KB duplicate fetch).
+    this.load.image('l2_modal_bg',    'assets/images/level1/Level1_modal.png');
     // Shared wood/gold modal panel (Level 1 art) — used by ALL levels' mini-activities
     this.load.image('shared_modal_bg', 'assets/images/level1/Level1_modal.png');
     // ── Level 1 real artwork (jungle background + forest-floor surface) ──────
@@ -168,7 +173,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('l3_medkit',      'assets/images/Level 3/l3_medkit.png');
     this.load.image('l3_bowl',        'assets/images/Level 3/l3_bowl.png');
     this.load.image('l3_stretcher',   'assets/images/Level 3/stretcher.png');
-    this.load.image('l3_modal_frame', 'assets/images/Level 3/l3_modal_frame.png');
+    // Same byte-identical modal art as shared_modal_bg — reuse the file so this
+    // is a free HTTP-cache hit instead of a 3rd ~155KB duplicate download.
+    this.load.image('l3_modal_frame', 'assets/images/level1/Level1_modal.png');
     // NOTE: l3_ekg_screen & l3_vitals_bg stay PROCEDURAL — the game draws live
     // animated EKG line / vitals readouts on top, which need a blank screen.
     // ── Level 4 real artwork (society / neighbourhood) ──────────────────────
@@ -187,16 +194,27 @@ export class BootScene extends Phaser.Scene {
     // New garage-build background (replaces the old l4_garage_bg)
     this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.png');
     // ── Level 5 real artwork (rainy neighborhood + garage birth) ────────────
+    // Level 5 reuses almost all of Level 4's neighbourhood art byte-for-byte
+    // (2nd treatment cycle, same houses/garage/props) — load those keys from
+    // Level 4's own files so the browser's HTTP cache serves them for free
+    // instead of downloading a duplicate ~5MB copy. This also fixes l5_bush
+    // and l5_bench, whose OWN Level 5 files don't actually exist on disk
+    // (silent 404s before this fix) — Level 4's copies do exist.
     const L5 = 'assets/images/Level 5/';
     [
-      'l5_bg_sky', 'l5_bg_houses', 'l5_ground', 'l5_garage_bg',
-      'l5_house', 'l5_house_finished', 'l5_tree', 'l5_bush', 'l5_bench',
-      'l5_wood', 'l5_roof', 'l5_nails', 'l5_paint', 'l5_bed', 'l5_food_bowl',
-      'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
-    ].forEach(k => this.load.image(k, `${L5}${k}.png`));
-    // Real-art background + ground (same technique as Level 4's backgorund-l4)
-    this.load.image('l5_bg_main',      'assets/images/Level 5/backgorund-l5.jpg');
-    this.load.image('l5_ground_bottom','assets/images/Level 5/bottom-l5.jpg');
+      'l5_bg_sky', 'l5_bg_houses', 'l5_garage_bg', 'l5_house_finished',
+      'l5_bush', 'l5_bench', 'l5_wood', 'l5_roof', 'l5_nails', 'l5_paint', 'l5_bed',
+      'l5_food_bowl', 'l5_cone', 'l5_bin', 'l5_boxes', 'l5_bike', 'l5_puddle', 'l5_pothole',
+    ].forEach(k => this.load.image(k, `${L4}${k.replace('l5_', 'l4_')}.png`));
+    // l5_house / l5_tree / l5_ground have no (working) Level 4 counterpart —
+    // l4_ground.png doesn't actually exist on disk (pre-existing gap, falls
+    // back to vector art like every other missing l4_* key) — genuinely load
+    // these 3 from Level 5's own real files.
+    ['l5_house', 'l5_tree', 'l5_ground'].forEach(k => this.load.image(k, `${L5}${k}.png`));
+    // Byte-identical to Level 4's own backgorund-l4/Level 04 bottom — reuse
+    // those files (cache-dedupe trick, saves ~2.4MB of duplicate download).
+    this.load.image('l5_bg_main',      'assets/images/Level 4/backgorund-l4.jpg');
+    this.load.image('l5_ground_bottom','assets/images/Level 4/Level 04 bottom.jpg');
     // ── Level 3 audio (fail silently if files not present) ──────────────────
     this.load.audio('bump_fast',      'assets/audio/bump_fast.mp3');
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');

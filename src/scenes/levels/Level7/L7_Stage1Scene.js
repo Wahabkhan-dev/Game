@@ -64,6 +64,13 @@ export class L7_Stage1Scene extends L7BaseScene {
     this._fragments = 0;
     this._stationsDone = { power: false, basement: false };
     this._powerOn = false;
+    // Phaser REUSES this same scene instance across every scene.start('L7_Stage1')
+    // call (it does not construct a fresh object each time) — so any flag not
+    // explicitly reset here keeps whatever value it had from a PREVIOUS
+    // playthrough. Missing this line was exactly why the key stopped working
+    // after "Try Again": _assembled stayed true from the first successful
+    // assembly forever, silently blocking _assembleKey() from ever firing again.
+    this._assembled = false;
 
     this._buildWorld();
     this._buildGround();
