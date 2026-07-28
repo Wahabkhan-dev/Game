@@ -232,25 +232,17 @@ export class L1_FoodScene extends BaseLevelScene {
       });
     }
 
-    // Puzzle at fruit 5 — last collection mini-activity (same immediate-freeze
-    // fix). Skips straight past the usual "Play / Skip" intro card (pass
-    // _skip=true) so this third activity jumps directly into the letter
-    // puzzle, no start screen.
+    // Fruit 5 (the last one) — missing-letter puzzle removed per request;
+    // collecting it now goes straight to the "return to Gemma" step.
     if (fruitNum === 5 && !this._act5Done) {
       this._act5Done = true;
-      this._freezeForMini = true;
-      if (this.shadow.body) this.shadow.setVelocity(0, 0);
-      if (this._idleAnim) this.shadow.play(this._idleAnim, true);
-      this.time.delayedCall(900, () => {
-        this._freezeForMini = false;
-        this._puzzleMissingLetter(() => this._onAllCollected(), true);
-      });
+      this._onAllCollected();
     }
   }
 
   _onAllCollected() {
     this._readyFeed = true;
-    this._showMessage('All meat collected! Go back to Gemma! 💛', 3000);
+    this._showMessage('All meat collected! Go back to Gemma!', 3000);
 
     // Gemma glows to guide the player back
     this.tweens.add({
@@ -264,7 +256,7 @@ export class L1_FoodScene extends BaseLevelScene {
     this.shadow.setVelocityX(0);
     this._gemmaGlow.destroy();
 
-    showStoryCard(this, '🍖  Gemma is fed... she\'ll survive a little longer! 💛', () => {
+    showStoryCard(this, '🍖  Gemma is fed... she\'ll survive a little longer!', () => {
       // Real feeding cinematic replaces the old sparkle/heart-burst celebration.
       // Straight to the Level Complete modal after the video — no separate
       // celebration scene/animation in between.

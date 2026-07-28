@@ -43,7 +43,7 @@ async function loadGameMap() {
       Level5: ['10-sorting-by-size', '19-weather-dress-up', '20-musical-instrument-match', '24-time-telling-clock', '23-shadow-matching', '29-odd-one-out', '28-sink-or-float', '27-community-helpers-match'],
       Level6: ['23-shadow-matching', '24-time-telling-clock', '25-opposites-match', '26-space-objects-match', '22-fruit-vegetable-sort', '09-pattern-sequence', '03-shape-sorter', '30-counting-by-groups'],
       Level7: ['27-community-helpers-match', '28-sink-or-float', '29-odd-one-out', '30-counting-by-groups'],
-      Level8: ['31-vowel-consonant-sort', '32-multiplication-groups', '33-seasons-sort', '34-feelings-story-choice', '35-compound-word-builder'],
+      Level8: ['31-vowel-consonant-sort', '32-multiplication-groups', '33-seasons-sort', '34-feelings-story-choice', '35-compound-word-builder', '30-counting-by-groups'],
       Level9: ['36-animal-baby-match', '37-simple-fractions', '38-instrument-rhythm-copy', '39-nocturnal-diurnal-sort', '40-story-word-fill-in'],
     };
   }

@@ -252,8 +252,10 @@ export class L8_FoodRunScene extends L8BaseScene {
   }
 
   // ── HUD: food collection panel (top-centre, Level 6 style) ─────────────────
+  // Width fixed to a 50px pad from each side of the screen (W-100) so all 8
+  // food icons always fit inside the panel instead of spilling past its edges.
   _buildFoodPanel() {
-    const PW = 476, PH = 68;
+    const PW = W - 100, PH = 68;
     const px = W / 2 - PW / 2, py = (this._hdr?.bottom ?? 68) + 6;
     // Real wood/gold board (ui_life_bg) — same "collecting modal" art as the
     // approved Theme Design reference (ThemeDesignScene's checkpoint+items

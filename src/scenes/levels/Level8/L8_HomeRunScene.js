@@ -126,8 +126,10 @@ export class L8_HomeRunScene extends L8BaseScene {
   // ── HUD: prop collection panel — same "collecting modal" look as the Food
   // Run's food panel (dark rounded bar, dimmed icon slots that light up with
   // a ✓ as each one is collected), so both runs share one consistent theme.
+  // Width fixed to a 50px pad from each side of the screen (W-100), same as
+  // the Food Run panel, so all 6 prop icons always fit without spilling out.
   _buildPropPanel() {
-    const PW = 320, PH = 68;
+    const PW = W - 100, PH = 68;
     const px = W / 2 - PW / 2, py = (this._hdr?.bottom ?? 68) + 6;
     // Real wood/gold board (ui_life_bg) — same "collecting modal" art as the
     // approved Theme Design reference (ThemeDesignScene's checkpoint+items

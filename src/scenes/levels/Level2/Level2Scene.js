@@ -7,7 +7,7 @@ import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { showTryAgainModal, showLevelCompleteModal, doFullRestart } from '../../../utils/EndModals.js';
-import { addLoopingVideo } from '../../../utils/VideoOverlay.js';
+import { addLoopingVideo, showStoryCard } from '../../../utils/VideoOverlay.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
 // Chapter 2 — 3 zones (Road → Jungle → Dark Jungle) + cage unlock + trust mini-games
@@ -42,14 +42,16 @@ export class Level2Scene extends BaseLevelScene {
   }
 
   _handleGameOver() {
-    this._playL2Video('l2_gameover_video', () => {
-      this.registry.set('lives', 3);
-      this.registry.set('shadowHP', 3);
-      // Guaranteed reset — the death tween's own cleanup may not have run
-      // yet (or may get cut short) by the time the level restarts.
-      this.shadow.clearTint();
-      this.shadow.setAlpha(1);
-      showTryAgainModal(this, 'Level2');
+    showStoryCard(this, "You didn't reach Gemma in time... 💔", () => {
+      this._playL2Video('l2_gameover_video', () => {
+        this.registry.set('lives', 3);
+        this.registry.set('shadowHP', 3);
+        // Guaranteed reset — the death tween's own cleanup may not have run
+        // yet (or may get cut short) by the time the level restarts.
+        this.shadow.clearTint();
+        this.shadow.setAlpha(1);
+        showTryAgainModal(this, 'Level2');
+      });
     });
   }
 
@@ -246,7 +248,11 @@ export class Level2Scene extends BaseLevelScene {
     this.time.addEvent({
       delay: 1400, loop: true,
       callback: () => {
-        if (this._levelDone || !this.shadow) return;
+        // Never spawn new debris while a mini-game overlay is open — physics
+        // is already paused then, so anything created here would just sit
+        // frozen and then all drop on the player at once the instant the
+        // overlay closes and physics resumes.
+        if (this._levelDone || !this.shadow || this._miniGameOpen) return;
         const sx2 = this.shadow.x;
         if (sx2 < 1500 || sx2 > 3100) return;
         if (!this._debrisMsgShown) {
@@ -393,15 +399,21 @@ export class Level2Scene extends BaseLevelScene {
     }
 
     // ── Zone 2 porcupine ─────────────────────────────────────────────────
+    // `gaps` — the pit/hole columns within this porcupine's patrol range
+    // (from config.gaps above) — used by the patrol logic in update() so it
+    // turns around BEFORE walking over a hole the player is meant to fall
+    // through, instead of just floating across it.
     this._porcZ2 = {
       img: createPorcupineSprite(this, 9000, H - 46, 36, 27).setDepth(9),
-      x: 9000, dir: 1, min: 6100, max: 11900, speed: 1.0, hitCD: false
+      x: 9000, dir: 1, min: 6100, max: 11900, speed: 1.0, hitCD: false,
+      gaps: config.gaps.filter(g => g.x >= 6100 && g.x <= 11900),
     };
 
     // ── Zone 3 fast porcupine ─────────────────────────────────────────────
     this._porcZ3 = {
       img: createPorcupineSprite(this, 14500, H - 46, 32, 24).setDepth(9),
-      x: 14500, dir: 1, min: 12100, max: 18000, speed: 1.8, hitCD: false
+      x: 14500, dir: 1, min: 12100, max: 18000, speed: 1.8, hitCD: false,
+      gaps: config.gaps.filter(g => g.x >= 12100 && g.x <= 18000),
     };
 
     // ── Stone rain (Zones 2+3) ────────────────────────────────────────────
@@ -417,7 +429,11 @@ export class Level2Scene extends BaseLevelScene {
     this.time.addEvent({
       delay: 1500, loop: true,
       callback: () => {
-        if (this._levelDone || !this.shadow || this.shadow.x < 6000) return;
+        // Never spawn new stones while a mini-game overlay is open (same
+        // reasoning as the debris spawner above) — including right when a
+        // key pickup opens one, so nothing queues up to drop the instant
+        // it closes.
+        if (this._levelDone || !this.shadow || this.shadow.x < 6000 || this._miniGameOpen) return;
         if (!this._rockMsgShown) {
           this._rockMsgShown = true;
           this._showMessage('⚠️ Watch out! Stones falling! 🪨');
@@ -474,6 +490,10 @@ export class Level2Scene extends BaseLevelScene {
         delay: wc.interval, loop: true,
         callback: () => {
           if (this._levelDone || !this.shadow || this.shadow.x >= 5800) { t.destroy(); return; }
+          // Skip this tick (without destroying the wave timer) while a
+          // mini-game overlay is open, so no barrel queues up to appear the
+          // instant it closes.
+          if (this._miniGameOpen) return;
           const b = this.physics.add.image(
             this.cameras.main.scrollX + W + 60, H - 46, 'barrel'
           );
@@ -697,7 +717,7 @@ export class Level2Scene extends BaseLevelScene {
 
       if (!this._cageVideoPlayed) {
         this._cageVideoPlayed = true;
-        this._showMessage('🐾 Gemma is free from the cage! 💛');
+        this._showMessage('🐾 Gemma is free from the cage!');
         this.time.delayedCall(1400, () => {
           this._playL2Video('l2_cage_video', openCage);
         });
@@ -785,20 +805,24 @@ export class Level2Scene extends BaseLevelScene {
       if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
       if (!this._bgTransitionTriggered) {
         this._bgTransitionTriggered = true;
-        // Swap the bg/ground WHILE the video's own opaque backdrop still fully
-        // covers the screen (depth 200+, well above the bg's depth -12), so by
-        // the time the video ends OR gets skipped the jungle art is already
-        // in place — no crossfade visible after the cinematic closes.
-        transitionToL1Visuals(this, 1100);
-        if (this._roadBgTile) this.tweens.add({ targets: this._roadBgTile, alpha: 0, duration: 800 });
-        // Skip is held back 5s (the bg crossfade only takes 1.1s, so it's
-        // always long done by then), and forceFinishL1Transition snaps the
-        // crossfade to its end state the instant the overlay closes either
-        // way — belt and suspenders against an early skip leaving a
-        // half-swapped background visible.
-        this._playL2Video('l2_transition_video', () => {}, {
-          skipDelayMs: 5000,
-          onFinish: () => forceFinishL1Transition(this),
+        // Black-background text card leads into the cinematic (per request),
+        // THEN the bg/ground swap + video play exactly as before.
+        showStoryCard(this, "Glenda's on her way to the jungle...", () => {
+          // Swap the bg/ground WHILE the video's own opaque backdrop still fully
+          // covers the screen (depth 200+, well above the bg's depth -12), so by
+          // the time the video ends OR gets skipped the jungle art is already
+          // in place — no crossfade visible after the cinematic closes.
+          transitionToL1Visuals(this, 1100);
+          if (this._roadBgTile) this.tweens.add({ targets: this._roadBgTile, alpha: 0, duration: 800 });
+          // Skip is held back 5s (the bg crossfade only takes 1.1s, so it's
+          // always long done by then), and forceFinishL1Transition snaps the
+          // crossfade to its end state the instant the overlay closes either
+          // way — belt and suspenders against an early skip leaving a
+          // half-swapped background visible.
+          this._playL2Video('l2_transition_video', () => {}, {
+            skipDelayMs: 5000,
+            onFinish: () => forceFinishL1Transition(this),
+          });
         });
       }
       this._saveCheckpoint(6020, 360);
@@ -911,6 +935,12 @@ export class Level2Scene extends BaseLevelScene {
     // ── Zone 2 porcupine patrol ───────────────────────────────────────────
     if (this._porcZ2 && sx > 6000 && sx < 12100) {
       const p = this._porcZ2;
+      // Turn around BEFORE walking into any pit/hole column — with a margin
+      // so it reverses at the hole's edge, never floating out over the gap
+      // the player is meant to fall through.
+      const margin = 22;
+      const nextX = p.x + p.dir * p.speed;
+      if (p.gaps.some(g => nextX + margin > g.x && nextX - margin < g.x + g.w)) p.dir *= -1;
       p.x += p.dir * p.speed;
       if (p.x >= p.max) { p.x = p.max; p.dir = -1; }
       if (p.x <= p.min) { p.x = p.min; p.dir =  1; }
@@ -926,6 +956,10 @@ export class Level2Scene extends BaseLevelScene {
     // ── Zone 3 fast porcupine patrol ─────────────────────────────────────
     if (this._porcZ3 && sx > 12000) {
       const p = this._porcZ3;
+      // Same hole-avoidance as the Zone 2 porcupine above.
+      const margin = 20;
+      const nextX = p.x + p.dir * p.speed;
+      if (p.gaps.some(g => nextX + margin > g.x && nextX - margin < g.x + g.w)) p.dir *= -1;
       p.x += p.dir * p.speed;
       if (p.x >= p.max) { p.x = p.max; p.dir = -1; }
       if (p.x <= p.min) { p.x = p.min; p.dir =  1; }

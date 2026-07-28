@@ -3,6 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { L7BaseScene } from './L7BaseScene.js';
 import { generateL7Assets } from './L7Assets.js';
 import { preloadGlendaSkin } from './L7_GlendaSkin.js';
+import { resetGameHistory } from '../../../utils/MiniGamePicker.js';
 
 const WORLD_W = 1900;
 const GROUND_Y = 400;
@@ -48,6 +49,12 @@ export class L7_Stage1Scene extends L7BaseScene {
 
   create() {
     console.log('[L7_Stage1] create() start');
+    // Stage 1 is the entry point for the whole of Level 7 (all 5 stages count
+    // as ONE level), reached on a fresh start AND on a full restart after
+    // losing all lives — so clear the mini-game history here (and ONLY here,
+    // never in Stages 2-5) so no activity repeats across the 5 stages, yet a
+    // fresh playthrough starts from a clean slate.
+    resetGameHistory(7);
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);

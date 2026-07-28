@@ -678,7 +678,7 @@ export class Level1Scene extends BaseLevelScene {
   _unlockCage() {
     if (this._cageUnlocked) return;
     this._cageUnlocked = true;
-    this._showMessage('🐾 Snake defeated! Gemma is safe! Gleeda will free the cage! 💛');
+    this._showMessage('🐾 Snake defeated! Gemma is safe! Gleeda will free the cage!');
 
     // Cage stays — Gleeda opens it in Level 2
     this.cameras.main.shake(350, 0.015);
@@ -702,7 +702,7 @@ export class Level1Scene extends BaseLevelScene {
     // finished — trimmed to the same snappy 500/550ms fade every other
     // level-to-level transition in the game uses, so nothing sits waiting.
     this.time.delayedCall(300, () => {
-      this._showMessage("GEMMA IS FREE! 🐾💛 Now let's find her some food!", 1200);
+      this._showMessage("GEMMA IS FREE! 🐾 Now let's find her some food!", 1200);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(210, () => this.scene.start('L1_Food'));
     });
