@@ -7,6 +7,7 @@
 (function(){
   const G = mountGame({icon:'🕐', title:'Time Telling'});
   let round=0, mistakes=0, hour=3;
+  let queue=[];
   const TOTAL=5;
 
   const clock = el('.clock');
@@ -31,7 +32,9 @@
   const fmt = h => h+':00';
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    hour = rand(1,12); setHands(hour);
+    // Draw from a shuffled-once queue (not a fresh rand(1,12) each round) so
+    // the same hour can't be the answer twice — 12 hours for 5 rounds.
+    hour = queue.shift(); setHands(hour);
     const opts=new Set([hour]);
     while(opts.size<3) opts.add(rand(1,12));
     clear(choices);
@@ -48,7 +51,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle([1,2,3,4,5,6,7,8,9,10,11,12]); newRound(); }
 
   G.instructions('🕒 ➡️ 3:00', start);
 })();

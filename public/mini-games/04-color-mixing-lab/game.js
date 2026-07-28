@@ -16,6 +16,7 @@
   const G = mountGame({icon:'🎨', title:'Color Mixing Lab'});
 
   let round=0, mistakes=0, target=null, chosen=[];
+  let queue=[];
   const TOTAL=4;
   const prompt = el('.prompt');
   const targetChip = el('div',{style:'width:120px;height:120px;border-radius:20px;box-shadow:var(--shadow);border:4px solid #fff;'});
@@ -63,13 +64,20 @@
   }
   function newRound(){
     round++;
-    target = pick(Object.values(MIX));
+    // Draw from a shuffled-once queue instead of a fresh pick() each round —
+    // MIX only has 3 entries for 4 rounds, so refill when it runs dry and
+    // avoid an immediate back-to-back repeat of the color just used.
+    if(queue.length===0){
+      queue = shuffle(Object.values(MIX));
+      if(queue[0]===target && queue.length>1){ const t=queue[0]; queue[0]=queue[1]; queue[1]=t; }
+    }
+    target = queue.shift();
     prompt.textContent='Mix two colors to make '+target.name+'!';
     targetChip.style.background=target.css;
     G.setScore('Round '+round+' / '+TOTAL);
     blobs();
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(Object.values(MIX)); newRound(); }
 
   G.instructions('🔴➕🟡🟰🟠', start);
 })();

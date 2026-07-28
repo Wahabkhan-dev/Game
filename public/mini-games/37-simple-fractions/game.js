@@ -14,6 +14,7 @@
   ];
   const G = mountGame({icon:'🍕', title:'Simple Fractions'});
   let round=0, mistakes=0, target=null;
+  let queue=[];
   const TOTAL=5;
 
   const prompt = el('.prompt');
@@ -33,9 +34,10 @@
   }
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    // pick 3 distinct fractions incl. the target
-    const opts = shuffle(FRACS.slice()).slice(0,3);
-    target = pick(opts);
+    // draw the target from a shuffled-once queue (not a fresh pick each
+    // round) so the same fraction can't be the target twice in a session
+    target = queue.shift();
+    const opts = [target, ...shuffle(FRACS.filter(f=>f!==target)).slice(0,2)];
     prompt.textContent = 'Which pizza shows this much?';
     targetLbl.textContent = target.label;
     clear(choices);
@@ -52,7 +54,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(FRACS.slice()); newRound(); }
 
   G.instructions('🍕 half = 1/2', start);
 })();

@@ -14,6 +14,7 @@
   ];
   const G = mountGame({icon:'😀', title:'Emotion Matching'});
   let round=0, mistakes=0, correct=null;
+  let queue=[];
   const TOTAL=5;
 
   const face = el('div',{style:'font-size:130px'});
@@ -24,12 +25,14 @@
 
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const opts = shuffle(EMOTIONS.slice()).slice(0,3);
-    correct = pick(opts);
-    // ensure correct is within opts (it is, from opts)
+    // Draw from a shuffled-once queue (not a fresh pick(EMOTIONS) each round)
+    // so the same emotion can't be the answer twice — EMOTIONS has exactly
+    // 5 entries for 5 rounds.
+    correct = queue.shift();
+    const opts = shuffle([correct,...shuffle(EMOTIONS.filter(e=>e!==correct)).slice(0,2)]);
     clear(face); face.appendChild(imgOrEmoji(correct.img, correct.emo, 140));
     clear(choices);
-    shuffle(opts).forEach(o=>{
+    opts.forEach(o=>{
       const t = el('button.btn',{style:'min-width:150px'}, o.word);
       t.addEventListener('pointerdown',()=>guess(o,t));
       choices.appendChild(t);
@@ -42,7 +45,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(EMOTIONS.slice()); newRound(); }
 
   G.instructions('😀 ➡️ HAPPY', start);
 })();

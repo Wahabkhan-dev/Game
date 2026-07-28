@@ -15,10 +15,13 @@
   G.body.appendChild(arena);
 
   let falling=[], target='', done=0, mistakes=0, raf=0, spawnT=0, running=false;
+  let queue=[];
   const TOTAL=6;
 
   function newTarget(){
-    target = pick(LETTERS);
+    // Draw from a shuffled-once queue (not a fresh pick(LETTERS) each round)
+    // so the same target letter can't show up twice in one session.
+    target = queue.shift();
     targetLine.innerHTML = 'Catch the letter: <span class="big-target" style="font-size:64px">'+target+'</span>';
   }
   function spawn(){
@@ -61,6 +64,7 @@
   }
   function run(){
     falling.forEach(s=>s.remove()); falling=[]; done=0; mistakes=0; spawnT=0;
+    queue=shuffle(LETTERS.slice());
     G.setScore('✅ 0 / '+TOTAL);
     newTarget(); running=true; spawn(); loop();
   }

@@ -8,6 +8,7 @@
   const G = mountGame({icon:'🫧', title:'Addition Bubbles'});
 
   let round=0, mistakes=0, target=0, selected=[];
+  let usedTargets=[];
   const TOTAL=5;
   const prompt = el('.prompt');
   const targetBox = el('.big-target');
@@ -19,7 +20,11 @@
 
   function newRound(){
     round++; selected=[]; G.setScore('Round '+round+' / '+TOTAL);
-    target = rand(3,10);
+    // Re-roll if this target was already used this session (capped so it
+    // can't loop forever) so the same sum doesn't appear twice.
+    let attempts=0;
+    do{ target = rand(3,10); attempts++; }while(usedTargets.includes(target) && attempts<20);
+    usedTargets.push(target);
     prompt.textContent='Make this number:';
     targetBox.textContent=target;
     const a = rand(1, target-1), b = target-a;
@@ -56,7 +61,7 @@
       }
     }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; usedTargets=[]; newRound(); }
 
   G.instructions('🫧5➕🫧2🟰7', start);
 })();

@@ -12,6 +12,7 @@
   const G = mountGame({icon:'🔁', title:'Pattern Sequence'});
 
   let round=0, mistakes=0, answer='';
+  let queue=[];
   const TOTAL=5;
   const seqRow = el('.row',{style:'gap:12px;font-size:64px;flex-wrap:wrap;justify-content:center'});
   const choiceRow = el('.row',{style:'gap:16px;margin-top:16px;'});
@@ -21,7 +22,10 @@
 
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const base = pick(SETS);
+    // Draw from a shuffled-once queue (not a fresh pick(SETS) each round) so
+    // the same pattern can't show up twice in one session — SETS has 7
+    // entries for only 5 rounds, so every round is guaranteed distinct.
+    const base = queue.shift();
     const reps = rand(2,3);
     const full = [];
     for(let i=0;i<reps;i++) full.push(...base);
@@ -44,7 +48,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(SETS.slice()); newRound(); }
 
   G.instructions('🔴🔵🔴🔵❓', start);
 })();

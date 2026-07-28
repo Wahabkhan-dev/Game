@@ -9,6 +9,7 @@
   const ICONS = ['🍎','⭐','🍌','🐟','🎈','🍓']; // rotate the reusable item
   const G = mountGame({icon:'🔢', title:'Counting by Groups'});
   let round=0, mistakes=0, total=0;
+  let usedCombos=new Set();
   const TOTAL=5;
 
   const prompt = el('.prompt');
@@ -20,8 +21,16 @@
 
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const groups = rand(2,4);      // number of groups
-    const per = rand(2,5);         // items per group
+    // re-roll until the groups/per combo hasn't been used this session, so
+    // the same "N groups of M" problem can't repeat within TOTAL rounds
+    let groups, per, key, tries=0;
+    do{
+      groups = rand(2,4);      // number of groups
+      per = rand(2,5);         // items per group
+      key = groups+'x'+per;
+      tries++;
+    } while(usedCombos.has(key) && tries<20);
+    usedCombos.add(key);
     total = groups*per;
     const icon = pick(ICONS);
     prompt.innerHTML = groups+' groups of '+per+' — how many in all?';
@@ -48,7 +57,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; usedCombos=new Set(); newRound(); }
 
   G.instructions('🍎🍎 🍎🍎 🍎🍎 ➡️ 6', start);
 })();

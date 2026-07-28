@@ -8,7 +8,9 @@
 (function(){
   const G = mountGame({icon:'🪙', title:'Coin Counting'});
   let round=0, mistakes=0, target=0, total=0;
+  let queue=[];
   const TOTAL=5;
+  const TARGETS=[7,10,12,15,8,11,6,13];
 
   const prompt = el('.prompt');
   // Prominent centered "target cents" badge — a big gold coin disc with a
@@ -70,8 +72,9 @@
   }
   function newRound(){
     round++; total=0; recount();
-    // target as a mix reachable by 1s and 5s
-    target = [7,10,12,15,8,11,6,13][rand(0,7)];
+    // Draw from a shuffled-once queue (not a fresh random index each round)
+    // so the same target amount doesn't appear twice in one session.
+    target = queue.shift();
     prompt.textContent='Fill the jar to make:';
     targetBox.textContent=target+'¢';
     clear(jar); clear(tray);
@@ -88,7 +91,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(jar); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(TARGETS.slice()); newRound(); }
 
   G.instructions('🪙🪙🟡 ➡️ 🏺', start);
 })();

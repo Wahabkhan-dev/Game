@@ -37,12 +37,15 @@
     return t;
   }
   function newRound(){
-    const opts = shuffle(OBJECTS.slice()).slice(0,3);
-    correct = pick(opts);
+    // Draw from a shuffled-once queue (not a fresh pick(OBJECTS) each round)
+    // so the same object can't be the answer twice — OBJECTS has 8 entries
+    // for only 5 rounds, so every round is guaranteed distinct.
+    correct = queue.shift();
+    const opts = shuffle([correct,...shuffle(OBJECTS.filter(o=>o!==correct)).slice(0,2)]);
     G.setScore('Round '+(idx+1)+' / '+TOTAL);
     clear(object); object.appendChild(imgOrEmoji(correct.img, correct.emo, 130));
     clear(choices);
-    shuffle(opts).forEach(o=>choices.appendChild(shadowTile(o)));
+    opts.forEach(o=>choices.appendChild(shadowTile(o)));
   }
   function guess(o,node){
     if(o===correct){
@@ -51,7 +54,7 @@
       else { idx++; setTimeout(newRound,600); }
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ queue=OBJECTS.slice(); idx=0; mistakes=0; newRound(); }
+  function start(){ queue=shuffle(OBJECTS.slice()); idx=0; mistakes=0; newRound(); }
 
   G.instructions('🐱 ➡️ 🌑', start);
 })();

@@ -10,6 +10,7 @@
   const ICONS = ['⭐','🍎','🎈','🍓'];
   const G = mountGame({icon:'✖️', title:'Multiplication Groups'});
   let round=0, mistakes=0, product=0;
+  let usedCombos=new Set();
   const TOTAL=5;
 
   const prompt = el('.prompt');
@@ -21,8 +22,16 @@
 
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const factor = pick([2,5,10]);     // 2x / 5x / 10x tables
-    const groups = rand(2,5);          // how many groups
+    // re-roll until the groups/factor combo hasn't been used this session,
+    // so the same multiplication problem can't repeat within TOTAL rounds
+    let factor, groups, key, tries=0;
+    do{
+      factor = pick([2,5,10]);     // 2x / 5x / 10x tables
+      groups = rand(2,5);          // how many groups
+      key = groups+'x'+factor;
+      tries++;
+    } while(usedCombos.has(key) && tries<20);
+    usedCombos.add(key);
     product = groups*factor;
     const icon = pick(ICONS);
     prompt.innerHTML = groups+' groups of '+factor+' = ?';
@@ -48,7 +57,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; usedCombos=new Set(); newRound(); }
 
   G.instructions('⭐⭐ ⭐⭐ ⭐⭐ ➡️ 6', start);
 })();

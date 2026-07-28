@@ -19,6 +19,7 @@
   const G = mountGame({icon:'🔊', title:'Animal Sound Match'});
 
   let round=0, mistakes=0, correct=null;
+  let queue=[];
   const TOTAL=5;
   const soundWord = el('div',{style:'font-size:26px;color:#8a5bff;font-weight:bold;min-height:34px'});
   const playBtn = el('button.btn.big',{onclick:play},'🔊 Play Sound');
@@ -37,8 +38,10 @@
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
     soundWord.textContent='';
-    const opts = shuffle(ANIMALS.slice()).slice(0,4);
-    correct = pick(opts);
+    // Draw the correct animal from a shuffled-once queue (not a fresh pick()
+    // each round) so the same animal can't be the answer twice in a session.
+    correct = queue.shift();
+    const opts = shuffle([correct, ...shuffle(ANIMALS.filter(a=>a!==correct)).slice(0,3)]);
     clear(choices);
     opts.forEach(o=>{
       const c = el('.tile',{style:'width:120px;height:120px;font-size:70px;'}, o.a);
@@ -54,7 +57,7 @@
       else setTimeout(newRound,550);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(ANIMALS.slice()); newRound(); }
 
   G.instructions('🔊❓🐄🐶🐱', start);
 })();

@@ -14,6 +14,7 @@
   };
   const G = mountGame({icon:'🚦', title:'Traffic Light Rules'});
   let round=0, mistakes=0, current='red';
+  let queue=[];
   const TOTAL=6;
 
   const lampR = el('.tl-lamp.tl-red'), lampY = el('.tl-lamp.tl-yellow'), lampG = el('.tl-lamp.tl-green');
@@ -29,7 +30,14 @@
   }
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    current = pick(['red','yellow','green']);
+    // Draw from a shuffled-once queue (not a fresh pick() each round) so
+    // colors don't cluster — only 3 colors for 6 rounds, so reshuffle when
+    // it runs dry and avoid repeating the just-shown color back-to-back.
+    if(queue.length===0){
+      queue = shuffle(['red','yellow','green']);
+      if(queue[0]===current){ const tmp=queue[0]; queue[0]=queue[1]; queue[1]=tmp; }
+    }
+    current = queue.shift();
     showLight(current);
     clear(choices);
     shuffle(Object.values(RULES)).forEach(r=>{
@@ -45,7 +53,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; current=''; queue=[]; newRound(); }
 
   G.instructions('🔴 STOP · 🟡 SLOW · 🟢 GO', start);
 })();

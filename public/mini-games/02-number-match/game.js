@@ -8,6 +8,7 @@
   const G = mountGame({icon:'🔢', title:'Number Match'});
 
   let round=0, mistakes=0, target=0, inBasket=0;
+  let usedTargets=[];
   const TOTAL=5;
 
   const prompt = el('.prompt');
@@ -53,7 +54,11 @@
   function recount(){ inBasket = basket.querySelectorAll('.tile').length; }
   function newRound(){
     round++; inBasket=0;
-    target = rand(1,10);
+    // Re-roll if this number was already used this session (capped so it
+    // can't loop forever) so the same numeral doesn't appear twice.
+    let attempts=0;
+    do{ target = rand(1,10); attempts++; }while(usedTargets.includes(target) && attempts<20);
+    usedTargets.push(target);
     prompt.textContent = 'Put this many apples in the basket:';
     numeral.textContent = target;
     clear(basket); clear(tray);
@@ -69,7 +74,7 @@
       else setTimeout(newRound,500);
     }else{ mistakes++; gentleRetry(basket); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; usedTargets=[]; newRound(); }
 
   G.instructions('🔢🍎🧺', start);
 })();

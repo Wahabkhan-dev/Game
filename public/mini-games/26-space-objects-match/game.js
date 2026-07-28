@@ -17,6 +17,7 @@
   ];
   const G = mountGame({icon:'🚀', title:'Space Match'});
   let round=0, mistakes=0, correct=null;
+  let queue=[];
   const TOTAL=5;
 
   const nameLbl = el('.big-target',{style:'font-size:56px'});
@@ -34,11 +35,14 @@
   }
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const opts = shuffle(SPACE.slice()).slice(0,4);
-    correct = pick(opts);
+    // Draw from a shuffled-once queue (not a fresh pick(SPACE) each round)
+    // so the same object can't be the answer twice — SPACE has 7 entries
+    // for only 5 rounds, so every round is guaranteed distinct.
+    correct = queue.shift();
+    const opts = shuffle([correct,...shuffle(SPACE.filter(s=>s!==correct)).slice(0,3)]);
     nameLbl.textContent = correct.name;
     clear(choices);
-    shuffle(opts).forEach(o=>choices.appendChild(tile(o)));
+    opts.forEach(o=>choices.appendChild(tile(o)));
     setTimeout(()=>speak(correct.name),300);
   }
   function guess(o,node){
@@ -48,7 +52,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(SPACE.slice()); newRound(); }
 
   G.instructions('🔊 "Rocket" ➡️ 🚀', start);
 })();

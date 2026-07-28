@@ -11,10 +11,10 @@
     "02-number-match",
     "04-color-mixing-lab",
     "05-word-builder",
-    "06-animal-sound-match"
+    "06-animal-sound-match",
+    "07-addition-bubbles"
   ],
   "_removed_from_rotation": [
-    "07-addition-bubbles",
     "21-continent-country-tap",
     "18-body-parts-labeling"
   ],

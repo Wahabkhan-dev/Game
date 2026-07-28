@@ -18,6 +18,7 @@
   ];
   const G = mountGame({icon:'🥁', title:'Instrument Match'});
   let round=0, mistakes=0, correct=null;
+  let queue=[];
   const TOTAL=5;
 
   const playBtn = el('button.btn.big',{onclick:play},'🔊 Play Sound');
@@ -43,10 +44,13 @@
   }
   function newRound(){
     round++; G.setScore('Round '+round+' / '+TOTAL);
-    const opts = shuffle(INSTR.slice()).slice(0,4);
-    correct = pick(opts);
+    // Draw from a shuffled-once queue (not a fresh pick(INSTR) each round)
+    // so the same instrument can't be the answer twice — INSTR has exactly
+    // 5 entries for 5 rounds.
+    correct = queue.shift();
+    const opts = shuffle([correct,...shuffle(INSTR.filter(i=>i!==correct)).slice(0,3)]);
     clear(choices);
-    shuffle(opts).forEach(o=>choices.appendChild(tile(o)));
+    opts.forEach(o=>choices.appendChild(tile(o)));
     setTimeout(play,350);
   }
   function guess(inst,node){
@@ -56,7 +60,7 @@
       else setTimeout(newRound,600);
     }else{ mistakes++; gentleRetry(node); }
   }
-  function start(){ round=0; mistakes=0; newRound(); }
+  function start(){ round=0; mistakes=0; queue=shuffle(INSTR.slice()); newRound(); }
 
   G.instructions('🔊 ❓ 🥁 🎸 🎹 🎺', start);
 })();
