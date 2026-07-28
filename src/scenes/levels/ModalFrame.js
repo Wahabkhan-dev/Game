@@ -38,7 +38,7 @@ function ensureHollowFrame(scene) {
   const w = src.width, h = src.height;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(src, 0, 0);
 
   const ix = Math.round(w * INSET_X_PCT), iy = Math.round(h * INSET_Y_PCT);

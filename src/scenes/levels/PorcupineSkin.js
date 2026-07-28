@@ -53,6 +53,10 @@ function ensureNormalized(scene) {
   _normalized = true;
 }
 
+export function preparePorcupineSkin(scene) {
+  ensureNormalized(scene);
+}
+
 // Creates a continuously-looping-animation porcupine sprite at (x, y), locked
 // to display size (w, h) — same call signature/result as the old
 // `scene.add.image(x, y, 'porcupine').setDisplaySize(w, h)`, except the feet

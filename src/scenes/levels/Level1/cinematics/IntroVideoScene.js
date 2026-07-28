@@ -44,10 +44,9 @@ export class IntroVideoScene extends Phaser.Scene {
   _goNext() {
     if (this._gone) return;
     this._gone = true;
-    // Snap into Level 1 — was a ~1.45s black-screen wait (fadeOut 700 +
-    // delay 750) after the video already ended; trimmed to a quick 200ms fade
-    // so the level appears almost instantly once the video is done/skipped.
-    this.cameras.main.fadeOut(200, 0, 0, 0);
-    this.time.delayedCall(210, () => this.scene.start('Level1'));
+    // Start Level 1 immediately when the intro video ends or is skipped.
+    // The warmup logic already buffers the intro video, so this avoids
+    // extra black-screen wait between the video and gameplay.
+    this.scene.start('Level1');
   }
 }

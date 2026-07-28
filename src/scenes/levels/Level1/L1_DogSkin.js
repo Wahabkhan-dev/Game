@@ -36,6 +36,85 @@ const IDLE_KEY = 'l1dog_idle';
 // scale to the (new) sprite instance.
 let _skinProcessed = false;
 let _cachedScale   = null;
+let _dogSkinGroups = null;
+
+function _buildDogSkinGroups(scene, runKeys, jumpKeys) {
+  const groups = [
+    { keys: runKeys,      chroma: true  },
+    { keys: jumpKeys,     chroma: true  },
+    { keys: [IDLE_KEY],   chroma: false },
+  ];
+
+  const toCanvas = (src, chroma) => {
+    const w = src.width, h = src.height;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(src, 0, 0);
+    if (!chroma) return c;
+    let img;
+    try { img = ctx.getImageData(0, 0, w, h); } catch (e) { return c; }
+    const d = img.data;
+    const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + w - 1) * 4];
+    let bR = 0, bG = 0, bB = 0;
+    corners.forEach(o => { bR += d[o]; bG += d[o + 1]; bB += d[o + 2]; });
+    bR /= 4; bG /= 4; bB /= 4;
+    const soft = CHROMA * 1.8;
+    const soft2 = soft * soft;
+    const chroma2 = CHROMA * CHROMA;
+    for (let p = 0; p < d.length; p += 4) {
+      const dr = d[p] - bR, dg = d[p + 1] - bG, db = d[p + 2] - bB;
+      const dist2 = dr * dr + dg * dg + db * db;
+      if (dist2 < chroma2) d[p + 3] = 0;
+      else if (dist2 < soft2) {
+        const dist = Math.sqrt(dist2);
+        d[p + 3] = Math.round(d[p + 3] * ((dist - CHROMA) / (soft - CHROMA)));
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  };
+
+  const bboxOf = (canvas) => {
+    const w = canvas.width, h = canvas.height;
+    const d = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+    let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 16) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    if (!isFinite(minX)) return { x: 0, y: 0, w, h };
+    return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  };
+
+  for (const g of groups) {
+    g.items = [];
+    let gX = Infinity, gY = Infinity, gMaxX = 0, gMaxY = 0;
+    for (const key of g.keys) {
+      if (!scene.textures.exists(key)) continue;
+      const cv = toCanvas(scene.textures.get(key).getSourceImage(), g.chroma);
+      g.items.push({ key, cv });
+      const b = bboxOf(cv);
+      gX = Math.min(gX, b.x); gY = Math.min(gY, b.y);
+      gMaxX = Math.max(gMaxX, b.x + b.w - 1); gMaxY = Math.max(gMaxY, b.y + b.h - 1);
+    }
+    g.box = isFinite(gX) ? { x: gX, y: gY, w: gMaxX - gX + 1, h: gMaxY - gY + 1 } : { x: 0, y: 0, w: 1, h: 1 };
+  }
+
+  return groups;
+}
+
+export function prepareDogSkin(scene) {
+  if (_skinProcessed || _dogSkinGroups) return;
+  const runKeys  = Array.from({ length: RUN_N },  (_, i) => RUN_KEY(i + 1));
+  const jumpKeys = Array.from({ length: JUMP_N }, (_, i) => JUMP_KEY(i + 1));
+  if (!runKeys.every(k => scene.textures.exists(k)) || !jumpKeys.every(k => scene.textures.exists(k)) || !scene.textures.exists(IDLE_KEY)) {
+    return;
+  }
+  _dogSkinGroups = _buildDogSkinGroups(scene, runKeys, jumpKeys);
+}
 
 export function preloadDogSkin(scene) {
   // Report ONLY dog-frame failures by name (unrelated game 404s are ignored).
@@ -100,11 +179,16 @@ export function applyDogSkin(scene) {
     corners.forEach(o => { bR += d[o]; bG += d[o + 1]; bB += d[o + 2]; });
     bR /= 4; bG /= 4; bB /= 4;
     const soft = CHROMA * 1.8;
+    const soft2 = soft * soft;
+    const chroma2 = CHROMA * CHROMA;
     for (let p = 0; p < d.length; p += 4) {
       const dr = d[p] - bR, dg = d[p + 1] - bG, db = d[p + 2] - bB;
-      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-      if (dist < CHROMA) d[p + 3] = 0;
-      else if (dist < soft) d[p + 3] = Math.round(d[p + 3] * ((dist - CHROMA) / (soft - CHROMA)));
+      const dist2 = dr * dr + dg * dg + db * db;
+      if (dist2 < chroma2) d[p + 3] = 0;
+      else if (dist2 < soft2) {
+        const dist = Math.sqrt(dist2);
+        d[p + 3] = Math.round(d[p + 3] * ((dist - CHROMA) / (soft - CHROMA)));
+      }
     }
     ctx.putImageData(img, 0, 0);
     return c;
@@ -131,23 +215,25 @@ export function applyDogSkin(scene) {
   // small idle dog render tiny. Instead each group (run / jump / idle) gets its
   // own box (run & jump share within their group → no jitter), and every group
   // is normalized to the SAME on-screen height so all poses match in size.
-  const groups = [
+  const groups = _dogSkinGroups || [
     { keys: runKeys,      chroma: true  },
     { keys: jumpKeys,     chroma: true  },
     { keys: [IDLE_KEY],   chroma: false },
   ];
-  for (const g of groups) {
-    g.items = [];
-    let gX = Infinity, gY = Infinity, gMaxX = 0, gMaxY = 0;
-    for (const key of g.keys) {
-      if (!scene.textures.exists(key)) continue;
-      const cv = toCanvas(scene.textures.get(key).getSourceImage(), g.chroma);
-      g.items.push({ key, cv });
-      const b = bboxOf(cv);
-      gX = Math.min(gX, b.x); gY = Math.min(gY, b.y);
-      gMaxX = Math.max(gMaxX, b.x + b.w - 1); gMaxY = Math.max(gMaxY, b.y + b.h - 1);
+  if (!_dogSkinGroups) {
+    for (const g of groups) {
+      g.items = [];
+      let gX = Infinity, gY = Infinity, gMaxX = 0, gMaxY = 0;
+      for (const key of g.keys) {
+        if (!scene.textures.exists(key)) continue;
+        const cv = toCanvas(scene.textures.get(key).getSourceImage(), g.chroma);
+        g.items.push({ key, cv });
+        const b = bboxOf(cv);
+        gX = Math.min(gX, b.x); gY = Math.min(gY, b.y);
+        gMaxX = Math.max(gMaxX, b.x + b.w - 1); gMaxY = Math.max(gMaxY, b.y + b.h - 1);
+      }
+      g.box = isFinite(gX) ? { x: gX, y: gY, w: gMaxX - gX + 1, h: gMaxY - gY + 1 } : { x: 0, y: 0, w: 1, h: 1 };
     }
-    g.box = isFinite(gX) ? { x: gX, y: gY, w: gMaxX - gX + 1, h: gMaxY - gY + 1 } : { x: 0, y: 0, w: 1, h: 1 };
   }
 
   const odh = scene.shadow.displayHeight;              // match the on-screen height
@@ -164,7 +250,7 @@ export function applyDogSkin(scene) {
     for (const it of g.items) {
       const out = document.createElement('canvas');
       out.width = outW; out.height = outH;
-      const ctx = out.getContext('2d');
+      const ctx = out.getContext('2d', { willReadFrequently: true });
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.clearRect(0, 0, outW, outH);

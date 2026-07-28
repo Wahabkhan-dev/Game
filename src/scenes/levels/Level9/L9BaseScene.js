@@ -144,7 +144,7 @@ export class L9BaseScene extends Phaser.Scene {
     const box = bboxOf(cv);
     const out = document.createElement('canvas');
     out.width = box.w; out.height = box.h;
-    out.getContext('2d').drawImage(cv, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    out.getContext('2d', { willReadFrequently: true }).drawImage(cv, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
     this.textures.addCanvas(trimmedKey, out);
     return trimmedKey;
   }

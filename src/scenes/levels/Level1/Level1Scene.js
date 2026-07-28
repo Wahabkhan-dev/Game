@@ -229,7 +229,7 @@ export class Level1Scene extends BaseLevelScene {
       ]
     };
 
-    this.initLevel(config);
+    this.initLevel({ ...config, fadeIn: 0 });
     // Swap the player VISUAL to the NEW-RUN black dog (gameplay/physics untouched).
     applyDogSkin(this);
     // Level 1 renders its controls as Phaser wood buttons (see hud/), so hide the

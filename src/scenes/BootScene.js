@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { generateAssets } from '../utils/AssetGenerator.js';
 import { warmUpVideos } from '../utils/VideoWarmup.js';
+import { preloadDogSkin, prepareDogSkin } from './levels/Level1/L1_DogSkin.js';
+import { preloadPorcupineSkin, preparePorcupineSkin } from './levels/PorcupineSkin.js';
+import { preloadSnakeSkin, prepareSnakeSkin } from './levels/SnakeSkin.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
@@ -41,6 +44,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('gleeda_idle',   'assets/images/Gleenda/gleeda_idle.png');
     this.load.image('gleeda_run1',   'assets/images/Gleenda/gleeda_run1.png');
     this.load.image('gleeda_jump',   'assets/images/Gleenda/gleeda_jump.png');
+    preloadDogSkin(this);
+    preloadPorcupineSkin(this);
+    preloadSnakeSkin(this);
     this.load.image('road_bg',        'assets/images/road_bg.png');
     this.load.video('intro_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658241/shadow-gamma/video/Level%2001/intro.mp4');
     // ── Level 1 story videos (game-over + food-collected feeding scene) ──────
@@ -209,6 +215,9 @@ export class BootScene extends Phaser.Scene {
     // preload video data — it only records URLs), so each one plays instantly
     // instead of stalling on a black screen while it fetches from the network.
     warmUpVideos(this);
+    prepareDogSkin(this);
+    preparePorcupineSkin(this);
+    prepareSnakeSkin(this);
 
     this.scene.start('Menu');
 
@@ -247,7 +256,7 @@ export class BootScene extends Phaser.Scene {
     if (!w || !h) return;
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(src, 0, 0, w, h);
     let imgData;
     try { imgData = ctx.getImageData(0, 0, w, h); } catch (_) { return; }

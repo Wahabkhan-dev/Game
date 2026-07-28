@@ -55,6 +55,10 @@ export function ensureSnakeAnim(scene) {
   }
 }
 
+export function prepareSnakeSkin(scene) {
+  ensureSnakeAnim(scene);
+}
+
 // Creates a continuously-looping-animation snake sprite at (x, y), locked to
 // display size (w, h) — same call signature/result as createPorcupineSprite.
 // Not physics-enabled; for a hazard/boss that needs a physics body, use

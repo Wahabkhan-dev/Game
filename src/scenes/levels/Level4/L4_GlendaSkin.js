@@ -132,7 +132,7 @@ export function applyGlendaSkin(scene) {
 
       const out = document.createElement('canvas');
       out.width = outW; out.height = outH;
-      const ctx = out.getContext('2d');
+      const ctx = out.getContext('2d', { willReadFrequently: true });
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.clearRect(0, 0, outW, outH);

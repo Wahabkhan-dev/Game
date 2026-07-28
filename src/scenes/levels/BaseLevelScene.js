@@ -15,8 +15,10 @@ export class BaseLevelScene extends Phaser.Scene {
     this._checkpointY  = config.startY || 390;
     this.cameras.main.setBackgroundColor('#0d0806');
     // Fast fade-in so the level appears almost instantly after the intro video
-    // (was 600ms) — user wants no perceptible load gap after a cinematic.
-    this.cameras.main.fadeIn(200, 0, 0, 0);
+    // (was 600ms). Level-specific scenes can override the fade duration in
+    // config.fadeIn.
+    const fadeInMs = config.fadeIn !== undefined ? config.fadeIn : 200;
+    this.cameras.main.fadeIn(fadeInMs, 0, 0, 0);
 
     // Extend world bottom so Shadow can fall off gaps before being detected
     this.physics.world.setBounds(0, 0, config.worldWidth || 2000, H + 600);

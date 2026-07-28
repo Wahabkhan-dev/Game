@@ -78,13 +78,13 @@ export class L7_Stage3Scene extends L7BaseScene {
     // can ever flash through during the scene handoff from Stage 2's video,
     // regardless of what's causing it.
     const cover = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setScrollFactor(0).setDepth(1000);
-    this.tweens.add({ targets: cover, alpha: 0, duration: 700, onComplete: () => cover.destroy() });
+    this.tweens.add({ targets: cover, alpha: 0, duration: 240, onComplete: () => cover.destroy() });
 
     generateL7Assets(this);
     this.physics.world.setBounds(0, 0, WORLD_W, H + 200);
     this.cameras.main.setBounds(0, 0, WORLD_W, H);
     this.cameras.main.setBackgroundColor('#0c1020');
-    this.cameras.main.fadeIn(220, 0, 0, 0);
+    this.cameras.main.fadeIn(120, 0, 0, 0);
 
     this._fuel = 0;          // 0..100
     this._stationsDone = {};
@@ -101,7 +101,7 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.buildRain(140, 0x9fb8ff);
     this.startLightning();
 
-    this.time.delayedCall(500, () => this.toast('⛽ Out of fuel! Reach the station and refuel. Walk right →', 3200));
+    this.time.delayedCall(200, () => this.toast('⛽ Out of fuel! Reach the station and refuel. Walk right →', 3200));
     console.log('[L7_Stage3] create() done');
   }
 
@@ -272,8 +272,8 @@ export class L7_Stage3Scene extends L7BaseScene {
     this.registry.set('l7_checkpoint', 'L7_Stage4');
     // End-of-Stage-3 bridge cinematic (V5) → then Stage 4 (drive).
     this.playStoryVideos(['l7_v5'], () => {
-      this.cameras.main.fadeOut(120, 0, 0, 0);
-      this.time.delayedCall(80, () => {
+      this.cameras.main.fadeOut(80, 0, 0, 0);
+      this.time.delayedCall(30, () => {
         this._forceSceneStart('L7_Stage4');
       });
     });
