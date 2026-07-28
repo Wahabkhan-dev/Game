@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H } from '../../../config/GameConfig.js';
 import { L8BaseScene } from './L8BaseScene.js';
 import { generateL8Assets } from './L8Assets.js';
+import { showLevelCompleteModal } from '../../../utils/EndModals.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 7+8 — DECORATE THE HOME  →  HAPPY PUPPY HOME!
@@ -263,27 +264,15 @@ export class L8_DecorateScene extends L8BaseScene {
     const stars = score >= 2600 ? 3 : score >= 1700 ? 2 : 1;
     this.registry.set('l8_complete', true);
     this.registry.set('l8_stars', stars);
+    if (this._heartTimer) this._heartTimer.remove();
 
-    const { td, py, ph } = this.openPanel('🏆 Level Complete!', 'Puppy Care Day done!', { w: 440, h: 280 });
-    // stars
-    for (let i = 0; i < 3; i++) {
-      const s = this.add.image(W / 2 - 60 + i * 60, py + 110, 'l8_star').setScale(0).setDepth(103);
-      td.push(s);
-      this.time.delayedCall(300 + i * 220, () => {
-        this.tweens.add({ targets: s, scale: i < stars ? 1.4 : 0.9, duration: 350, ease: 'Back.easeOut' });
-        if (i < stars) { s.setTint(0xffffff); this.sparkleBurst(s.x, s.y, 8, false); }
-        else s.setTint(0x999999);
-      });
-    }
-    td.push(this.add.text(W / 2, py + 158, `Score  ${score}`, {
-      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#6a3fa0', stroke: '#fff', strokeThickness: 2
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(103));
-    this.panelButton(td, W / 2, py + ph - 36, '🐾  Finish', 0x6ad06a, () => {
-      if (this._heartTimer) this._heartTimer.remove();
-      this.cameras.main.fadeOut(200, 0, 0, 0);
-      // Straight back to the Menu — no "Thank you for playing" ruby-heart
-      // celebration screen (EndScene) after this.
-      this.time.delayedCall(240, () => { this._wakeLoop(); this.scene.start('Menu'); });
-    }, 200, 46);
+    // Same shared Level Complete modal (+ Menu/Next Level buttons and loading
+    // overlay) every other level uses, instead of this scene's own bespoke
+    // panel — Next Level continues straight into Level 9.
+    showLevelCompleteModal(this, score, {
+      menuKey: 'Menu',
+      nextLevelKey: 'L9_GiftRun',
+      nextLevelData: { points: 0, l9_score: 0, l9_hp: 3, l9_gifts: 0, l9_bows: 0 },
+    });
   }
 }

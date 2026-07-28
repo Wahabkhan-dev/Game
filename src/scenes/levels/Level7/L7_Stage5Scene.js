@@ -150,8 +150,13 @@ export class L7_Stage5Scene extends L7BaseScene {
     this.playStoryVideos(['l7_v7'], () => {
       const points = this.registry.get('points') ?? 0;
       // No "Thank you for playing" ruby-heart celebration screen (EndScene)
-      // anymore — the points modal's only button returns to the Menu.
-      showLevelCompleteModal(this, points, { menuKey: 'Menu' });
+      // anymore. Next Level continues straight into Level 8 (same shared
+      // modal + loading-overlay transition every level uses).
+      showLevelCompleteModal(this, points, {
+        menuKey: 'Menu',
+        nextLevelKey: 'L8_FoodRun',
+        nextLevelData: { points: 0, l8_score: 0, l8_hp: 3 },
+      });
     });
   }
 
