@@ -41,6 +41,15 @@ export class Level2Scene extends BaseLevelScene {
     }, opts);
   }
 
+  // Buffer zones around every key (x=5680, 11500) and checkpoint save-point/
+  // flag (Zone1→2 cluster at x=5680-6020, Zone2→3 cluster at x=11900-12020)
+  // — falling boulders/stones must never land here, so picking up a key or
+  // crossing a checkpoint never gets interrupted by a hazard the player has
+  // no way to see coming.
+  _nearCheckpoint(x) {
+    return (x >= 5550 && x <= 6150) || (x >= 11400 && x <= 12150);
+  }
+
   _handleGameOver() {
     showStoryCard(this, "You didn't reach Gemma in time... 💔", () => {
       this._playL2Video('l2_gameover_video', () => {
@@ -440,7 +449,12 @@ export class Level2Scene extends BaseLevelScene {
           this.cameras.main.shake(180, 0.007);
         }
         const camX = this.cameras.main.scrollX;
-        const b = this._stoneGroup.create(camX + 60 + Math.random() * 680, -20, 'rock');
+        const spawnX = camX + 60 + Math.random() * 680;
+        // Never near a checkpoint (x=5680-6020 and 11900-12020, where the
+        // Zone-1→2 and Zone-2→3 transitions/saves happen) — a falling stone
+        // must not interrupt that moment.
+        if (this._nearCheckpoint(spawnX)) return;
+        const b = this._stoneGroup.create(spawnX, -20, 'rock');
         b.setDisplaySize(36, 28).setDepth(15);
         b.body.setSize(36, 28, true);
         b.body.setVelocityY(160);

@@ -709,6 +709,12 @@ export class BaseLevelScene extends Phaser.Scene {
 
   // ── Shared "lost a life" handler — decrements heart and respawns or restarts
   _loseLife(shake = 0.012) {
+    // If health hit 0 while a mini-activity overlay was open, close it first
+    // (no reward, no bridge) — otherwise the iframe/modal stays visible on
+    // top while the player is silently teleported to a checkpoint (or sent
+    // to the game-over screen) underneath it, same fix _handleTimeUp already
+    // has for the timer-runs-out case.
+    if (this._miniGameOpen && this._miniGameClose) this._miniGameClose();
     // Stop the character INSTANTLY at the point it died — updateMovement()
     // already ignores input once _isDying is set, but any velocity it already
     // had (mid-jump, mid-run) would otherwise keep carrying it forward/down

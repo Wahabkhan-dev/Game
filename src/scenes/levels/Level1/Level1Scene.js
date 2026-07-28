@@ -782,6 +782,14 @@ export class Level1Scene extends BaseLevelScene {
     this._gemmaBarBG    = null;
   }
 
+  // Buffer zones around the two levers (x=5350, 11150) and the two
+  // checkpoints they lead to (x=5770, 11570) — falling boulders/stones must
+  // never land here, so the lever-pull + bridge-cross + checkpoint moment
+  // never gets interrupted by a hazard the player has no way to see coming.
+  _nearLeverOrCheckpoint(x) {
+    return (x >= 5250 && x <= 5870) || (x >= 11050 && x <= 11670);
+  }
+
   _startGauntlet() {
     this._showMessage('⚠️ Watch out! Boulders falling! 🪨');
     this.cameras.main.shake(200, 0.008);
@@ -792,6 +800,11 @@ export class Level1Scene extends BaseLevelScene {
           this._gauntletTimer.remove();
           return;
         }
+        // Never spawn a new boulder while a mini-activity/checkpoint overlay
+        // is open — physics is paused then, so anything created here would
+        // just sit frozen and then all drop on the player at once the
+        // instant the overlay closes.
+        if (this._miniGameOpen) return;
         const spawnX = Phaser.Math.Clamp(this.shadow.x + (Math.random() - 0.45) * 220, 1000, 5200);
         const b = this._boulderGroup.create(spawnX, -20, 'rock');
         b.setDisplaySize(42, 32).setDepth(15);
@@ -935,9 +948,11 @@ export class Level1Scene extends BaseLevelScene {
           if (this._levelDone || !this.shadow || this.shadow.x > 11200) {
             this._zone2BoulderTimer.remove(); return;
           }
+          if (this._miniGameOpen) return;
           // Spread rocks across full visible screen — behind AND ahead of player
           const camX2 = this.cameras.main.scrollX;
           const spawnX = Phaser.Math.Clamp(camX2 + 30 + Math.random() * 740, 5800, 11100);
+          if (this._nearLeverOrCheckpoint(spawnX)) return;
           const b = this._boulderGroup.create(spawnX, -20, 'rock');
           b.setDisplaySize(42, 32).setDepth(15);
           b.body.setSize(42, 32, true);
@@ -962,8 +977,10 @@ export class Level1Scene extends BaseLevelScene {
           if (this._levelDone || !this.shadow) {
             this._zone3BoulderTimer.remove(); return;
           }
+          if (this._miniGameOpen) return;
           const camX = this.cameras.main.scrollX;
           const spawnX = camX + 60 + Math.random() * 680;
+          if (this._nearLeverOrCheckpoint(spawnX)) return;
           const b = this._boulderGroup.create(spawnX, -20, 'rock');
           b.setDisplaySize(42, 32).setDepth(15);
           b.body.setSize(42, 32, true);
