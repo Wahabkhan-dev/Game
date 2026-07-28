@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../../config/GameConfig.js';
 import { makePanel, generatePremiumHudTextures, buildLevelBanner, THEME } from '../../hud/premium/PremiumTheme.js';
-import { showTryAgainModal } from '../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../utils/EndModals.js';
 
 export class BaseLevelScene extends Phaser.Scene {
 
@@ -748,10 +748,8 @@ export class BaseLevelScene extends Phaser.Scene {
       // (or may get cut short) by the time the level restarts.
       this.shadow.clearTint();
       this.shadow.setAlpha(1);
-      showTryAgainModal(this, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(210, () => this.scene.restart());
-      });
+      // Pass the current scene key so doFullRestart can use it
+      showTryAgainModal(this, this.sys.settings.key);
     });
   }
 

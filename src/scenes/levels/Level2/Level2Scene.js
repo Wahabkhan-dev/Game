@@ -6,7 +6,7 @@ import { buildL2Background, updateL2Parallax, buildL2Ground, buildL1TransitionVi
 import { PremiumHUD } from '../../../hud/premium/PremiumHUD.js';
 import { makePanel } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal, showLevelCompleteModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, showLevelCompleteModal, doFullRestart } from '../../../utils/EndModals.js';
 import { addLoopingVideo } from '../../../utils/VideoOverlay.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 
@@ -49,10 +49,7 @@ export class Level2Scene extends BaseLevelScene {
       // yet (or may get cut short) by the time the level restarts.
       this.shadow.clearTint();
       this.shadow.setAlpha(1);
-      showTryAgainModal(this, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.time.delayedCall(210, () => this.scene.restart());
-      });
+      showTryAgainModal(this, 'Level2');
     });
   }
 

@@ -338,7 +338,7 @@ export class L7_Stage4Scene extends L7BaseScene {
     this._points = this.registry.get('points') ?? 0;
     this._hdr = buildStandardHeader(this, {
       chapterLabel: 'LEVEL 7', title: 'Drive to the Hospital',
-      timer: 90, coinValue: this._points,
+      timer: 110, coinValue: this._points,
       lives: this._lives, hp: this._hp,
       onMenu: () => this._togglePause(), depth: 48,
     });
@@ -349,7 +349,7 @@ export class L7_Stage4Scene extends L7BaseScene {
     this._hdr.setLives(this._lives);
     this._hdr.setHP(this._hp);
 
-    this._timerFull = 90; this._timeLeft = 90;
+    this._timerFull = 110; this._timeLeft = 110;
     this._timerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => this._tickHudTimer() });
 
     // Trip readout (distance remaining) — the checkpoint-module slot, just

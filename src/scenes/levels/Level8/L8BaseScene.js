@@ -5,7 +5,7 @@ import { applyGlendaSkin } from './L8_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -607,10 +607,7 @@ export class L8BaseScene extends Phaser.Scene {
         } else {
           this.registry.set('lives', 3);
           this.registry.set('l8_hp', 3);
-          showTryAgainModal(this, () => {
-            this.cameras.main.fadeOut(450, 0, 0, 0);
-            this.time.delayedCall(210, () => this.scene.restart());
-          });
+          showTryAgainModal(this, this.sys.settings.key);
         }
       });
     } else {

@@ -57,6 +57,24 @@ function showLoadingTransition(scene, onDone) {
   });
 }
 
+// Full restart with loading screen and complete cleanup — kills all tweens,
+// timers, events, and shows a loading transition so the player sees a real
+// reload instead of an instant cut. This ensures NO cached state persists.
+export function doFullRestart(scene, sceneKey) {
+  // Kill all running tweens, timers, events in this scene
+  scene.tweens.killAll();
+  scene.time.removeAllEvents();
+  scene.input.keyboard.removeAllKeys();
+  scene.physics.pause();
+
+  // Show loading screen then do the restart
+  showLoadingTransition(scene, () => {
+    // Full scene stop+start (not restart) — completely resets all state
+    scene.scene.stop();
+    scene.scene.start(sceneKey);
+  });
+}
+
 // Shown instead of auto-restarting the level after the player loses all
 // lives — the level only actually restarts once "Try Again" is clicked.
 export function showTryAgainModal(scene, onRetry) {
@@ -74,7 +92,12 @@ export function showTryAgainModal(scene, onRetry) {
   objs.push(btn);
   btn.on('pointerup', () => {
     objs.forEach(o => o.destroy());
-    onRetry();
+    // Use full restart if onRetry is a string (scene key), otherwise fall back to callback
+    if (typeof onRetry === 'string') {
+      doFullRestart(scene, onRetry);
+    } else {
+      onRetry();
+    }
   });
 }
 
@@ -146,7 +169,9 @@ export function showLevelCompleteModal(scene, points, opts = {}) {
     const nextBtn = makeButton(scene, W / 2 + 90, H / 2 + 55, '▶ Next Level', '#5b6cff', 302);
     nextBtn.on('pointerup', () => {
       cleanup();
-      showLoadingTransition(scene, () => scene.scene.start(nextLevelKey, nextLevelData));
+      // Always reset lives to default (3) when starting a new level
+      const dataWithFreshLives = { ...nextLevelData, lives: 3 };
+      showLoadingTransition(scene, () => scene.scene.start(nextLevelKey, dataWithFreshLives));
     });
     objs.push(nextBtn);
   }

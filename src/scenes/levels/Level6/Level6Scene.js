@@ -3,7 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { generatePremiumHudTextures, buildStandardHeader, buildCheckpointBoard, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L6_GlendaSkin.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
 
 // ── Level 6 · Part 1 — Puppy Garden Runner ────────────────────────────────
@@ -948,10 +948,7 @@ export class Level6Scene extends Phaser.Scene {
 
     if (this._lives <= 0) {
       this.time.delayedCall(400, () => {
-        showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(500, 0, 0, 0);
-          this.time.delayedCall(210, () => this.scene.restart());
-        });
+        showTryAgainModal(this, 'Level6');
       });
       return;
     }
@@ -978,10 +975,7 @@ export class Level6Scene extends Phaser.Scene {
 
     if (this._lives <= 0) {
       this.time.delayedCall(400, () => {
-        showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(500, 0, 0, 0);
-          this.time.delayedCall(210, () => this.scene.restart());
-        });
+        showTryAgainModal(this, 'Level6');
       });
       return;
     }

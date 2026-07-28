@@ -6,7 +6,7 @@ import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, bui
 import { PremiumFooter } from '../../../hud/premium/PremiumFooter.js';
 import { launchRandomMiniGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { playVideoOverlay } from '../../../utils/VideoOverlay.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 
 // ── Level 5 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
 const WORLD_W  = 12200;
@@ -641,10 +641,7 @@ export class L5_EquipmentRunScene extends Phaser.Scene {
       this._done = true;
       this.add.rectangle(this.cameras.main.scrollX + W / 2, H / 2, W, H, 0x000000, 0.65).setDepth(60).setScrollFactor(0);
       this.time.delayedCall(400, () => {
-        showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(400, 0, 0, 0);
-          this.time.delayedCall(210, () => this.scene.restart());
-        });
+        showTryAgainModal(this, 'L5_EquipmentRun');
       });
     } else {
       this._toast(`💔 Life lost! ${this._lives} left — respawning!`);

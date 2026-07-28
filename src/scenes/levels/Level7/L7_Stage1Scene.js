@@ -126,6 +126,18 @@ export class L7_Stage1Scene extends L7BaseScene {
 
   _buildPlayer() {
     this.buildPlayer(80, GROUND_Y);
+
+    const boost = 1.5;
+    const prevScale = this.player.scaleX;
+    const worldBW = this.player.body.width * prevScale;
+    const worldBH = this.player.body.height * prevScale;
+    const offsetX = this.player.body.offset.x;
+    const offsetY = this.player.body.offset.y;
+
+    this.player.setScale(prevScale * boost);
+    this.player.body.setSize(Math.round(worldBW / (prevScale * boost)), Math.round(worldBH / (prevScale * boost)), true);
+    this.player.body.setOffset(offsetX, offsetY);
+
     this.physics.add.collider(this.player, this._ground);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
   }

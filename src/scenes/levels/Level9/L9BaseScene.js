@@ -5,7 +5,7 @@ import { applyGlendaSkin } from './L9_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 import { toCanvas, bboxOf } from '../GlendaSkinCore.js';
 
@@ -473,10 +473,7 @@ export class L9BaseScene extends Phaser.Scene {
         if (this._lives > 0) { this._hp = 3; this.registry.set('l9_hp', 3); this._respawnAtCheckpoint(); }
         else {
           this.registry.set('lives', 3); this.registry.set('l9_hp', 3);
-          showTryAgainModal(this, () => {
-            this.cameras.main.fadeOut(450, 0, 0, 0);
-            this.time.delayedCall(480, () => { this._wakeLoop(); this.scene.restart(); });
-          });
+          showTryAgainModal(this, this.sys.settings.key);
         }
       });
     } else {

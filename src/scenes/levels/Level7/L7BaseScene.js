@@ -3,7 +3,7 @@ import { W, H } from '../../../config/GameConfig.js';
 import { applyGlendaSkin } from './L7_GlendaSkin.js';
 import { drawModalPanelBg } from '../ModalFrame.js';
 import { makePanel, generatePremiumHudTextures, buildStandardHeader, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 import { playVideoSequence } from '../../../utils/VideoOverlay.js';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -264,10 +264,7 @@ export class L7BaseScene extends Phaser.Scene {
         // are shared across all 5 stages, so running out anywhere sends the
         // player back to the start of Level 7, not just this stage.
         this.playStoryVideos(['l7_v8'], () => {
-          showTryAgainModal(this, () => {
-            this.cameras.main.fadeOut(450, 0, 0, 0);
-            this.time.delayedCall(480, () => this._forceSceneStart('L7_Stage1'));
-          });
+          showTryAgainModal(this, 'L7_Stage1');
         });
       });
     } else {

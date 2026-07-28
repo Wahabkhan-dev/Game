@@ -4,7 +4,7 @@ import { generateL6Assets, generateL5StreetAssets } from './L6Assets.js';
 import { preloadGlendaSkin, applyGlendaSkin } from './L6_GlendaSkin.js';
 import { generatePremiumHudTextures, buildLevelBanner, buildCheckpointBoard, buildTimerArt, buildCoinArt, openGameMenuModal, THEME } from '../../../hud/premium/PremiumTheme.js';
 import { launchRandomMiniGame } from '../../../utils/MiniGamePicker.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 
 // ── Level 6 opening — identical to Level 4 scene, but ends at Level5 (garage) ──
 const WORLD_W  = 12200;
@@ -510,10 +510,7 @@ export class L6_EquipmentRunScene extends Phaser.Scene {
       this._done = true;
       this.add.rectangle(this.cameras.main.scrollX + W / 2, H / 2, W, H, 0x000000, 0.65).setDepth(60).setScrollFactor(0);
       this.time.delayedCall(400, () => {
-        showTryAgainModal(this, () => {
-          this.cameras.main.fadeOut(400, 0, 0, 0);
-          this.time.delayedCall(210, () => this.scene.restart());
-        });
+        showTryAgainModal(this, 'L6_EquipmentRun');
       });
     } else {
       this._toast(`💔 Life lost! ${this._lives} left — respawning!`);

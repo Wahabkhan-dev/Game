@@ -6,7 +6,7 @@ import { preloadDogSkin, applyDogSkin } from './L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from './L1_Scenery.js';
 import { pickRandomGame, resetGameHistory } from '../../../utils/MiniGamePicker.js';
 import { showStoryCard, addLoopingVideo } from '../../../utils/VideoOverlay.js';
-import { showTryAgainModal } from '../../../utils/EndModals.js';
+import { showTryAgainModal, doFullRestart } from '../../../utils/EndModals.js';
 import { preloadPorcupineSkin, createPorcupineSprite } from '../PorcupineSkin.js';
 import { preloadSnakeSkin, ensureSnakeAnim, SNAKE_ANIM_KEY, SNAKE_FIRST_KEY } from '../SnakeSkin.js';
 
@@ -59,10 +59,7 @@ export class Level1Scene extends BaseLevelScene {
           // yet (or may get cut short) by the time the level restarts.
           this.shadow.clearTint();
           this.shadow.setAlpha(1);
-          showTryAgainModal(this, () => {
-            this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(210, () => this.scene.restart());
-          });
+          showTryAgainModal(this, 'Level1');
         });
       });
     });
