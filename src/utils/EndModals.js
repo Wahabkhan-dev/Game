@@ -8,6 +8,7 @@
 import Phaser from 'phaser';
 import { W, H } from '../config/GameConfig.js';
 import { drawModalPanelBg } from '../scenes/levels/ModalFrame.js';
+import { showLoadingOverlay, hideLoadingOverlay } from './LoadingOverlay.js';
 
 function panelBg(scene, h) {
   // Fully opaque black backdrop — the "Try Again" and "Level Complete / Next
@@ -34,8 +35,8 @@ function makeButton(scene, x, y, label, color, depth) {
 // Phaser's requestAnimationFrame loop to SLEEP and don't reliably wake it —
 // a <video> element playing (game-over/level-complete cinematics are the
 // norm right before these modals show up) is a common trigger. Without this,
-// scene.start()/stop() and any tween only actually advance on the NEXT loop
-// tick, which reads as "Try Again"/"Next Level" hanging on the old screen.
+// scene.start()/fadeOut tweens only actually advance on the NEXT loop tick,
+// which reads as "Menu"/"Next Level" hanging on the old screen.
 function _wakeLoop(game) {
   try {
     const l = game.loop;
@@ -45,91 +46,56 @@ function _wakeLoop(game) {
   } catch (_) {}
 }
 
-// ── The ONE transition every "Try Again" / "Next Level" / "Menu" button in
-// every level (1–9) routes through ──────────────────────────────────────────
-//
-// The loading screen lives in its OWN persistent scene (LoadingScene,
-// registered in main.js) launched on top — NOT drawn on the scene being
-// replaced. Because it's a separate scene, it keeps rendering continuously
-// across the old scene's stop() and the new scene's FULL preload()+create()
-// (including any real videos/images the new scene still needs to load,
-// since Phaser doesn't reach RUNNING status until preload's queued loads
-// finish and create() has returned). It is only ever removed once the
-// target scene is CONFIRMED actually running — never on a guessed fixed
-// timer. This guarantees, for every level:
-//   • the loading screen is NEVER hidden early
-//   • the previous level is never glimpsed mid-transition (no flash/glitch)
-//   • the next level is 100% loaded + initialized before play resumes
-//   • old tweens/timers/physics/keys are fully cleared first (no leftover
-//     state or objects bleeding into the new scene)
-//   • a stalled rAF loop (see _wakeLoop above) can't leave it hanging forever
-//     — a setInterval fallback (its own timer, independent of Phaser's own
-//     clock/rAF) force-pumps game.step() until the target is confirmed up.
-function transitionToScene(scene, sceneKey, data) {
-  // Full cleanup of the scene being left — kills its tweens/timers/keys and
-  // pauses its physics so nothing from the old level can keep running (or
-  // firing hazard/timer callbacks) underneath the loading screen.
-  try { scene.tweens.killAll(); } catch (_) {}
-  try { scene.time.removeAllEvents(); } catch (_) {}
-  try { scene.input.keyboard.removeAllKeys(); } catch (_) {}
-  try { scene.physics?.pause?.(); } catch (_) {}
+// The ONE scene-change every "Main Menu" / "Next Level" button in every level
+// (1–9) routes through:
+//   1. Show the plain-DOM loading overlay (utils/LoadingOverlay.js) — this is
+//      NOT a Phaser scene, so it appears INSTANTLY (a synchronous style
+//      change), independent of whatever Phaser/the network is doing. This is
+//      what was actually missing before: on a real deploy the next scene's
+//      images/videos may need genuine network time (unlike local dev, where
+//      everything's already cached), and with nothing on screen during that
+//      wait it read as a blank/hung page.
+//   2. Fade to black → scene.start() — same simple pattern every level's own
+//      pause-menu "Exit" button already uses (proven reliable everywhere).
+//   3. Passively poll (read-only — no forced game.step(), no second Phaser
+//      scene to manage) until the target scene is confirmed active, then
+//      hide the overlay. An earlier version routed the loading UI through a
+//      SECOND persistent Phaser scene with rAF/interval polling that also
+//      force-stepped the game loop — that combination was itself the source
+//      of the hangs; this version never touches Phaser's scene lifecycle for
+//      the overlay at all, only reads scene.isActive().
+function goToScene(scene, sceneKey, data) {
+  showLoadingOverlay();
+  _wakeLoop(scene.game);
+  if (scene.physics?.world) { try { scene.physics.resume(); } catch (_) {} }
+  try { scene.tweens.resumeAll(); } catch (_) {}
+  scene.cameras.main.fadeOut(400, 0, 0, 0);
 
   const game = scene.game;
-  const sm = game.scene; // Phaser's SceneManager — stable regardless of which individual scene is running/stopped
-
-  _wakeLoop(game);
-  sm.launch('LoadingScene');
-  sm.bringToTop('LoadingScene');
-
-  const fromKey = scene.sys.settings.key;
-  // One rAF tick so the overlay actually paints before the old scene
-  // beneath it is torn down — avoids a same-frame destroy+create race.
-  requestAnimationFrame(() => {
+  scene.time.delayedCall(210, () => {
     _wakeLoop(game);
-    sm.stop(fromKey);
-    const startedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    try { sm.start(sceneKey, data); } catch (_) {}
-
-    const isRunning = () => {
-      const s = sm.getScene(sceneKey);
-      const status = s ? s.sys.settings.status : -1;
-      return status === 5 || status === 8 || status === 9 || sm.isActive(sceneKey);
-    };
-
-    // Guaranteed minimum visible time — when the target scene has nothing new
-    // to load (everything cached, the common case), Phaser can reach RUNNING
-    // synchronously within the very next tick, which made the loading screen
-    // flash for a single frame (effectively invisible/"not showing" to the
-    // player). Holding it for at least this long makes the transition read
-    // as a real, deliberate load every time, not an instant/jarring cut.
-    const MIN_VISIBLE_MS = 500;
+    try { scene.scene.start(sceneKey, data); } catch (_) {}
 
     let tries = 0;
     const iv = setInterval(() => {
-      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const minTimeElapsed = (now - startedAt) >= MIN_VISIBLE_MS;
-      if (isRunning() && minTimeElapsed) { clearInterval(iv); sm.stop('LoadingScene'); return; }
-      _wakeLoop(game);
-      try { game.step(now, 16); } catch (_) {}
-      // ~30s hard ceiling — never spins forever even in some pathological
-      // stuck-preload case; still better than an infinite loading screen.
-      if (++tries >= 600) { clearInterval(iv); sm.stop('LoadingScene'); }
+      // ~10s hard ceiling — never leaves the overlay stuck up forever even
+      // in some pathological stuck-preload case.
+      if (game.scene.isActive(sceneKey) || ++tries >= 200) {
+        clearInterval(iv);
+        hideLoadingOverlay();
+      }
     }, 50);
   });
 }
 
-// Full restart with complete cleanup, handed off to transitionToScene() —
-// kept as a named export since it's the one other modules import directly.
+// Kept as a named export — several level files import this alongside
+// showTryAgainModal. Routes through the same simple, reliable goToScene().
 export function doFullRestart(scene, sceneKey) {
-  transitionToScene(scene, sceneKey);
+  goToScene(scene, sceneKey);
 }
 
 // Shown after the player loses all lives — ONE button only ("Main Menu"), no
-// "Try Again" retry (removed per request, in every level). Deliberately uses
-// the exact same simple fadeOut → scene.start('Menu') pattern every level's
-// own pause-menu Exit button already uses (proven reliable everywhere else),
-// rather than the fancier persistent-loading-overlay transition — simpler
-// and more robust for this one exit path.
+// "Try Again" retry (removed per request, in every level).
 // `onRetry` is accepted but unused now — kept so every existing call site
 // (one per level, all passing either a scene-key string or a callback)
 // doesn't need to change.
@@ -148,14 +114,7 @@ export function showTryAgainModal(scene, onRetry) {
   objs.push(btn);
   btn.on('pointerup', () => {
     objs.forEach(o => { try { o.destroy(); } catch (_) {} });
-    _wakeLoop(scene.game);
-    if (scene.physics?.world) scene.physics.resume();
-    scene.tweens.resumeAll();
-    scene.cameras.main.fadeOut(450, 0, 0, 0);
-    scene.time.delayedCall(210, () => {
-      _wakeLoop(scene.game);
-      scene.scene.start('Menu');
-    });
+    goToScene(scene, 'Menu');
   });
 }
 
@@ -220,7 +179,7 @@ export function showLevelCompleteModal(scene, points, opts = {}) {
   const cleanup = () => { starEvt.remove(false); objs.forEach(o => { try { o.destroy(); } catch (_) {} }); };
   const menuX = nextLevelKey ? W / 2 - 90 : W / 2;
   const menuBtn = makeButton(scene, menuX, H / 2 + 55, '🏠 Menu', '#8a5030', 302);
-  menuBtn.on('pointerup', () => { cleanup(); transitionToScene(scene, menuKey); });
+  menuBtn.on('pointerup', () => { cleanup(); goToScene(scene, menuKey); });
   objs.push(menuBtn);
 
   if (nextLevelKey) {
@@ -229,7 +188,7 @@ export function showLevelCompleteModal(scene, points, opts = {}) {
       cleanup();
       // Always reset lives to default (3) when starting a new level
       const dataWithFreshLives = { ...nextLevelData, lives: 3 };
-      transitionToScene(scene, nextLevelKey, dataWithFreshLives);
+      goToScene(scene, nextLevelKey, dataWithFreshLives);
     });
     objs.push(nextBtn);
   }

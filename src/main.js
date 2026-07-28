@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { BootScene }       from './scenes/BootScene.js';
-import { LoadingScene }    from './scenes/LoadingScene.js';
 import { MenuScene }       from './scenes/MenuScene.js';
 import { EndScene }        from './scenes/EndScene.js';
 import { IntroVideoScene }  from './scenes/levels/Level1/cinematics/IntroVideoScene.js';
@@ -193,7 +192,6 @@ const config = {
   },
   scene: [
     BootScene,
-    LoadingScene,
     MenuScene,
     EndScene,
     // Level 1

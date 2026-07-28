@@ -275,13 +275,16 @@ export class BootScene extends Phaser.Scene {
 
     // Preload's real progress already drove the bar to 100% by the time this
     // runs (create() only fires once the load queue is empty) — just dismiss
-    // the loading screen now instead of re-simulating a fake fill.
+    // the loading screen now instead of re-simulating a fake fill. Hidden
+    // (not removed) — every level transition's "Menu"/"Next Level" reuses
+    // this exact element (see utils/LoadingOverlay.js) instead of a fresh
+    // Phaser-managed overlay, so it stays in the DOM for the whole session.
     const bar = document.getElementById('load-bar');
     if (bar) bar.style.width = '100%';
     const ls = document.getElementById('loading-screen');
     if (ls) {
       ls.style.opacity = '0';
-      setTimeout(() => ls.remove(), 600);
+      setTimeout(() => { ls.style.display = 'none'; }, 600);
     }
   }
 
