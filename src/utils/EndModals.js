@@ -87,6 +87,7 @@ function transitionToScene(scene, sceneKey, data) {
   requestAnimationFrame(() => {
     _wakeLoop(game);
     sm.stop(fromKey);
+    const startedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     try { sm.start(sceneKey, data); } catch (_) {}
 
     const isRunning = () => {
@@ -95,14 +96,21 @@ function transitionToScene(scene, sceneKey, data) {
       return status === 5 || status === 8 || status === 9 || sm.isActive(sceneKey);
     };
 
+    // Guaranteed minimum visible time — when the target scene has nothing new
+    // to load (everything cached, the common case), Phaser can reach RUNNING
+    // synchronously within the very next tick, which made the loading screen
+    // flash for a single frame (effectively invisible/"not showing" to the
+    // player). Holding it for at least this long makes the transition read
+    // as a real, deliberate load every time, not an instant/jarring cut.
+    const MIN_VISIBLE_MS = 500;
+
     let tries = 0;
     const iv = setInterval(() => {
-      if (isRunning()) { clearInterval(iv); sm.stop('LoadingScene'); return; }
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const minTimeElapsed = (now - startedAt) >= MIN_VISIBLE_MS;
+      if (isRunning() && minTimeElapsed) { clearInterval(iv); sm.stop('LoadingScene'); return; }
       _wakeLoop(game);
-      try {
-        const t = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-        game.step(t, 16);
-      } catch (_) {}
+      try { game.step(now, 16); } catch (_) {}
       // ~30s hard ceiling — never spins forever even in some pathological
       // stuck-preload case; still better than an infinite loading screen.
       if (++tries >= 600) { clearInterval(iv); sm.stop('LoadingScene'); }
@@ -116,8 +124,15 @@ export function doFullRestart(scene, sceneKey) {
   transitionToScene(scene, sceneKey);
 }
 
-// Shown instead of auto-restarting the level after the player loses all
-// lives — the level only actually restarts once "Try Again" is clicked.
+// Shown after the player loses all lives — ONE button only ("Main Menu"), no
+// "Try Again" retry (removed per request, in every level). Deliberately uses
+// the exact same simple fadeOut → scene.start('Menu') pattern every level's
+// own pause-menu Exit button already uses (proven reliable everywhere else),
+// rather than the fancier persistent-loading-overlay transition — simpler
+// and more robust for this one exit path.
+// `onRetry` is accepted but unused now — kept so every existing call site
+// (one per level, all passing either a scene-key string or a callback)
+// doesn't need to change.
 export function showTryAgainModal(scene, onRetry) {
   const objs = panelBg(scene, 210);
   objs.push(
@@ -129,16 +144,18 @@ export function showTryAgainModal(scene, onRetry) {
       fontSize: '14px', fontFamily: 'Georgia, serif', color: '#e8d0a8',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(302),
   );
-  const btn = makeButton(scene, W / 2, H / 2 + 45, '🔁 Try Again', '#5b6cff', 302);
+  const btn = makeButton(scene, W / 2, H / 2 + 45, '🏠 Main Menu', '#8a5030', 302);
   objs.push(btn);
   btn.on('pointerup', () => {
     objs.forEach(o => { try { o.destroy(); } catch (_) {} });
-    // Use full restart if onRetry is a string (scene key), otherwise fall back to callback
-    if (typeof onRetry === 'string') {
-      transitionToScene(scene, onRetry);
-    } else {
-      onRetry();
-    }
+    _wakeLoop(scene.game);
+    if (scene.physics?.world) scene.physics.resume();
+    scene.tweens.resumeAll();
+    scene.cameras.main.fadeOut(450, 0, 0, 0);
+    scene.time.delayedCall(210, () => {
+      _wakeLoop(scene.game);
+      scene.scene.start('Menu');
+    });
   });
 }
 

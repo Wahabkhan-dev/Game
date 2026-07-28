@@ -9,8 +9,29 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
-    this.load.image('jungle_bg',    'assets/images/jungle.png');
-    this.load.image('start_screen', 'assets/images/StartScreen.png');
+    // Real progress, tied to the actual bytes downloading — the OLD version of
+    // this bar was a fake 0→100 animation that only started AFTER every asset
+    // had already finished loading (Phaser doesn't call create() until preload's
+    // queue is empty), so players stared at a frozen 0%-width bar for the
+    // entire real download, then watched it rush to 100% in half a second —
+    // reading as "stuck", even though nothing was actually frozen. Now the bar
+    // fills in lockstep with real download progress, so the wait is visible
+    // and moving the whole time instead of looking hung.
+    const tips = ['Waking Shadow up...', 'Brewing forest magic...', 'Hiding berries...', 'Training the snake...', 'Almost ready...'];
+    this.load.on('progress', (value) => {
+      const pct = Math.round(value * 100);
+      const bar = document.getElementById('load-bar');
+      const tip = document.getElementById('load-tip');
+      if (bar) bar.style.width = pct + '%';
+      if (tip) tip.textContent = tips[Math.min(tips.length - 1, Math.floor(pct / 22))];
+    });
+
+    // .jpg versions below are re-encoded from the original .png (opaque art,
+    // no transparency needed) — same content, ~85-90% smaller file, since PNG
+    // is a lossless format that's very wasteful for photographic/painted
+    // backgrounds. Originals kept on disk untouched.
+    this.load.image('jungle_bg',    'assets/images/jungle.jpg');
+    this.load.image('start_screen', 'assets/images/StartScreen.jpg');
     this.load.image('ground',       'assets/images/ground.png');
     this.load.image('platform',     'assets/images/platform.png');
     this.load.image('log',          'assets/images/log.png');
@@ -50,7 +71,7 @@ export class BootScene extends Phaser.Scene {
     preloadDogSkin(this);
     preloadPorcupineSkin(this);
     preloadSnakeSkin(this);
-    this.load.image('road_bg',        'assets/images/road_bg.png');
+    this.load.image('road_bg',        'assets/images/road_bg.jpg');
     this.load.video('intro_video',       'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658241/shadow-gamma/video/Level%2001/intro.mp4');
     // ── Level 1 story videos (game-over + food-collected feeding scene) ──────
     this.load.video('l1_gameover_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658150/shadow-gamma/video/Level%2001/exceptional.mp4');
@@ -132,8 +153,11 @@ export class BootScene extends Phaser.Scene {
     // Shared wood/gold modal panel (Level 1 art) — used by ALL levels' mini-activities
     this.load.image('shared_modal_bg', 'assets/images/level1/Level1_modal.png');
     // ── Level 1 real artwork (jungle background + forest-floor surface) ──────
-    this.load.image('l1_bg',      'assets/images/level1/Level 01.jpg');
-    this.load.image('l1_surface', 'assets/images/level1/Level 01 bottom.jpg');
+    // -opt versions are resized to the actual max resolution ever rendered
+    // (these tile horizontally, so far less width was needed than the source
+    // art had) + re-encoded — same visual result, much smaller download.
+    this.load.image('l1_bg',      'assets/images/level1/Level 01-opt.jpg');
+    this.load.image('l1_surface', 'assets/images/level1/Level 01 bottom-opt.jpg');
     // Real-art meat prop (replaces the procedurally-drawn 'meat' texture in the
     // food-collecting bonus round) — falls back to the procedural one if missing.
     this.load.image('l1_meat_real', 'assets/images/level1/meat.png');
@@ -148,14 +172,14 @@ export class BootScene extends Phaser.Scene {
       .forEach(k => this.load.image(k, `assets/images/Level 2/${k}.png`));
     // ── Level 3 real artwork ────────────────────────────────────────────────
     this.load.image('l3_car',         'assets/images/Level 3/l3_car.png');
-    this.load.image('l3_road',        'assets/images/Level 3/l3_road.png');
-    this.load.image('l3_bg_city',     'assets/images/Level 3/l3_city_bg.png');
-    this.load.image('l3_bg_jungle',   'assets/images/Level 3/l3_jungle_bg.png');
-    this.load.image('l3_bg_highway',  'assets/images/Level 3/l3_highway_bg.png');
+    this.load.image('l3_road',        'assets/images/Level 3/l3_road.jpg');
+    this.load.image('l3_bg_city',     'assets/images/Level 3/l3_city_bg.jpg');
+    this.load.image('l3_bg_jungle',   'assets/images/Level 3/l3_jungle_bg.jpg');
+    this.load.image('l3_bg_highway',  'assets/images/Level 3/l3_highway_bg.jpg');
     this.load.image('l3_cone',        'assets/images/Level 3/l3_cone.png');
     this.load.image('l3_hosp_sign',   'assets/images/Level 3/l3_hosp_sign.png');
     // ── Level 3 car-journey background + road (dusk city street art) ────────
-    this.load.image('l3_bg_main',     'assets/images/Level 3/Level 03.png');
+    this.load.image('l3_bg_main',     'assets/images/Level 3/Level 03.jpg');
     this.load.image('l3_road_bottom', 'assets/images/Level 3/Level 03 bottom.png');
     // ── Level 3 story videos (intro, arrival, fail, pre-injection, recovery) ─
     this.load.video('l3_intro_video',     'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658828/shadow-gamma/video/Level%203/intro.mp4');
@@ -164,8 +188,8 @@ export class BootScene extends Phaser.Scene {
     this.load.video('l3_injection_video', 'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658820/shadow-gamma/video/Level%203/Injection.mp4');
     this.load.video('l3_recovery_video',  'https://res.cloudinary.com/jlvxvo5r/video/upload/v1784658790/shadow-gamma/video/Level%203/after-recovery.mp4');
     // ── Level 3 hospital scene real artwork ─────────────────────────────────
-    this.load.image('l3_hospital_bg',       'assets/images/Level 3/l3_hospital_bg.png');
-    this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.png');
+    this.load.image('l3_hospital_bg',       'assets/images/Level 3/l3_hospital_bg.jpg');
+    this.load.image('l3_hospital_exterior', 'assets/images/Level 3/l3_hospital_exterior.jpg');
     this.load.image('l3_med_ok',      'assets/images/all/hurdle/medicine bottle.png');
     this.load.image('l3_med_wrong',   'assets/images/Level 3/l3_med_wrong.png');
     this.load.image('l3_syringe',     'assets/images/all/hurdle/injection.png');
@@ -189,10 +213,13 @@ export class BootScene extends Phaser.Scene {
     // Missing optional L4 files fall back to vector art
     this.load.on('loaderror', (f) => { if (f && f.key && f.key.startsWith('l4_')) { /* vector fallback in generators */ } });
     // Real-art background + ground (same technique as Level 3's Level 03 art)
-    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4.jpg');
-    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom.jpg');
-    // New garage-build background (replaces the old l4_garage_bg)
-    this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.png');
+    // -opt versions are the same pixels re-encoded at a leaner JPEG quality —
+    // dimensions untouched (already exactly the resolution this scene needs).
+    this.load.image('l4_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
+    this.load.image('l4_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
+    // New garage-build background (replaces the old l4_garage_bg) — .jpg is a
+    // re-encode of the same opaque art, ~85% smaller than the source PNG.
+    this.load.image('l4_garage_bg_new','assets/images/Level 4/level-04-garage.jpg');
     // ── Level 5 real artwork (rainy neighborhood + garage birth) ────────────
     // Level 5 reuses almost all of Level 4's neighbourhood art byte-for-byte
     // (2nd treatment cycle, same houses/garage/props) — load those keys from
@@ -213,8 +240,8 @@ export class BootScene extends Phaser.Scene {
     ['l5_house', 'l5_tree', 'l5_ground'].forEach(k => this.load.image(k, `${L5}${k}.png`));
     // Byte-identical to Level 4's own backgorund-l4/Level 04 bottom — reuse
     // those files (cache-dedupe trick, saves ~2.4MB of duplicate download).
-    this.load.image('l5_bg_main',      'assets/images/Level 4/backgorund-l4.jpg');
-    this.load.image('l5_ground_bottom','assets/images/Level 4/Level 04 bottom.jpg');
+    this.load.image('l5_bg_main',      'assets/images/Level 4/backgorund-l4-opt.jpg');
+    this.load.image('l5_ground_bottom','assets/images/Level 4/Level 04 bottom-opt.jpg');
     // ── Level 3 audio (fail silently if files not present) ──────────────────
     this.load.audio('bump_fast',      'assets/audio/bump_fast.mp3');
     this.load.audio('bump_slow',      'assets/audio/bump_slow.mp3');
@@ -246,21 +273,16 @@ export class BootScene extends Phaser.Scene {
       }
     });
 
-    let pct = 0;
-    const tips = ['Waking Shadow up...', 'Brewing forest magic...', 'Hiding berries...', 'Training the snake...', 'Almost ready...'];
-    const iv = setInterval(() => {
-      pct = Math.min(pct + 8, 100);
-      document.getElementById('load-bar').style.width = pct + '%';
-      document.getElementById('load-tip').textContent = tips[Math.floor(pct / 22)] || 'Almost ready...';
-      if (pct >= 100) {
-        clearInterval(iv);
-        setTimeout(() => {
-          const ls = document.getElementById('loading-screen');
-          ls.style.opacity = '0';
-          setTimeout(() => ls.remove(), 1000);
-        }, 400);
-      }
-    }, 40);
+    // Preload's real progress already drove the bar to 100% by the time this
+    // runs (create() only fires once the load queue is empty) — just dismiss
+    // the loading screen now instead of re-simulating a fake fill.
+    const bar = document.getElementById('load-bar');
+    if (bar) bar.style.width = '100%';
+    const ls = document.getElementById('loading-screen');
+    if (ls) {
+      ls.style.opacity = '0';
+      setTimeout(() => ls.remove(), 600);
+    }
   }
 
   // Keys near-white pixels out to transparent, in place, for a texture whose
