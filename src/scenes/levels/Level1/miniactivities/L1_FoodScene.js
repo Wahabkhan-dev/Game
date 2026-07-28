@@ -6,7 +6,7 @@ import { preloadDogSkin, applyDogSkin } from '../L1_DogSkin.js';
 import { buildL1Background, updateL1Parallax, buildL1Ground } from '../L1_Scenery.js';
 import { pickRandomGame } from '../../../../utils/MiniGamePicker.js';
 import { showStoryCard, addLoopingVideo } from '../../../../utils/VideoOverlay.js';
-import { showLevelCompleteModal } from '../../../../utils/EndModals.js';
+import { showLevelCompleteModal, showTryAgainModal } from '../../../../utils/EndModals.js';
 
 // Bonus round — collect 5 pieces of meat across the world, solve puzzles, then
 // return to Gemma at the start to feed her — all on one continuous map.
@@ -55,6 +55,22 @@ export class L1_FoodScene extends BaseLevelScene {
     if (this._progressBar) this._progressBar.setAlpha(0);
     const WORLD_W = (this.lvlConfig && this.lvlConfig.worldWidth) || 1800;
     if (this._hud) this._hud.buildProgressBar(WORLD_W);
+  }
+
+  // ── Game over (all lives lost) — this bonus round is part of Level 1's
+  // story (not a standalone level), so losing all lives here restarts the
+  // WHOLE level from the top (Level1Scene), not just this bonus round on its
+  // own. Same presentation as the shared BaseLevelScene default, just handing
+  // the retry a different scene key.
+  _handleGameOver() {
+    this._showMessage('💔 No lives left!');
+    this.time.delayedCall(1200, () => {
+      this.registry.set('lives', 3);
+      this.registry.set('shadowHP', 3);
+      this.shadow.clearTint();
+      this.shadow.setAlpha(1);
+      showTryAgainModal(this, 'Level1');
+    });
   }
 
   create() {
@@ -232,9 +248,17 @@ export class L1_FoodScene extends BaseLevelScene {
       });
     }
 
-    // Fruit 5 (the last one) — missing-letter puzzle removed per request;
-    // collecting it now goes straight to the "return to Gemma" step.
-    if (fruitNum === 5 && !this._act5Done) {
+    // "All collected" must key off the ACTUAL running total (_collected),
+    // not "was the fruit at world-position 5 just touched" — the old
+    // `fruitNum === 5` check assumed the player always collects the 5 pieces
+    // in strict left-to-right order, so the fixed rightmost fruit (position
+    // 5) would always be the LAST one picked up. If the player instead
+    // reaches that one before some earlier piece (backtracking, an odd jump
+    // angle, etc.), _collected could reach 5 while touching a DIFFERENT
+    // fruit — the old check never fired in that case, leaving _readyFeed
+    // stuck false forever, so reaching Gemma afterwards never fed her even
+    // though every piece really had been collected.
+    if (this._collected >= this._needed && !this._act5Done) {
       this._act5Done = true;
       this._onAllCollected();
     }

@@ -55,7 +55,7 @@ export class L3_MG2_InjectionScene extends Phaser.Scene {
     // injection.png (assets/images/all/hurdle/) is a square-canvas icon, unlike
     // the old thin procedural 90×30 syringe shape — sized square to match its
     // actual art instead of stretching it into the old aspect ratio.
-    this._syringe = this.add.image(sx, sy, 'l3_syringe').setDisplaySize(67, 67).setDepth(15).setInteractive({ useHandCursor: true });
+    this._syringe = this.add.image(sx, sy, 'l3_syringe').setDisplaySize(121, 121).setDepth(15).setInteractive({ useHandCursor: true });
     this._syringe._origX = sx; this._syringe._origY = sy;
     this.input.setDraggable(this._syringe);
 

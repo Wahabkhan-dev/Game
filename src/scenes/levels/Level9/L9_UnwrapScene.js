@@ -17,7 +17,7 @@ import { showStoryCard } from '../../../utils/VideoOverlay.js';
 
 // Default names — used only if Level 6's naming ceremony was skipped
 // (e.g. jumping straight into this scene from the debug menu).
-const DEFAULT_PUP_NAMES = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
+const DEFAULT_PUP_NAMES = ['Tahoe', 'Mammoth', 'Little Bear', 'Everest', 'Whistler', 'Aspen', 'Big Bear'];
 const WRAP_TEX = ['l9_gift_red', 'l9_gift_green', 'l9_gift_gold', 'l9_gift_blue', 'l9_gift_pink', 'l9_gift_purple', 'l9_gift_white', 'l9_gift_stripe'];
 const SURPRISES = ['l9_toy_ball', 'l9_toy_bone', 'l9_candy', 'l9_ornament', 'l9_star'];
 

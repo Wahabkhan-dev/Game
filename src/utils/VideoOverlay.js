@@ -70,13 +70,13 @@ export function showStoryCard(scene, message, onDone, opts = {}) {
 // "merge" clips like Level 7's intro V1+V2 and the V4+V5 bridge). Each clip
 // runs to completion (or is skipped) before the next begins; onDone fires once
 // after the last. Missing keys are skipped over gracefully.
-export function playVideoSequence(scene, keys, onDone) {
+export function playVideoSequence(scene, keys, onDone, opts = {}) {
   const list = (keys || []).filter(Boolean);
   let i = 0;
   const playNext = () => {
     if (i >= list.length) { if (onDone) onDone(); return; }
     const key = list[i++];
-    playVideoOverlay(scene, key, playNext);
+    playVideoOverlay(scene, key, playNext, opts);
   };
   playNext();
 }
@@ -179,24 +179,29 @@ export function playVideoOverlay(scene, key, onDone, opts = {}) {
     ? scene.time.delayedCall(opts.maxMs, finish)
     : null;
 
-  const skip = scene.add.text(W - 16, H - 12, 'SKIP  ›', {
-    fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8a870',
-    stroke: '#000', strokeThickness: 2
-  }).setOrigin(1, 1).setScrollFactor(0).setDepth(202);
-  skip.on('pointerup', finish);
+  // opts.noSkip suppresses the skip button entirely — used for the game's
+  // final cutscene (Level 9's ending video), which must always play in full.
+  let skip = { destroy() {} };
+  if (!opts.noSkip) {
+    skip = scene.add.text(W - 16, H - 12, 'SKIP  ›', {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8a870',
+      stroke: '#000', strokeThickness: 2
+    }).setOrigin(1, 1).setScrollFactor(0).setDepth(202);
+    skip.on('pointerup', finish);
 
-  // Minimum delay before the skip button appears/works — defaults to 3s on
-  // every video (same rule as BaseLevelScene's private copy of this pattern)
-  // so it can't be insta-skipped before it even registers. Any call site can
-  // override via opts.skipDelayMs.
-  const skipDelay = Number.isFinite(opts.skipDelayMs) && opts.skipDelayMs >= 0 ? opts.skipDelayMs : 3000;
-  if (skipDelay > 0) {
-    skip.setAlpha(0).disableInteractive();
-    scene.time.delayedCall(skipDelay, () => {
-      if (done) return;
-      skip.setAlpha(1).setInteractive({ useHandCursor: true });
-    });
-  } else {
-    skip.setInteractive({ useHandCursor: true });
+    // Minimum delay before the skip button appears/works — defaults to 3s on
+    // every video (same rule as BaseLevelScene's private copy of this pattern)
+    // so it can't be insta-skipped before it even registers. Any call site can
+    // override via opts.skipDelayMs.
+    const skipDelay = Number.isFinite(opts.skipDelayMs) && opts.skipDelayMs >= 0 ? opts.skipDelayMs : 3000;
+    if (skipDelay > 0) {
+      skip.setAlpha(0).disableInteractive();
+      scene.time.delayedCall(skipDelay, () => {
+        if (done) return;
+        skip.setAlpha(1).setInteractive({ useHandCursor: true });
+      });
+    } else {
+      skip.setInteractive({ useHandCursor: true });
+    }
   }
 }

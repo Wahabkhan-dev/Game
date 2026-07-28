@@ -6,17 +6,18 @@ import { generateL9Assets } from './L9Assets.js';
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL 9 — PART 2 · STAGE 2 (FINALE): "Bow-Tie Time!"  🐶🎀
 //
-// The 7 puppies (Max, Bella, Coco, Milo, Daisy, Luna, Teddy) wait by the tree.
-// Drag a bow from the tray onto each puppy to dress them up for the holidays.
-// Any bow fits any puppy — the child just picks. When all 7 are dressed → a big
-// family celebration + ending card → back to the Menu.
+// The 7 puppies (Tahoe, Mammoth, Little Bear, Everest, Whistler, Aspen, Big
+// Bear) wait by the tree. Drag a bow from the tray onto each puppy to dress
+// them up for the holidays. Any bow fits any puppy — the child just picks.
+// When all 7 are dressed → a big family celebration + ending card → back to
+// the Menu.
 //
 // A calm drag-and-drop scene, mirroring the Level-8 Decorate scene.
 // ════════════════════════════════════════════════════════════════════════════
 
 // Default names — used only if Level 6's naming ceremony was skipped
 // (e.g. jumping straight into this scene from the debug menu).
-const DEFAULT_PUP_NAMES = ['Max', 'Bella', 'Coco', 'Milo', 'Daisy', 'Luna', 'Teddy'];
+const DEFAULT_PUP_NAMES = ['Tahoe', 'Mammoth', 'Little Bear', 'Everest', 'Whistler', 'Aspen', 'Big Bear'];
 
 const BOW_COUNT = 7;
 
@@ -181,7 +182,8 @@ export class L9_BowTieScene extends L9BaseScene {
       this.tweens.add({ targets: [pup.pup, pup.bowImg].filter(Boolean), y: `-=14`, duration: 200, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
     }));
     this.time.delayedCall(900, () =>
-      this.playStoryVideos(['l9_part2'], () => this._endingCard())
+      // The game's final cutscene — must always play in full, no skip button.
+      this.playStoryVideos(['l9_part2'], () => this._endingCard(), { noSkip: true })
     );
   }
 

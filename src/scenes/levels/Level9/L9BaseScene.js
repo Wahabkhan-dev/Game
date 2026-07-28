@@ -585,14 +585,14 @@ export class L9BaseScene extends Phaser.Scene {
   // physics stay frozen (_busy) the whole time, then onDone runs — used both
   // for start-of-stage intros (call in create, onDone omitted) and end-of-
   // stage bridges (onDone advances to the next scene via goToScene).
-  playStoryVideos(keys, onDone) {
+  playStoryVideos(keys, onDone, opts) {
     this._busy = true;
     if (this.physics?.world) this.physics.pause();
     playVideoSequence(this, keys, () => {
       this._busy = false;
       if (this.physics?.world) this.physics.resume();
       if (onDone) onDone();
-    });
+    }, opts);
   }
 
   // ── Pause menu — finalized wood/gold Game-Menu modal (approved via Theme Design)

@@ -1014,11 +1014,11 @@ export class Level6Scene extends Phaser.Scene {
       this._hdr?.setLives(this._lives);
       this._hdr?.setHP(this._hp);
       if (this._lives <= 0) {
+        // Full restart with a loading screen (same as every other level) —
+        // never a direct scene.restart(), which could flash the frozen
+        // death frame underneath before the new scene takes over.
         this.time.delayedCall(400, () => {
-          showTryAgainModal(this, () => {
-            this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(210, () => this.scene.restart());
-          });
+          showTryAgainModal(this, this.sys.settings.key);
         });
         return;
       }
