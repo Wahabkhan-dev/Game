@@ -7,6 +7,64 @@
   <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="paw-title">🐾 Gemma's Story</div>
+      <div class="subtitle">A Bond of Love, A Life Saved</div>
+
+      <form id="login-form" novalidate>
+        <div class="login-field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+
+        <div class="login-field">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+
+        <div class="login-error" id="login-error" hidden></div>
+
+        <button type="submit" class="login-btn">Log In 🐾</button>
+
+        <a href="#" class="login-forgot" id="login-forgot">Forgot password?</a>
+      </form>
+
+      <div class="login-divider"><span>or</span></div>
+
+      <!-- TODO: swap this href for the real product/purchase page URL once
+           it's provided — this sends new players out to buy the game before
+           they can create an account. -->
+      <p class="login-signup-copy">
+        New here?
+        <a href="#" class="login-signup-link" id="login-signup" target="_blank" rel="noopener noreferrer">Sign Up</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="forgot-screen" hidden>
+    <div class="login-card">
+      <div class="paw-title">🐾 Gemma's Story</div>
+      <div class="subtitle">A Bond of Love, A Life Saved</div>
+
+      <p class="forgot-copy">Enter the email on your account and we'll send you a link to reset your password.</p>
+
+      <form id="forgot-form" novalidate>
+        <div class="login-field">
+          <label for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+
+        <div class="login-error" id="forgot-error" hidden></div>
+        <div class="login-success" id="forgot-success" hidden></div>
+
+        <button type="submit" class="login-btn">Send Reset Link</button>
+
+        <a href="#" class="login-forgot" id="forgot-back">Back to Log In</a>
+      </form>
+    </div>
+  </div>
+
   <div id="loading-screen">
     <div class="paw-title">🐾 Gemma's Story</div>
     <div class="subtitle">A Bond of Love, A Life Saved</div>

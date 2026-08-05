@@ -25,6 +25,10 @@ export class MenuScene extends Phaser.Scene {
     const colA = 115, colB = 315, BW = 180;
     const r = [200, 256, 312, 368];
 
+    // Primary entry point — the scrollable world map (Candy-Crush-style level
+    // select). The individual level buttons below stay as direct/QA shortcuts.
+    this._playBtn(400, 150, '🗺️ Adventure Map', () => this._go('WorldMap'), 260);
+
     this._playBtn(colA, r[0], '🐾 Level 1', () => this._go('IntroVideo'), BW);
     this._playBtn(colB, r[0], '👧 Level 2', () => this._go('Level2'), BW);
     this._playBtn(colA, r[1], '🚗 Level 3', () => this._go('Level3', { l3_health: 100, l3_coins: 0 }), BW);

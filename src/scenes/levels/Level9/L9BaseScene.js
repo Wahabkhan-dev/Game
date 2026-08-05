@@ -101,7 +101,11 @@ export class L9BaseScene extends Phaser.Scene {
 
   updateParallax() {
     const camX = this.cameras.main.scrollX;
-    if (this._bgTile)   this._bgTile.tilePositionX   = camX * 0.25;
+    // Sky and ground scroll at the same rate as the camera — matching the
+    // ground exactly (which must track camX 1:1 to stay under the player)
+    // instead of drifting slower, which read as the two layers sliding
+    // out of sync while running.
+    if (this._bgTile)   this._bgTile.tilePositionX   = camX;
     if (this._surfTile) this._surfTile.tilePositionX = camX;
   }
 

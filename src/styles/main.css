@@ -84,6 +84,181 @@ canvas {
   #game-footer { display: none !important; }
 }
 
+/* ── Login screen (full-page overlay, sits above the loading screen) ───────
+   Frontend-only for now (see src/utils/LoginOverlay.js) — no request is sent
+   anywhere yet; submitting just dismisses the overlay so the game underneath
+   (which has already been loading in the background) can show through. ──── */
+#login-screen {
+  position: fixed; inset: 0;
+  background: linear-gradient(180deg, #1a0a05 0%, #2d1510 50%, #0d0508 100%);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; transition: opacity 0.5s ease;
+  padding: 16px;
+}
+
+/* Higher specificity than #login-screen's own `display: flex` above, so
+   toggling the `hidden` property from JS (switching to the forgot-password
+   screen) actually hides it. */
+#login-screen[hidden] { display: none; }
+
+.login-card {
+  width: min(360px, 100%);
+  background: rgba(26, 14, 6, 0.97);
+  border: 2px solid #d4a040;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  padding: 32px 28px 26px;
+  text-align: center;
+}
+
+.login-card .paw-title {
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  color: #f5c87a;
+  text-shadow: 0 0 20px #e8833a, 0 2px 8px rgba(0,0,0,0.8);
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.login-card .subtitle {
+  color: #c9956b;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  margin-bottom: 26px;
+  opacity: 0.85;
+}
+
+#login-form { text-align: left; }
+
+.login-field { margin-bottom: 16px; }
+
+.login-field label {
+  display: block;
+  color: #e8d0a8;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.login-field input {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1.5px solid #6e4a2a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #f8efd9;
+  font-family: Georgia, serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.login-field input::placeholder { color: #7a6248; }
+
+.login-field input:focus { border-color: #f0a830; }
+
+.login-error {
+  color: #ff8a8a;
+  background: rgba(120, 20, 20, 0.25);
+  border: 1px solid rgba(255, 100, 100, 0.4);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  margin-bottom: 14px;
+}
+
+.login-btn {
+  width: 100%;
+  background: linear-gradient(180deg, #d44040, #c03535 92%, #6e1212);
+  border: 2px solid #c8900a;
+  border-radius: 24px;
+  color: #ffffff;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 12px;
+  cursor: pointer;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.4);
+  transition: filter 0.12s, transform 0.08s;
+}
+
+.login-btn:hover { filter: brightness(1.08); }
+.login-btn:active { transform: translateY(1px); }
+
+.login-forgot {
+  display: block;
+  text-align: center;
+  color: #c9956b;
+  font-size: 0.75rem;
+  margin-top: 16px;
+  text-decoration: none;
+  letter-spacing: 0.03em;
+}
+
+.login-forgot:hover { color: #f5c87a; text-decoration: underline; }
+
+.login-divider {
+  display: flex; align-items: center;
+  margin: 18px 0 14px;
+  color: #7a6248;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(212, 160, 64, 0.25);
+}
+.login-divider span { padding: 0 10px; }
+
+.login-signup-copy {
+  text-align: center;
+  color: #c9956b;
+  font-size: 0.82rem;
+}
+
+.login-signup-link {
+  color: #f5c87a;
+  font-weight: bold;
+  text-decoration: none;
+  margin-left: 4px;
+}
+.login-signup-link:hover { text-decoration: underline; }
+
+/* ── Forgot-password screen (same card styling, own overlay) ───────────────
+   Frontend-only, same as the login screen — see src/utils/LoginOverlay.js.
+   "Sending" the reset link is simulated; no request goes out yet. ────────── */
+#forgot-screen {
+  position: fixed; inset: 0;
+  background: linear-gradient(180deg, #1a0a05 0%, #2d1510 50%, #0d0508 100%);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; transition: opacity 0.5s ease;
+  padding: 16px;
+}
+
+/* Higher specificity than #forgot-screen's own `display: flex` above, so the
+   plain HTML `hidden` attribute actually hides it while toggled via JS. */
+#forgot-screen[hidden] { display: none; }
+
+.forgot-copy {
+  color: #e8d0a8;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.login-success {
+  color: #a8e8b0;
+  background: rgba(40, 110, 50, 0.22);
+  border: 1px solid rgba(120, 220, 140, 0.4);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  margin-bottom: 14px;
+}
+
 /* ── Loading screen (full-page overlay) ──────────────────────────────────── */
 #loading-screen {
   position: fixed; inset: 0;

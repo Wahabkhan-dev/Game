@@ -4,6 +4,7 @@
   "description": "Gemma's Story — A Bond of Love, A Life Saved",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/kill-port.cjs 8080",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
+import { initLoginOverlay } from './utils/LoginOverlay.js';
 import { BootScene }       from './scenes/BootScene.js';
 import { MenuScene }       from './scenes/MenuScene.js';
+import { WorldMapScene }   from './scenes/WorldMapScene.js';
 import { EndScene }        from './scenes/EndScene.js';
 import { IntroVideoScene }  from './scenes/levels/Level1/cinematics/IntroVideoScene.js';
 import { Cinematic1Scene }  from './scenes/levels/Level1/cinematics/Cinematic1Scene.js';
@@ -78,6 +80,8 @@ import { SnakeAnimSimulator } from './scenes/SnakeAnimSimulator.js';
 import { CarSimulator } from './scenes/CarSimulator.js';
 import { ThemeDesignScene } from './scenes/ThemeDesignScene.js';
 import { W, H }                  from './config/GameConfig.js';
+
+initLoginOverlay();
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
 window._touchState = { left: false, right: false, jump: false, slide: false };
@@ -193,6 +197,7 @@ const config = {
   scene: [
     BootScene,
     MenuScene,
+    WorldMapScene,
     EndScene,
     // Level 1
     IntroVideoScene,
