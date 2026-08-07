@@ -3,7 +3,6 @@ dist/
 .DS_Store
 *.local
 .env
-.env.production
 *.mp4
 *.mov
 *.avi
